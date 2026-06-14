@@ -18,7 +18,7 @@
 #   ./agent-loop.sh --dry-run -p 2        # show what phase 2 would do
 #   ./agent-loop.sh --no-push             # don't push at end of each phase
 #   ./agent-loop.sh --max-attempts 5      # override fix-loop budget
-#   ./agent-loop.sh --model opus          # override agent model
+#   ./agent-loop.sh --model anthropic/claude-sonnet-4-5  # override agent model
 #   ./agent-loop.sh --status              # show progress, no work
 #   ./agent-loop.sh --reset 3             # mark phase 3 as not-done
 #
@@ -317,7 +317,11 @@ DRY_RUN=false
 PUSH_AT_END=true
 MAX_ATTEMPTS=3
 AGENT_CMD="pi"
-AGENT_MODEL="anthropic/claude-sonnet-4-5"
+# Default model. See ~/.pi/agent/models.json for the full list. Other options:
+#   anthropic/claude-sonnet-4-5     (Anthropic Claude via the same proxy)
+#   llamacpp/qwen3.6-27b            (vision-capable, 65k ctx)
+#   llamacpp/glm-4.7-flash          (small/cheap, 65k ctx, 8k max out)
+AGENT_MODEL="minimax-anthropic/MiniMax-M3"
 ACTION="run"   # run | status | reset
 
 # ─── Arg parsing ──────────────────────────────────────────────────────────────
