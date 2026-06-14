@@ -58,7 +58,12 @@ jobs:
       - name: Check formatting
         run: |
           clang-format --version
-          find firmware/ -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \
+          # Exclude PlatformIO dependency cache (.pio/) which holds
+          # third-party headers (e.g. RadioLib) that are not part of
+          # the project's source tree and are not under our formatting
+          # control.
+          find firmware/ -type d -name '.pio' -prune \
+              -o \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print \
               | xargs clang-format --dry-run --Werror
 
   proto-verify:
@@ -111,4 +116,8 @@ jobs:
         run: pip install platformio
       - name: pio test
         working-directory: firmware/bridge
-        run: pio test
+        # Restrict to the native env: the rak4631 env compiles + tries
+        # to upload to a physical RAK4631, which requires --upload-port
+        # and a USB device. The on-device bench test is executed by a
+        # separate HIL workflow (see plan §3.5 / bench_test.cpp).
+        run: pio test -e native

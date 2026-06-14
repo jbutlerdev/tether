@@ -30,6 +30,10 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install platformio
       - name: Test bridge firmware
+        # Restrict to the native env: the rak4631 env compiles + tries
+        # to upload to a physical RAK4631, which requires --upload-port
+        # and a USB device. The on-device bench test is executed by a
+        # separate HIL workflow (see plan §3.5 / bench_test.cpp).
         run: |
           cd firmware/bridge
-          pio test
+          pio test -e native
