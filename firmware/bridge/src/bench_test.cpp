@@ -173,8 +173,7 @@ struct Node {
   std::shared_ptr<SerialLink> link;
 
   Node(std::shared_ptr<AirBuffer> air, int id)
-      : serial(std::make_shared<MockSerialPort>()),
-        radio([&] {
+      : serial(std::make_shared<MockSerialPort>()), radio([&] {
           auto backend = std::make_shared<LoopbackRadioBackend>(air, id);
           return std::make_shared<LoRaRadio>(backend);
         }()),

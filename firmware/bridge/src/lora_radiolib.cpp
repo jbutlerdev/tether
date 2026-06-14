@@ -9,6 +9,13 @@
 // radio command; RadioLib handles this internally for begin/end SPI
 // transactions, but we expose WaitWhileBusy() at the RadioBackend level
 // so callers (and tests) can assert the ordering.
+//
+// This file is integration glue (per plan §3.2 — "Most are integration
+// tests on real hardware"). It is not unit-tested; the production logic
+// is in lora.h (header-only) and exercised by src/lora_test.cpp against
+// MockRadioBackend. We make a best-effort to keep this file compiling
+// against the current RadioLib API; the bench rig on real hardware is
+// the integration test for these code paths (plan §3.5).
 
 #include "lora.h"
 
@@ -25,39 +32,57 @@ namespace tether::bridge {
 namespace {
 
 // Convert tether::bridge::SpreadFactor → RadioLib's spreading factor.
-int ToRadioLibSf(SpreadFactor sf) { return static_cast<int>(sf); }
+uint8_t ToRadioLibSf(SpreadFactor sf) { return static_cast<uint8_t>(sf); }
 
-// Convert tether::bridge::BandwidthHz → RadioLib bandwidth enum.
-float ToRadioLibBwHz(BandwidthHz bw) { return static_cast<float>(bw); }
+// Convert tether::bridge::BandwidthHz → RadioLib bandwidth (kHz).
+float ToRadioLibBwKHz(BandwidthHz bw) {
+  return static_cast<float>(bw) / 1000.0f;
+}
 
 // Convert tether::bridge::CodingRate → RadioLib CR denominator.
-int ToRadioLibCr(CodingRate cr) { return static_cast<int>(cr); }
+uint8_t ToRadioLibCr(CodingRate cr) { return static_cast<uint8_t>(cr); }
+
+// Fill a ConfigLoRa_t from a Preset + current frequency.
+ConfigLoRa_t MakeConfig(const Preset &preset, float freq_mhz) {
+  ConfigLoRa_t cfg{};
+  cfg.frequency = freq_mhz;
+  cfg.bandwidth = ToRadioLibBwKHz(preset.bandwidth_hz);
+  cfg.spreadingFactor = ToRadioLibSf(preset.spread_factor);
+  cfg.codingRate = ToRadioLibCr(preset.coding_rate);
+  cfg.syncWord = preset.sync_word;
+  cfg.power = static_cast<int8_t>(preset.tx_power_dbm);
+  cfg.preambleLength = 8; // standard LoRa preamble; matches the bench
+  return cfg;
+}
 
 } // namespace
 
 class RadioLibBackend : public RadioBackend {
 public:
-  RadioLibBackend(int8_t pin_nss, int8_t pin_reset, int8_t pin_dio1,
-                  int8_t pin_busy, SPIClass &spi)
-      : radio_(new Module(spi, pin_nss, pin_reset, pin_dio1, pin_busy)),
-        pin_busy_(pin_busy) {}
+  RadioLibBackend(uint32_t pin_nss, uint32_t pin_reset, uint32_t pin_dio1,
+                  uint32_t pin_busy, SPIClass &spi)
+      : module_(pin_nss, pin_dio1, pin_reset, pin_busy, spi), radio_(&module_),
+        pin_busy_(static_cast<int8_t>(pin_busy)) {}
 
   void Configure(const Preset &preset) override {
-    radio_.setSpreadingFactor(ToRadioLibSf(preset.spread_factor));
-    radio_.setBandwidth(ToRadioLibBwHz(preset.bandwidth_hz));
-    radio_.setCodingRate(ToRadioLibCr(preset.coding_rate));
-    radio_.setSyncWord(preset.sync_word);
-    radio_.setOutputPower(preset.tx_power_dbm);
+    preset_ = preset;
+    const ConfigLoRa_t cfg = MakeConfig(preset_, freq_mhz_);
+    radio_.begin(cfg);
   }
 
   void SetFrequency(uint64_t frequency_hz) override {
-    radio_.setFrequency(static_cast<float>(frequency_hz) / 1'000'000.0f);
+    // Modern RadioLib does not expose a public setFrequency on SX126x.
+    // Re-apply the entire config with the new frequency.
+    freq_mhz_ = static_cast<float>(frequency_hz) / 1000000.0f;
+    const ConfigLoRa_t cfg = MakeConfig(preset_, freq_mhz_);
+    radio_.begin(cfg);
   }
 
   void WaitWhileBusy() override {
     // SX1262 BUSY pin: must be LOW before issuing the next SPI access.
     // RadioLib's Module.beginTransaction polls BUSY internally; we
-    // additionally poll here so the call order is observable.
+    // additionally poll here so the call order is observable from
+    // the bench test (plan §3.2: BUSY pin must be polled before xfer).
     const auto deadline = millis() + 100;
     while (digitalRead(pin_busy_) == HIGH) {
       if (millis() > deadline) {
@@ -67,17 +92,20 @@ public:
   }
 
   void Send(std::span<const uint8_t> packet) override {
-    // RadioLib's transmit takes a (data, len) pair; copy into a
-    // heap-backed vector because the API takes uint8_t* (non-const).
+    // RadioLib's transmit takes (data, len, addr=0). Copy the span
+    // into a contiguous buffer because the API takes uint8_t* (non-
+    // const) and span<const uint8_t> is read-only.
     std::vector<uint8_t> buf(packet.begin(), packet.end());
-    radio_.transmit(buf.data(), static_cast<size_t>(buf.size()));
+    radio_.transmit(buf.data(), buf.size());
   }
 
   std::optional<std::vector<uint8_t>> Receive(uint32_t timeout_ms) override {
     // RadioLib receive uses a fixed-size buffer; 256 bytes matches
-    // our kMaxFrameSize from frame.h.
+    // our kMaxFrameSize from frame.h. The current API takes
+    // (data, len, timeout); the previous overload with an irq flag
+    // is gone.
     uint8_t buf[256];
-    int state = radio_.receive(buf, sizeof(buf), 0, timeout_ms, true);
+    int state = radio_.receive(buf, sizeof(buf), timeout_ms);
     if (state != RADIOLIB_ERR_NONE) {
       return std::nullopt;
     }
@@ -96,8 +124,11 @@ public:
   void Standby() override { radio_.standby(); }
 
 private:
+  Module module_;
   SX1262 radio_;
   int8_t pin_busy_;
+  Preset preset_{};
+  float freq_mhz_ = 902.3f; // US915 ch 0; matches Channel::FromIndex(0)
 };
 
 } // namespace tether::bridge
