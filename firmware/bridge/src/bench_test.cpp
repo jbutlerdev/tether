@@ -41,9 +41,16 @@
 #include <cstring>
 #include <deque>
 #include <memory>
-#include <mutex>
 #include <span>
 #include <vector>
+
+// std::mutex is only available on the host build (TETHER_BRIDGE_HOST_TEST
+// is set on the native env). The bare-metal Arduino toolchain on
+// rak4631 does not include <mutex>; the on-device bench test is a
+// hardware-integration test that does not need it.
+#if defined(TETHER_BRIDGE_HOST_TEST)
+#include <mutex>
+#endif
 
 #include "frame.h"
 #include "lora.h"
@@ -71,13 +78,16 @@ namespace tether::bridge::bench {
 // in-queue. This models half-duplex LoRa: a node never receives its
 // own transmission.
 //
-// The real bench rig replaces this with the SX1262 over the air; the
-// rest of the wiring (SerialLink + SerialPort) is identical.
+// The mutex / thread-safety pieces are host-only (TETHER_BRIDGE_HOST_TEST).
+// The bare-metal on-device bench does not need the mutex because the
+// bridge firmware is single-threaded at the call site.
 class AirBuffer {
 public:
   // Put a packet addressed to the OTHER node (whichever is not `self`).
   void PutForPeer(std::vector<uint8_t> pkt, int self) {
+#if defined(TETHER_BRIDGE_HOST_TEST)
     std::lock_guard<std::mutex> lk(mu_);
+#endif
     if (self == 0) {
       to_b_.push_back(std::move(pkt));
     } else {
@@ -87,7 +97,9 @@ public:
 
   // Pull a packet destined for the local node `self`.
   std::optional<std::vector<uint8_t>> TakeForSelf(int self) {
+#if defined(TETHER_BRIDGE_HOST_TEST)
     std::lock_guard<std::mutex> lk(mu_);
+#endif
     auto &q = (self == 0) ? to_a_ : to_b_;
     if (q.empty()) {
       return std::nullopt;
@@ -98,12 +110,16 @@ public:
   }
 
   size_t Size() const {
+#if defined(TETHER_BRIDGE_HOST_TEST)
     std::lock_guard<std::mutex> lk(mu_);
+#endif
     return to_a_.size() + to_b_.size();
   }
 
 private:
+#if defined(TETHER_BRIDGE_HOST_TEST)
   mutable std::mutex mu_;
+#endif
   std::deque<std::vector<uint8_t>> to_a_; // packets destined for node A
   std::deque<std::vector<uint8_t>> to_b_; // packets destined for node B
 };
