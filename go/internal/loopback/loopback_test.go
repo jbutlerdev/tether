@@ -175,7 +175,7 @@ func (s shadowRadio) Receive(ctx context.Context) (*protocolpb.Envelope, error) 
 	}
 }
 func (s shadowRadio) SetChannel(context.Context, radio.Channel) error { return nil }
-func (s shadowRadio) Close() error                                     { return nil }
+func (s shadowRadio) Close() error                                    { return nil }
 
 // TestLoopback_Stats: counts sent, received, acked, retries match.
 func TestLoopback_Stats(t *testing.T) {

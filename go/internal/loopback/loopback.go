@@ -26,10 +26,10 @@ import (
 
 // Stats is the result of a single RunOnce invocation.
 type Stats struct {
-	Sent     int           // envelopes handed to the Sender
-	Acked    int           // envelopes acked by the remote
-	Received int           // envelopes delivered to the remote
-	Retries  int           // retransmissions performed
+	Sent     int // envelopes handed to the Sender
+	Acked    int // envelopes acked by the remote
+	Received int // envelopes delivered to the remote
+	Retries  int // retransmissions performed
 	Failed   *protocolpb.Envelope
 	Duration time.Duration
 }
