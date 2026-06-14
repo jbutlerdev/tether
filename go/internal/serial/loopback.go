@@ -185,6 +185,6 @@ func (s *loopbackSide) SetPacketLoss(pct float64) {
 
 // Compile-time checks.
 var (
-	_ radio.Radio    = (*loopbackSide)(nil)
-	_ PacketLosser   = (*loopbackSide)(nil)
+	_ radio.Radio  = (*loopbackSide)(nil)
+	_ PacketLosser = (*loopbackSide)(nil)
 )
