@@ -1,0 +1,3 @@
+.phase-state
+logs/
+.agent-loop.lock
