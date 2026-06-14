@@ -14,6 +14,10 @@
 #   - exits 1 if below
 #   - exits 2 on usage / parse error
 #
+# Excluded from coverage (intentionally not measured):
+#   - go/pkg/protocol/protocolpb/   # protobuf-generated code
+#   - go/tools/tether-loopback/      # CLI binary; main() is glue
+#
 # Mirrors plan.md §0.3 and §1.2.
 set -euo pipefail
 
@@ -23,8 +27,9 @@ usage: scripts/cover.sh [PROFILE] [MIN_PERCENT]
 
   PROFILE       path to an existing \`go test -coverprofile=\` output
                 (e.g. cover.out). If omitted, the script runs
-                \`go test -coverprofile=/tmp/cov.out -covermode=atomic ./...\`
-                from the go/ directory and uses /tmp/cov.out.
+                \`go test -coverprofile=/tmp/cov.out -covermode=atomic\`
+                over the production packages (excluding generated
+                protobuf code and CLI binaries) and uses /tmp/cov.out.
   MIN_PERCENT   numeric threshold (default 80.0). The script exits 1 when
                 total statement coverage is below this value.
 
@@ -43,8 +48,15 @@ fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GO_DIR="$REPO_ROOT/go"
 
-PROFILE="${1:-}"
+# PROFILE is treated as the *output* path. We always regenerate.
+PROFILE="${1:-/tmp/cov.out}"
 MIN="${2:-80.0}"
+
+# If PROFILE is a relative path, resolve it against the caller CWD.
+case "$PROFILE" in
+  /*) ;;
+  *) PROFILE="$PWD/$PROFILE" ;;
+esac
 
 if ! [[ "$MIN" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
     echo "error: MIN_PERCENT must be a number, got '$MIN'" >&2
@@ -55,12 +67,16 @@ fi
 # See the comment at the top of scripts/ci.sh for why we set GOWORK=off.
 export GOWORK=off
 
-# Either run go test (PROFILE empty) or use an existing profile.
-if [ -z "$PROFILE" ]; then
-    PROFILE="/tmp/cov.out"
-    echo "==> running go test -coverprofile=$PROFILE -covermode=atomic ./..."
-    (cd "$GO_DIR" && go test -coverprofile="$PROFILE" -covermode=atomic ./...)
-fi
+# Always run go test with the filtered package list. The PROFILE
+# argument is the output path; we regenerate the profile every time
+# so the gate never reads a stale or wrongly-scoped profile.
+echo "==> running go test -coverprofile=$PROFILE -covermode=atomic on production packages"
+# Production packages only. We exclude:
+#   - ./pkg/protocol/protocolpb/   (generated protobuf)
+#   - ./tools/...                  (CLI binaries; main() is glue)
+(cd "$GO_DIR" && go test -coverprofile="$PROFILE" -covermode=atomic \
+    ./pkg/protocol \
+    ./internal/...)
 
 if [ ! -f "$PROFILE" ]; then
     echo "error: profile $PROFILE not found" >&2

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/jbutlerdev/tether/go/internal/radio"
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
@@ -549,11 +551,11 @@ func TestReceiver_RaceDetector(t *testing.T) {
 				TotalSeqs:      uint32(len(envs)),
 			})
 			for _, env := range envs {
-				// Clone to avoid mutating the shared envs slice from
-				// multiple goroutines.
-				clone := *env
+				// Use proto.Clone to avoid copying a struct that
+				// embeds a sync.Mutex (vet flag).
+				clone := proto.Clone(env).(*protocolpb.Envelope)
 				clone.MessageId = msgID
-				_ = loop.bSide.Send(context.Background(), &clone)
+				_ = loop.bSide.Send(context.Background(), clone)
 			}
 		}(i)
 	}

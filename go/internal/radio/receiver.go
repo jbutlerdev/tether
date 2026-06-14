@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
@@ -129,14 +128,7 @@ func messageKey(convID []byte, messageID uint32) string {
 
 // Run drives the receiver state machine.
 func (r *Receiver) Run(ctx context.Context) error {
-	type recv struct {
-		inner *Receiver
-	}
-	_ = recv{}
-
 	states := make(map[string]*reassemblyState)
-	var statesMu sync.Mutex
-	_ = statesMu
 
 	// Sweep loop: periodically check for abandoned messages.
 	sweepTicker := time.NewTicker(r.messageTimeout / 4)
