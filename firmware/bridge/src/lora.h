@@ -159,11 +159,10 @@ public:
   std::optional<std::vector<uint8_t>>
   Receive(uint32_t /*timeout_ms*/) override {
     call_log.push_back("receive");
-    if (receive_returns_empty) {
+    if (receive_returns_empty || next_received.empty()) {
       return std::nullopt;
     }
-    auto out = next_received;
-    return out;
+    return next_received;
   }
   bool StartCAD() override {
     saw_start_cad = true;
