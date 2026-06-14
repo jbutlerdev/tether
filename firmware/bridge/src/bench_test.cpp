@@ -122,7 +122,8 @@ public:
   void Send(std::span<const uint8_t> packet) override {
     air_->PutForPeer(std::vector<uint8_t>(packet.begin(), packet.end()), id_);
   }
-  std::optional<std::vector<uint8_t>> Receive(uint32_t /*timeout_ms*/) override {
+  std::optional<std::vector<uint8_t>>
+  Receive(uint32_t /*timeout_ms*/) override {
     return air_->TakeForSelf(id_);
   }
   bool StartCAD() override { return true; }
@@ -147,7 +148,8 @@ using tether::bridge::bench::LoopbackRadioBackend;
 //
 // The bench test compares payloads only — frame types are a property of
 // the link's encoding, not the bench's contract.
-size_t DrainAndCollect(MockSerialPort &serial, std::vector<std::vector<uint8_t>> &out) {
+size_t DrainAndCollect(const MockSerialPort &serial,
+                       std::vector<std::vector<uint8_t>> &out) {
   size_t emitted = 0;
   // The mock serial port records one Write per EncodeFrame call; we just
   // decode every Write in order. Step() does not have a "drain all"
@@ -170,12 +172,13 @@ struct Node {
   std::shared_ptr<LoRaRadio> radio;
   std::shared_ptr<SerialLink> link;
 
-  Node(std::shared_ptr<AirBuffer> air, int id) {
-    serial = std::make_shared<MockSerialPort>();
-    auto backend = std::make_shared<LoopbackRadioBackend>(air, id);
-    radio = std::make_shared<LoRaRadio>(backend);
-    link = std::make_shared<SerialLink>(serial, radio);
-  }
+  Node(std::shared_ptr<AirBuffer> air, int id)
+      : serial(std::make_shared<MockSerialPort>()),
+        radio([&] {
+          auto backend = std::make_shared<LoopbackRadioBackend>(air, id);
+          return std::make_shared<LoRaRadio>(backend);
+        }()),
+        link(std::make_shared<SerialLink>(serial, radio)) {}
 
   // Feed a payload to the node's serial port as a kRxPacket frame, as
   // if a peer had received a LoRa packet and was forwarding it via USB.
@@ -301,15 +304,15 @@ void test_native_loopback_duplex() {
   // The air should be empty at the end of every round.
   for (int i = 0; i < 100; ++i) {
     a.InjectAck(a_to_b[i]);
-    a.link->Step();   // A forwards kAck to the air (to_b_).
+    a.link->Step(); // A forwards kAck to the air (to_b_).
     TEST_ASSERT_EQUAL_size_t(1, air->Size());
-    b.link->Step();   // B pulls from to_b_ and emits to its serial.
+    b.link->Step(); // B pulls from to_b_ and emits to its serial.
     TEST_ASSERT_EQUAL_size_t(0, air->Size());
 
     b.InjectAck(b_to_a[i]);
-    b.link->Step();   // B forwards kAck to the air (to_a_).
+    b.link->Step(); // B forwards kAck to the air (to_a_).
     TEST_ASSERT_EQUAL_size_t(1, air->Size());
-    a.link->Step();   // A pulls from to_a_ and emits to its serial.
+    a.link->Step(); // A pulls from to_a_ and emits to its serial.
     TEST_ASSERT_EQUAL_size_t(0, air->Size());
   }
 
