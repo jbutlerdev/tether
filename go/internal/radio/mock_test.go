@@ -87,9 +87,9 @@ func TestMockRadio_ConcurrentSendReceive(t *testing.T) {
 	m := newMock(t, radio.MockOptionMaxQueueSize(64))
 
 	const (
-		producers  = 50
-		consumers  = 50
-		perWorker  = 10
+		producers = 50
+		consumers = 50
+		perWorker = 10
 	)
 	var wg sync.WaitGroup
 	var sent, received int64

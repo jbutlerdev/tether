@@ -7,12 +7,12 @@
 //
 // Wire layout:
 //
-//   The Envelope is encoded as a single protobuf message. The
-//   `header_crc` field is filled in by Encode, holding a CRC-16/CCITT-
-//   FALSE of the rest of the encoded message (everything except the
-//   CRC field itself, which is zeroed before computing). The high
-//   sixteen bits of the uint32 are always zero — CRC-16 fits in 16
-//   bits and we pad for forward-compatibility.
+//	The Envelope is encoded as a single protobuf message. The
+//	`header_crc` field is filled in by Encode, holding a CRC-16/CCITT-
+//	FALSE of the rest of the encoded message (everything except the
+//	CRC field itself, which is zeroed before computing). The high
+//	sixteen bits of the uint32 are always zero — CRC-16 fits in 16
+//	bits and we pad for forward-compatibility.
 package protocol
 
 import (
@@ -43,11 +43,12 @@ var (
 // Crc16CCITT computes the CRC-16/CCITT-FALSE of buf.
 //
 // Parameters (per plan.md §1.4 / §2.1):
-//   polynomial     0x1021
-//   init           0xFFFF
-//   reflect input  false
-//   reflect output false
-//   xorout         0x0000
+//
+//	polynomial     0x1021
+//	init           0xFFFF
+//	reflect input  false
+//	reflect output false
+//	xorout         0x0000
 //
 // Reference test vector: "123456789" → 0x29B1.
 func Crc16CCITT(buf []byte) uint16 {

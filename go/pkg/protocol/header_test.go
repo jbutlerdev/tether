@@ -1,10 +1,10 @@
 // Tests for the Tether envelope codec. See plan.md §1.4.
 //
 // The TDD cycle:
-//   1. this file is committed (failing — the production code does not
-//      exist yet, so the test package fails to compile).
-//   2. header.go is written to make the tests pass.
-//   3. a fuzz test runs in CI for 60 s to catch adversarial inputs.
+//  1. this file is committed (failing — the production code does not
+//     exist yet, so the test package fails to compile).
+//  2. header.go is written to make the tests pass.
+//  3. a fuzz test runs in CI for 60 s to catch adversarial inputs.
 package protocol_test
 
 import (
@@ -252,10 +252,13 @@ func nodeIDEqual(a, b *protocolpb.NodeId) bool {
 }
 
 // totalSeqs is the helper that the plan §1.4 calls out:
-//   TotalSeqs = ceil(DurationMs * (BitrateBps/8) / PayloadSizeBytes).
+//
+//	TotalSeqs = ceil(DurationMs * (BitrateBps/8) / PayloadSizeBytes).
 //
 // The dimensionally-correct form is
-//   ceil(DurationMs/1000 * BitrateBps/8 / PayloadSizeBytes)
+//
+//	ceil(DurationMs/1000 * BitrateBps/8 / PayloadSizeBytes)
+//
 // which we use here. The plan's formula agrees on form but is missing
 // the /1000 conversion; see TestStartInfo_DurationField.
 func totalSeqs(s *protocolpb.StartInfo) uint32 {
