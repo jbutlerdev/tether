@@ -65,54 +65,65 @@ void tearDown() {}
 
 namespace tether::bridge::bench {
 
-// Thread-safe air buffer shared between two LoopbackRadioBackends. The
-// real bench rig replaces this with the SX1262 over the air; the rest of
-// the wiring is identical.
+// Per-receiver air buffer. The bench test wires exactly two nodes
+// together; each node has its own in-queue. A Send() on node N appends
+// to the OTHER node's in-queue; a Receive() on node N pulls from N's
+// in-queue. This models half-duplex LoRa: a node never receives its
+// own transmission.
+//
+// The real bench rig replaces this with the SX1262 over the air; the
+// rest of the wiring (SerialLink + SerialPort) is identical.
 class AirBuffer {
 public:
-  // Drop a packet on the air. The other end's Receive() will pick it up.
-  void Put(std::vector<uint8_t> pkt) {
+  // Put a packet addressed to the OTHER node (whichever is not `self`).
+  void PutForPeer(std::vector<uint8_t> pkt, int self) {
     std::lock_guard<std::mutex> lk(mu_);
-    air_.push_back(std::move(pkt));
+    if (self == 0) {
+      to_b_.push_back(std::move(pkt));
+    } else {
+      to_a_.push_back(std::move(pkt));
+    }
   }
 
-  // Pull a single packet from the air. Returns nullopt if empty.
-  std::optional<std::vector<uint8_t>> Take() {
+  // Pull a packet destined for the local node `self`.
+  std::optional<std::vector<uint8_t>> TakeForSelf(int self) {
     std::lock_guard<std::mutex> lk(mu_);
-    if (air_.empty()) {
+    auto &q = (self == 0) ? to_a_ : to_b_;
+    if (q.empty()) {
       return std::nullopt;
     }
-    auto pkt = std::move(air_.front());
-    air_.pop_front();
+    auto pkt = std::move(q.front());
+    q.pop_front();
     return pkt;
   }
 
   size_t Size() const {
     std::lock_guard<std::mutex> lk(mu_);
-    return air_.size();
+    return to_a_.size() + to_b_.size();
   }
 
 private:
   mutable std::mutex mu_;
-  std::deque<std::vector<uint8_t>> air_;
+  std::deque<std::vector<uint8_t>> to_a_; // packets destined for node A
+  std::deque<std::vector<uint8_t>> to_b_; // packets destined for node B
 };
 
-// RadioBackend whose Send() drops a packet into a shared AirBuffer and
-// whose Receive() pulls from it. Two of these (one per "node") share the
-// same AirBuffer, simulating perfect LoRa air with zero loss.
+// RadioBackend whose Send() drops a packet on the air for the peer and
+// whose Receive() pulls from its own in-queue. Two of these, sharing
+// the same AirBuffer, simulate a perfect half-duplex LoRa link.
 class LoopbackRadioBackend : public RadioBackend {
 public:
-  explicit LoopbackRadioBackend(std::shared_ptr<AirBuffer> air)
-      : air_(std::move(air)) {}
+  LoopbackRadioBackend(std::shared_ptr<AirBuffer> air, int id)
+      : air_(std::move(air)), id_(id) {}
 
   void Configure(const Preset & /*preset*/) override {}
   void SetFrequency(uint64_t /*frequency_hz*/) override {}
   void WaitWhileBusy() override {}
   void Send(std::span<const uint8_t> packet) override {
-    air_->Put(std::vector<uint8_t>(packet.begin(), packet.end()));
+    air_->PutForPeer(std::vector<uint8_t>(packet.begin(), packet.end()), id_);
   }
   std::optional<std::vector<uint8_t>> Receive(uint32_t /*timeout_ms*/) override {
-    return air_->Take();
+    return air_->TakeForSelf(id_);
   }
   bool StartCAD() override { return true; }
   void Sleep() override {}
@@ -120,6 +131,7 @@ public:
 
 private:
   std::shared_ptr<AirBuffer> air_;
+  int id_;
 };
 
 } // namespace tether::bridge::bench
@@ -158,9 +170,9 @@ struct Node {
   std::shared_ptr<LoRaRadio> radio;
   std::shared_ptr<SerialLink> link;
 
-  explicit Node(std::shared_ptr<AirBuffer> air) {
+  Node(std::shared_ptr<AirBuffer> air, int id) {
     serial = std::make_shared<MockSerialPort>();
-    auto backend = std::make_shared<LoopbackRadioBackend>(air);
+    auto backend = std::make_shared<LoopbackRadioBackend>(air, id);
     radio = std::make_shared<LoRaRadio>(backend);
     link = std::make_shared<SerialLink>(serial, radio);
   }
@@ -191,8 +203,8 @@ struct Node {
 // ── Test 1: 100 packets round-trip with zero loss (plan §3.5). ───────────
 void test_native_loopback() {
   auto air = std::make_shared<AirBuffer>();
-  Node a(air);
-  Node b(air);
+  Node a(air, 0);
+  Node b(air, 1);
 
   // Build 100 payloads of varying sizes, inject them as kRxPacket on
   // node A's serial port, and assert that node B's serial port emits
@@ -273,8 +285,8 @@ void test_native_loopback() {
 // ── Test 2: duplex traffic, 100 packets each direction, no loss. ─────────
 void test_native_loopback_duplex() {
   auto air = std::make_shared<AirBuffer>();
-  Node a(air);
-  Node b(air);
+  Node a(air, 0);
+  Node b(air, 1);
 
   std::vector<std::vector<uint8_t>> a_to_b;
   std::vector<std::vector<uint8_t>> b_to_a;
@@ -285,25 +297,19 @@ void test_native_loopback_duplex() {
     b_to_a.push_back({static_cast<uint8_t>(i), 0x55, 0xAA});
   }
 
-  // Interleave: for each i, send from A to B AND from B to A. To
-  // exercise the air without races we use the same Step pattern as
-  // test 1: Step sender twice (drain + transmit), then Step receiver.
+  // For each round: A's TX, B's RX (drain air), B's TX, A's RX.
+  // The air should be empty at the end of every round.
   for (int i = 0; i < 100; ++i) {
     a.InjectAck(a_to_b[i]);
+    a.link->Step();   // A forwards kAck to the air (to_b_).
+    TEST_ASSERT_EQUAL_size_t(1, air->Size());
+    b.link->Step();   // B pulls from to_b_ and emits to its serial.
+    TEST_ASSERT_EQUAL_size_t(0, air->Size());
+
     b.InjectAck(b_to_a[i]);
-
-    // Drain any input first (both nodes' input handlers fire; the air
-    // is populated by both TX).
-    a.link->Step();
-    b.link->Step();
-    // Air should now hold 2 packets.
-    TEST_ASSERT_EQUAL_size_t(2, air->Size());
-
-    // Both nodes try to receive. Each Step()'s RX is a single pull.
-    // The air is FIFO so the order is deterministic: A's TX first, B's
-    // TX second.
-    a.link->Step(); // A receives B's packet (the second one on the air)
-    b.link->Step(); // B receives A's packet (the first one on the air)
+    b.link->Step();   // B forwards kAck to the air (to_a_).
+    TEST_ASSERT_EQUAL_size_t(1, air->Size());
+    a.link->Step();   // A pulls from to_a_ and emits to its serial.
     TEST_ASSERT_EQUAL_size_t(0, air->Size());
   }
 
@@ -325,8 +331,8 @@ void test_native_loopback_duplex() {
 // ── Test 3: zero-payload packet round-trips. ─────────────────────────────
 void test_native_loopback_zero_payload() {
   auto air = std::make_shared<AirBuffer>();
-  Node a(air);
-  Node b(air);
+  Node a(air, 0);
+  Node b(air, 1);
 
   a.InjectAck({});
   a.link->Step();
@@ -345,8 +351,8 @@ void test_native_loopback_zero_payload() {
 // single-packet test as the diagnostic.
 void test_native_loopback_single_packet() {
   auto air = std::make_shared<AirBuffer>();
-  Node a(air);
-  Node b(air);
+  Node a(air, 0);
+  Node b(air, 1);
 
   const std::vector<uint8_t> pkt{0xDE, 0xAD, 0xBE, 0xEF};
   a.InjectAck(pkt);
