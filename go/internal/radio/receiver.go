@@ -56,12 +56,12 @@ type OutgoingAck struct {
 // Receiver reads envelopes from a Radio and dispatches reassembled
 // messages.
 type Receiver struct {
-	radio           Radio
-	onMessage       func(*IncomingMessage)
-	onAck           func(*OutgoingAck)
-	logger          *slog.Logger
-	messageTimeout  time.Duration
-	convIDLen       int // expected conv_id length
+	radio          Radio
+	onMessage      func(*IncomingMessage)
+	onAck          func(*OutgoingAck)
+	logger         *slog.Logger
+	messageTimeout time.Duration
+	convIDLen      int // expected conv_id length
 }
 
 // ReceiverOption configures a Receiver.
@@ -110,6 +110,7 @@ func NewReceiver(r Radio, opts ...ReceiverOption) *Receiver {
 //	IDLE → START seen → RECEIVING(chunks_so_far) →
 //	  total_seqs reached → EMIT → IDLE
 //	RECEIVING → timeout → ABANDON → IDLE
+//
 // reassemblyState is the per-(conv_id, message_id) reassembly
 // buffer. Keyed externally by messageKey.
 type reassemblyState struct {
