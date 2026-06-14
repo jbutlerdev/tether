@@ -205,7 +205,6 @@ func TestAckBitmap_HasOutOfWindow(t *testing.T) {
 	}
 }
 
-
 // before a rebase; the rebase advances Next but the seq is still
 // acked (it is below the new window).
 func TestAckBitmap_HasAfterRebase(t *testing.T) {
