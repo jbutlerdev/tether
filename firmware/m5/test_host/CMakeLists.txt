@@ -150,6 +150,7 @@ add_host_test(power_mgmt)
 add_host_test(littlefs_vfs)
 add_host_test(conv_db)
 add_host_test(epd)
+add_host_test(conv_manager)
 
 # gen_epd_goldens — auxiliary tool that writes the EPD golden
 # fixtures. Not a test; not registered with ctest. Run by hand
@@ -214,6 +215,7 @@ target_link_libraries(test_smoke PRIVATE
   ui_state_host
   watchdog_host
   power_mgmt_host
+  conv_manager_host
   gcov
 )
 add_test(NAME smoke COMMAND test_smoke)

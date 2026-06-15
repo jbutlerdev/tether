@@ -22,6 +22,8 @@
 
 #include "audio_capture.h"
 #include "buttons.h"
+#include "conv_db.h"
+#include "conv_manager.h"
 #include "lora_sx1262.h"
 #include "opus_enc.h"
 #include "power_mgmt.h"
@@ -85,6 +87,22 @@ extern "C" void app_main(void) {
   static tether::m5::UiState ui;
   ui.SetPtt(&ptt);
 
+  // 8b. Conversation DB and manager. The DB is on the SD card
+  //     (rooted at /sdcard by sd_card.cpp). The manager emits
+  //     a sync request on startup so the base station can push
+  //     any convs the M5 missed while offline.
+  static tether::m5::ConvDb conv_db;
+  if (conv_db.Init("/sdcard") != ESP_OK) {
+    ESP_LOGE(kTag, "conv_db init failed; conv list will be empty");
+  }
+  static tether::m5::ConvManager conv_mgr(conv_db);
+  conv_mgr.Start();
+  // Hand the UI a pointer to the live conv list. The UI
+  // re-reads on every render so no extra synchronization is
+  // needed here; the conv_db internal mutex guards the
+  // underlying filesystem calls.
+  ui.SetConversations(nullptr); // Phase 5 wires the live list
+
   // 9. Start FreeRTOS tasks. The task entry points are defined in
   // their respective components; Phase 3 wires them up here.
   //
@@ -96,6 +114,7 @@ extern "C" void app_main(void) {
   static tether::m5::Watchdog wdt;
   wdt.Register("ui_state");
   wdt.Register("ptt");
+  wdt.Register("conv_manager");
 
   ESP_LOGI(kTag, "tether ready");
 

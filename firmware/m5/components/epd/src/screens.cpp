@@ -49,17 +49,6 @@ void SetPixel(uint8_t *buf, int x, int y, bool on) {
   }
 }
 
-bool GetPixel(const uint8_t *buf, int x, int y) {
-  if (x < 0 || x >= static_cast<int>(kEpdWidth) || y < 0 ||
-      y >= static_cast<int>(kEpdHeight)) {
-    return false;
-  }
-  size_t byte_idx = static_cast<size_t>(y) * kEpdStride +
-                    (static_cast<size_t>(x) / 8);
-  uint8_t mask = static_cast<uint8_t>(1u << (7 - (x % 8)));
-  return (buf[byte_idx] & mask) != 0;
-}
-
 void DrawChar(uint8_t *buf, int x, int y, char c, bool pixel) {
   const uint8_t *glyph = FontGlyph(c);
   if (!glyph)
@@ -196,7 +185,7 @@ void RenderIdle(const IdleState &s, uint8_t *out_buf) {
   } else {
     // Footer: channel + battery + volume bar.
     char footer[64];
-    std::snprintf(footer, sizeof footer, "CH %u", s.channel);
+    std::snprintf(footer, sizeof footer, "CH %u", (unsigned)s.channel);
     DrawString(out_buf, kMargin, kMargin + 168, footer, true);
     std::snprintf(footer, sizeof footer, "%.2fV", s.vbat_mv / 1000.0f);
     DrawStringCentered(out_buf, 100, kMargin + 168, footer, true);
@@ -220,7 +209,7 @@ void RenderIdle(const IdleState &s, uint8_t *out_buf) {
   // Unread badge.
   if (cur.unread > 0) {
     char badge[16];
-    std::snprintf(badge, sizeof badge, " %u", cur.unread);
+    std::snprintf(badge, sizeof badge, " %u", (unsigned)cur.unread);
     DrawString(out_buf, 160, kMargin, badge, true);
   }
 
@@ -258,7 +247,7 @@ void RenderIdle(const IdleState &s, uint8_t *out_buf) {
     }
     // Tab label "[N] name".
     char tab_label[16];
-    std::snprintf(tab_label, sizeof tab_label, "[%u]", c.unread);
+    std::snprintf(tab_label, sizeof tab_label, "[%u]", (unsigned)c.unread);
     DrawString(out_buf, strip_x + 2, strip_y + 2, tab_label, true);
     // Name (truncated to 7 chars at 6 px each = 42 px).
     DrawStringTruncated(out_buf, strip_x + 2, strip_y + 12, c.name, 42,
@@ -285,7 +274,7 @@ void RenderRecording(const RecordingState &s, uint8_t *out_buf) {
   // Timer.
   char timer[16];
   uint32_t total_secs = s.elapsed_ms / 1000;
-  std::snprintf(timer, sizeof timer, "00:%02u", total_secs % 60);
+  std::snprintf(timer, sizeof timer, "00:%02u", (unsigned)(total_secs % 60));
   DrawString(out_buf, 100, kMargin + 12, timer, true);
 
   // Conv name.
@@ -341,8 +330,8 @@ void RenderTransmitting(const TransmittingState &s, uint8_t *out_buf) {
   char timer[32];
   uint32_t es = s.elapsed_ms / 1000;
   uint32_t ts = s.estimated_total_ms / 1000;
-  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u", es % 60,
-                es / 60, ts % 60, ts / 60);
+  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u", (unsigned)(es % 60),
+                (unsigned)(es / 60), (unsigned)(ts % 60), (unsigned)(ts / 60));
   DrawString(out_buf, 100, kMargin + 12, timer, true);
 
   // Conv name.
@@ -350,8 +339,8 @@ void RenderTransmitting(const TransmittingState &s, uint8_t *out_buf) {
 
   // ACK count.
   char ack[32];
-  std::snprintf(ack, sizeof ack, "ACK %u/%u", s.acked_chunks,
-                s.total_chunks);
+  std::snprintf(ack, sizeof ack, "ACK %u/%u", (unsigned)s.acked_chunks,
+                (unsigned)s.total_chunks);
   DrawString(out_buf, kMargin, kMargin + 60, ack, true);
 
   // Progress bar.
@@ -364,7 +353,7 @@ void RenderTransmitting(const TransmittingState &s, uint8_t *out_buf) {
 
   // Percent label.
   char pct_label[8];
-  std::snprintf(pct_label, sizeof pct_label, "%u%%", pct);
+  std::snprintf(pct_label, sizeof pct_label, "%u%%", (unsigned)pct);
   DrawString(out_buf, 170, kMargin + 100, pct_label, true);
 }
 
@@ -399,8 +388,8 @@ void RenderTtsPlayback(const TtsState &s, uint8_t *out_buf) {
   char timer[24];
   uint32_t es = s.elapsed_ms / 1000;
   uint32_t ts = s.total_ms / 1000;
-  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u", es % 60,
-                es / 60, ts % 60, ts / 60);
+  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u", (unsigned)(es % 60),
+                (unsigned)(es / 60), (unsigned)(ts % 60), (unsigned)(ts / 60));
   DrawString(out_buf, 140, kMargin + 100, timer, true);
 }
 
@@ -443,7 +432,7 @@ void RenderSettings(const SettingsState &s, uint8_t *out_buf) {
   // Volume line.
   y += 14;
   DrawString(out_buf, kMargin + 4, y, "Volume:", true);
-  std::snprintf(val, sizeof val, "%u%%", s.volume);
+  std::snprintf(val, sizeof val, "%u%%", (unsigned)s.volume);
   DrawString(out_buf, kMargin + 80, y, val, true);
   BitmapDrawProgressBar(out_buf, kMargin + 120, y, 60, 7, s.volume, true);
   if (s.cursor == 2) {
