@@ -573,6 +573,22 @@ run_phase() {
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+# Activate ESP-IDF if it is installed but not already on PATH. The Docker
+# dev image adds it to PATH at build time, but the local agent host (and
+# any non-Docker CI runner) must source the IDF export script. We try the
+# standard locations in order; first match wins. No-op if idf.py is
+# already callable or no IDF is installed.
+if ! command -v idf.py >/dev/null 2>&1; then
+    for _idf_dir in /tmp/esp-idf /opt/esp-idf "$HOME/esp/esp-idf"; do
+        if [ -f "$_idf_dir/export.sh" ]; then
+            # shellcheck disable=SC1090
+            . "$_idf_dir/export.sh" >/dev/null 2>&1 || true
+            break
+        fi
+    done
+    unset _idf_dir
+fi
+
 acquire_lock
 ensure_state_file
 
