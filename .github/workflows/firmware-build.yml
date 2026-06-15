@@ -1,0 +1,39 @@
+name: firmware-build
+
+on:
+  push:
+    branches: [main, 'phase/*']
+  pull_request:
+
+jobs:
+  m5:
+    name: m5-esp-idf-build
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build M5 firmware
+        run: |
+          cd firmware/m5
+          idf.py build
+
+  bridge:
+    name: bridge-platformio-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PlatformIO
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install platformio
+      - name: Test bridge firmware
+        # Restrict to the native env: the rak4631 env compiles + tries
+        # to upload to a physical RAK4631, which requires --upload-port
+        # and a USB device. The on-device bench test is executed by a
+        # separate HIL workflow (see plan §3.5 / bench_test.cpp).
+        run: |
+          cd firmware/bridge
+          pio test -e native

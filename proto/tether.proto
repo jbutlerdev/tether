@@ -1,0 +1,82 @@
+syntax = "proto3";
+package tether.v1;
+option go_package = "github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb";
+
+// All packets on the LoRa link share this envelope.
+message Envelope {
+  fixed32 protocol_version = 1;     // = 1
+  NodeId target_id = 2;              // 0xFFFF = broadcast
+  NodeId sender_id = 3;
+  bytes conversation_id = 4;         // 16 bytes (UUID)
+  fixed32 message_id = 5;            // monotonic per (target, conversation)
+  fixed32 seq_num = 6;               // chunk index, 0-based
+  fixed32 total_seqs = 7;            // total chunks in this message
+  MsgType msg_type = 8;              // START / DATA / END / ACK / TTS_DATA / TTS_END / UI_UPDATE
+  AudioKind audio_kind = 9;          // 0=mic, 1=tts, 2=beep
+  fixed32 flags = 10;                // bit0=RETRANSMIT, bit1=LAST_TTS_CHUNK
+  bytes payload = 11;                // ≤ 227 bytes
+  fixed32 header_crc = 12;           // CRC-16/CCITT, but stored as uint32
+}
+
+enum MsgType {
+  MSG_TYPE_UNSPECIFIED = 0;
+  MSG_TYPE_START = 1;
+  MSG_TYPE_DATA = 2;
+  MSG_TYPE_END = 3;
+  MSG_TYPE_ACK = 4;
+  MSG_TYPE_TTS_DATA = 5;
+  MSG_TYPE_TTS_END = 6;
+  MSG_TYPE_UI_UPDATE = 7;
+}
+
+enum AudioKind {
+  AUDIO_KIND_UNSPECIFIED = 0;
+  AUDIO_KIND_MIC = 1;
+  AUDIO_KIND_TTS = 2;
+  AUDIO_KIND_BEEP = 3;
+}
+
+// START payload
+message StartInfo {
+  AudioCodec codec = 1;
+  fixed32 sample_rate_hz = 2;        // 8000
+  fixed32 bitrate_bps = 3;           // 16000
+  fixed32 duration_ms = 4;           // total recording length
+  fixed32 payload_size_bytes = 5;    // bytes per chunk (post-fragmentation)
+}
+
+// ACK payload
+message Ack {
+  bytes conversation_id = 1;        // 16 bytes
+  fixed32 message_id = 2;
+  fixed32 next_expected_seq = 3;
+  fixed32 ack_bitmap_lo = 4;         // 16 bits covering [next..next+15]
+  fixed32 ack_bitmap_hi = 5;         // 16 bits covering [next+16..next+31]
+  fixed32 crc = 6;
+}
+
+enum AudioCodec {
+  AUDIO_CODEC_UNSPECIFIED = 0;
+  AUDIO_CODEC_OPUS_8K_16KBPS = 1;
+}
+
+// UI_UPDATE payload — pushes a new conversation to the M5
+message ConvInfo {
+  bytes conversation_id = 1;
+  string name = 2;                   // ≤ 24 chars (truncated by M5)
+  ConvKind kind = 3;
+  string target = 4;                // matrix room_id or forge session UUID
+  bytes encryption_key = 5;          // 16 bytes; HKDF-derived
+  fixed64 last_activity_unix_ms = 6;
+  fixed32 unread_count = 7;
+  bool remove = 8;                   // true = remove this conversation
+}
+
+enum ConvKind {
+  CONV_KIND_UNSPECIFIED = 0;
+  CONV_KIND_MATRIX = 1;
+  CONV_KIND_FORGE = 2;
+  CONV_KIND_BROADCAST = 3;
+}
+
+message NodeId { fixed32 value = 1; }
