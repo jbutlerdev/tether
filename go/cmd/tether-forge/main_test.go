@@ -76,7 +76,7 @@ func runCLI(t *testing.T, mc *forge.MockClient, args []string) (stdout, stderr s
 // TestCLI_List verifies that `tether forge list` prints the
 // session ids returned by ListSessions, one per line.
 func TestCLI_List(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 
@@ -100,7 +100,7 @@ func TestCLI_List(t *testing.T) {
 // TestCLI_List_Empty verifies that `list` on a fresh client
 // prints a friendly empty message rather than nothing.
 func TestCLI_List_Empty(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 
@@ -116,7 +116,7 @@ func TestCLI_List_Empty(t *testing.T) {
 // TestCLI_Create_ReturnsConvID verifies that `create` prints
 // the new session id.
 func TestCLI_Create_ReturnsConvID(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 
@@ -139,7 +139,7 @@ func TestCLI_Create_ReturnsConvID(t *testing.T) {
 // TestCLI_Create_DefaultProfile verifies that omitting
 // --profile falls back to the default ("coder").
 func TestCLI_Create_DefaultProfile(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 
@@ -159,7 +159,7 @@ func TestCLI_Create_DefaultProfile(t *testing.T) {
 // TestCLI_Say_PostsMessage verifies that `say` posts the
 // given text to the named session.
 func TestCLI_Say_PostsMessage(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -185,7 +185,7 @@ func TestCLI_Say_PostsMessage(t *testing.T) {
 // TestCLI_Delete_RemovesConv verifies that `delete` removes
 // the session.
 func TestCLI_Delete_RemovesConv(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -208,7 +208,7 @@ func TestCLI_Delete_RemovesConv(t *testing.T) {
 // TestCLI_BadArgs verifies that an unknown subcommand exits
 // non-zero and prints a usage line to stderr.
 func TestCLI_BadArgs(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	_, stderr, exit := runCLI(t, mc, []string{"unknown-subcommand"})
@@ -224,7 +224,7 @@ func TestCLI_BadArgs(t *testing.T) {
 // TestCLI_Say_RequiresTwoArgs verifies that `say` with the
 // wrong number of args exits non-zero.
 func TestCLI_Say_RequiresTwoArgs(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	_, _, exit := runCLI(t, mc, []string{"say", "only-one-arg"})
@@ -236,7 +236,7 @@ func TestCLI_Say_RequiresTwoArgs(t *testing.T) {
 // TestCLI_Delete_UnknownID verifies that deleting a missing
 // id exits non-zero.
 func TestCLI_Delete_UnknownID(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	_, _, exit := runCLI(t, mc, []string{"delete", "00000000-0000-0000-0000-000000000000"})
@@ -248,7 +248,7 @@ func TestCLI_Delete_UnknownID(t *testing.T) {
 // TestCLI_Say_UnknownSession verifies that sending to an
 // unknown session exits non-zero.
 func TestCLI_Say_UnknownSession(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	_, _, exit := runCLI(t, mc, []string{"say", "no-such-id", "hi"})
@@ -315,7 +315,7 @@ func TestCLI_Create_BadFlag(t *testing.T) {
 // TestCLI_NoArgs verifies that calling the CLI with no args
 // prints the usage line and exits non-zero.
 func TestCLI_NoArgs(t *testing.T) {
-	
+
 	mc := forge.NewMockClient()
 	defer mc.Close()
 	_, stderr, exit := runCLI(t, mc, []string{})
@@ -358,7 +358,7 @@ func TestCLI_ConcurrentCalls(t *testing.T) {
 // (injected via MockOptionSendError) is reported on stderr
 // and the exit code is non-zero.
 func TestCLI_BackendError(t *testing.T) {
-	
+
 	mc := forge.NewMockClient(forge.MockOptionSendError(errors.New("backend down")))
 	defer mc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)

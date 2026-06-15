@@ -4,8 +4,8 @@
 // bytes from the M5) to the forge backend, and the forge SSE
 // stream back to the M5 (as TTS audio). Concretely:
 //
-//   Incoming audio  ──►  STT  ──►  POST /messages  ──►  SSE
-//   Outgoing TTS    ◄──  TTS  ◄──  text_delta / tool_stdout
+//	Incoming audio  ──►  STT  ──►  POST /messages  ──►  SSE
+//	Outgoing TTS    ◄──  TTS  ◄──  text_delta / tool_stdout
 //
 // The pipeline is a long-running component (one per
 // tetherd instance); it does not own the radio or the forge

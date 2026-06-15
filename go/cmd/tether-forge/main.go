@@ -30,9 +30,9 @@ import (
 
 // Exit codes.
 const (
-	exitOK            = 0
-	exitUsage         = 1
-	exitBackendError  = 2
+	exitOK           = 0
+	exitUsage        = 1
+	exitBackendError = 2
 )
 
 // run is the testable entry point. It dispatches on args[0]

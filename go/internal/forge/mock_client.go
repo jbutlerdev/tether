@@ -69,10 +69,10 @@ type MockClient struct {
 
 // mockSession is the per-session state.
 type mockSession struct {
-	id            string
-	profile       string
-	createdAt     time.Time
-	lastActivity  time.Time
+	id           string
+	profile      string
+	createdAt    time.Time
+	lastActivity time.Time
 }
 
 // mockSubscription is the active subscription for one session.
@@ -90,9 +90,9 @@ type mockSubscription struct {
 // closes the subscription's done channel and signals the
 // consumer goroutine to stop reading.
 type mockCloser struct {
-	mu     *sync.Mutex
-	subs   map[string]*mockSubscription
-	sub    *mockSubscription
+	mu   *sync.Mutex
+	subs map[string]*mockSubscription
+	sub  *mockSubscription
 }
 
 // Close closes the subscription. Idempotent. The subscription
