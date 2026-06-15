@@ -64,9 +64,16 @@ function(add_host_test name)
   if(EXISTS ${comp_dir}/CMakeLists.txt)
     add_subdirectory(${comp_dir} ${CMAKE_BINARY_DIR}/components/${name})
   endif()
-  add_executable(test_${name}
-    ${comp_dir}/test/test_${name}.cpp
-  )
+  # The test source is conventionally test_<name>.cpp but the plan
+  # uses test_<name>_state.cpp for the PTT component. Look for either.
+  if(EXISTS ${comp_dir}/test/test_${name}.cpp)
+    set(test_src ${comp_dir}/test/test_${name}.cpp)
+  elseif(EXISTS ${comp_dir}/test/test_${name}_state.cpp)
+    set(test_src ${comp_dir}/test/test_${name}_state.cpp)
+  else()
+    message(FATAL_ERROR "add_host_test(${name}): no test source found")
+  endif()
+  add_executable(test_${name} ${test_src})
   target_include_directories(test_${name} PRIVATE
     ${comp_dir}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/freertos_shim
@@ -116,3 +123,4 @@ add_host_test(psram_ring)
 add_host_test(opus_enc)
 add_host_test(i2s_amp)
 add_host_test(buttons)
+add_host_test(ptt)
