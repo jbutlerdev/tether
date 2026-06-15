@@ -69,9 +69,9 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                \
   UnityAssertEqualNumber((expected), (actual), __FILE__, __LINE__,             \
                          "TEST_ASSERT_EQUAL_INT(" #expected "," #actual ")")
-#define TEST_ASSERT_EQUAL_INT64(expected, actual)                             \
-  UnityAssertEqualInt64((long long)(expected), (long long)(actual),            \
-                        __FILE__, __LINE__,                                    \
+#define TEST_ASSERT_EQUAL_INT64(expected, actual)                              \
+  UnityAssertEqualInt64((long long)(expected), (long long)(actual), __FILE__,  \
+                        __LINE__,                                              \
                         "TEST_ASSERT_EQUAL_INT64(" #expected "," #actual ")")
 #define TEST_ASSERT_EQUAL_size_t(expected, actual)                             \
   UnityAssertEqualNumber((int)(expected), (int)(actual), __FILE__, __LINE__,   \

@@ -17,8 +17,8 @@
 
 #include "littlefs_vfs.h"
 
-using tether::m5::LfsVfs;
 using tether::m5::kLfsDefaultRoot;
+using tether::m5::LfsVfs;
 
 namespace {
 
