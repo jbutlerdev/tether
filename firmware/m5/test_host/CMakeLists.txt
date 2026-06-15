@@ -67,13 +67,24 @@ function(add_host_test name)
   # TETHER_M5_HOST_TEST variable and produces <name>_host for us.
   if(EXISTS ${comp_dir}/CMakeLists.txt)
     add_subdirectory(${comp_dir} ${CMAKE_BINARY_DIR}/components/${name})
+    # Apply the host coverage flags to the static library so
+    # gcov can record per-line coverage of the production source
+    # when the test binary runs.
+    if(TARGET ${name}_host)
+      target_compile_options(${name}_host PRIVATE
+        --coverage -fprofile-arcs -ftest-coverage
+      )
+    endif()
   endif()
   # The test source is conventionally test_<name>.cpp but the plan
-  # uses test_<name>_state.cpp for the PTT component. Look for either.
+  # uses a few suffixed variants: test_<name>_state.cpp (PTT),
+  # test_<name>_render.cpp (EPD). Look for any of them.
   if(EXISTS ${comp_dir}/test/test_${name}.cpp)
     set(test_src ${comp_dir}/test/test_${name}.cpp)
   elseif(EXISTS ${comp_dir}/test/test_${name}_state.cpp)
     set(test_src ${comp_dir}/test/test_${name}_state.cpp)
+  elseif(EXISTS ${comp_dir}/test/test_${name}_render.cpp)
+    set(test_src ${comp_dir}/test/test_${name}_render.cpp)
   else()
     message(FATAL_ERROR "add_host_test(${name}): no test source found")
   endif()
@@ -86,6 +97,7 @@ function(add_host_test name)
   )
   target_compile_definitions(test_${name} PRIVATE
     TETHER_M5_HOST_TEST=1
+    TESTDATA_DIR=\"${comp_dir}/testdata/screens\"
   )
   target_compile_options(test_${name} PRIVATE
     --coverage -fprofile-arcs -ftest-coverage
@@ -137,6 +149,35 @@ add_host_test(watchdog)
 add_host_test(power_mgmt)
 add_host_test(littlefs_vfs)
 add_host_test(conv_db)
+add_host_test(epd)
+
+# gen_epd_goldens — auxiliary tool that writes the EPD golden
+# fixtures. Not a test; not registered with ctest. Run by hand
+# after a deliberate renderer change to refresh the testdata.
+add_executable(gen_epd_goldens
+  ${CMAKE_CURRENT_SOURCE_DIR}/../components/epd/test/gen_epd_goldens.cpp
+)
+target_include_directories(gen_epd_goldens PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../components/epd/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../components
+  ${CMAKE_CURRENT_SOURCE_DIR}/freertos_shim
+  ${CMAKE_CURRENT_SOURCE_DIR}/unity
+)
+target_compile_definitions(gen_epd_goldens PRIVATE
+  TETHER_M5_HOST_TEST=1
+)
+target_compile_options(gen_epd_goldens PRIVATE
+  --coverage -fprofile-arcs -ftest-coverage
+)
+target_link_libraries(gen_epd_goldens PRIVATE
+  tether_m5_host_iface
+  unity_host
+  freertos_shim
+  epd_host
+  conv_db_host
+  littlefs_vfs_host
+  gcov
+)
 
 # Phase 3 exit-gate integration test (plan.md §4.10). It exercises
 # every task component under synthetic load and verifies no

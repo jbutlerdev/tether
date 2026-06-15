@@ -112,6 +112,9 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_GREATER_OR_EQUAL(threshold, actual)                        \
   UnityAssertTrue(((actual) >= (threshold)), __FILE__, __LINE__,               \
                   "TEST_ASSERT_GREATER_OR_EQUAL(" #threshold ", " #actual ")")
+#define TEST_ASSERT_NOT_EQUAL(expected, actual)                                \
+  UnityAssertTrue(((expected) != (actual)), __FILE__, __LINE__,                \
+                  "TEST_ASSERT_NOT_EQUAL(" #expected ", " #actual ")")
 #ifdef __cplusplus
 #define TEST_ASSERT_THROW(stmt, ex_type)                                       \
   do {                                                                         \
@@ -135,6 +138,10 @@ typedef struct UnityTestRunner UnityTestRunner;
   do {                                                                         \
     UnityIgnoreTest(msg);                                                      \
     return;                                                                    \
+  } while (0)
+#define TEST_FAIL_MESSAGE(msg)                                                 \
+  do {                                                                         \
+    UnityAssertTrue(false, __FILE__, __LINE__, (msg));                         \
   } while (0)
 
 /* ── Test registration / suite definition ─────────────────────────────── */
