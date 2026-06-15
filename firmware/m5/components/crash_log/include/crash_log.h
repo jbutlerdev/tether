@@ -97,4 +97,4 @@ private:
   LfsVfs vfs_;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

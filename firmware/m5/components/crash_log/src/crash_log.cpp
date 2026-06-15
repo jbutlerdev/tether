@@ -71,7 +71,7 @@ std::vector<std::string> ListDirHost(const std::string &dir) {
   return out;
 }
 
-#else  // real hardware
+#else // real hardware
 
 // Production path: the helpers route through the LfsVfs
 // member of the owning CrashLog instance. We pass the vfs
@@ -97,9 +97,9 @@ std::vector<std::string> ListDirHost(LfsVfs &vfs, const std::string &dir) {
   return vfs.ListDir(dir.c_str());
 }
 
-#endif  // TETHER_M5_HOST_TEST
+#endif // TETHER_M5_HOST_TEST
 
-}  // namespace
+} // namespace
 
 bool CrashLog::Init(const char *root) {
   if (root == nullptr || root[0] == '\0') {
@@ -148,8 +148,7 @@ bool CrashLog::Write(const char *name, const CrashRecord &rec) {
   if (fp == nullptr) {
     return false;
   }
-  size_t wrote =
-      std::fwrite(&rec, 1, CrashRecord::kSizeOnDisk, fp);
+  size_t wrote = std::fwrite(&rec, 1, CrashRecord::kSizeOnDisk, fp);
   std::fclose(fp);
   return wrote == CrashRecord::kSizeOnDisk;
 #else
@@ -262,4 +261,4 @@ const char *CrashLog::ReasonString(uint32_t reason) {
   }
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5
