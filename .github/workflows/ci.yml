@@ -21,7 +21,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          # Match go/go.mod's required toolchain (go 1.25.0). Without
+          # this, the auto-downloaded toolchain is missing the covdata
+          # binary needed for -covermode=atomic on the generated
+          # protocolpb package.
+          go-version: '1.25'
       - name: Download modules
         working-directory: go
         run: go mod download
@@ -40,9 +44,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           # Pin to v2.x; the v1.64.x line is built with Go 1.24 and
           # refuses to lint modules targeting Go 1.25 (see plan.md).
@@ -87,7 +91,7 @@ jobs:
           rm $PROTOC_ZIP
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.25'
       - name: Install pinned protoc-gen-go
         run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.6
       - name: Regenerate protos
