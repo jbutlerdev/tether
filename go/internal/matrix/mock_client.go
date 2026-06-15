@@ -218,16 +218,17 @@ func (m *MockClient) Subscribe(ctx context.Context) (<-chan Event, error) {
 }
 
 // InjectEvent delivers ev to the current subscription, if any.
-// Returns false if no subscription is active.
+// Returns false if no subscription is active. The subMu is held
+// during the non-blocking send so that a concurrent Disconnect
+// (which closes and nil-s the channel) cannot race the send.
 func (m *MockClient) InjectEvent(ev Event) bool {
 	m.subMu.Lock()
-	ch := m.subCh
-	m.subMu.Unlock()
-	if ch == nil {
+	defer m.subMu.Unlock()
+	if m.subCh == nil {
 		return false
 	}
 	select {
-	case ch <- ev:
+	case m.subCh <- ev:
 		return true
 	default:
 		// Drop on full buffer. Production reconnection handles
