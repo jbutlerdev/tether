@@ -15,6 +15,7 @@ import (
 	"github.com/jbutlerdev/tether/go/internal/tts"
 )
 
+
 // fakePiperScript mimics Piper's line protocol. The wrapper
 // invokes it as `fake-piper --model <voice.onnx> --output-raw`.
 // We parse the args to find the voice path.
@@ -220,6 +221,72 @@ func TestPiper_FakeSubprocessClose(t *testing.T) {
 	// Idempotent.
 	if err := p.Close(); err != nil {
 		t.Errorf("Close #2: %v", err)
+	}
+}
+
+// fakePiperHangsScript: emits a banner, then reads a SYNTH
+// command, then writes the length, then SLEEPS forever (no
+// PCM, no END). Forces the wrapper to abort the read
+// internally.
+const fakePiperHangsScript = `#!/usr/bin/env bash
+VOICE=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --model) VOICE="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+if [ -z "$VOICE" ] || [ ! -f "$VOICE" ]; then exit 3; fi
+echo "PIPER_READY 22050 mono 16" >&2
+while IFS= read -r line; do
+    case "$line" in
+        SYNTH\ *)
+            # Emit length then sleep; the wrapper aborts and
+            # we get a non-nil scanner.Err.
+            echo "1000"
+            sleep 60
+            ;;
+        QUIT) exit 0 ;;
+    esac
+done
+`
+
+// TestPiper_FakeSubprocessForceKill: a fake binary that hangs
+// after a SYNTH causes the wrapper to force-kill it. The
+// process is then reaped. Tests the close() force-kill path.
+func TestPiper_FakeSubprocessForceKill(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "fake-hangs")
+	if err := os.WriteFile(bin, []byte(fakePiperHangsScript), 0o755); err != nil {
+		t.Fatalf("write fake-hangs: %v", err)
+	}
+	voice := writeFakeVoice(t, dir)
+	p, err := tts.NewPiper(tts.PiperConfig{BinaryPath: bin, VoicePath: voice})
+	if err != nil {
+		t.Fatalf("NewPiper: %v", err)
+	}
+	// Start a synth that will hang. Cancel after a brief moment
+	// to force the wrapper to kill the subprocess.
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, _, err = p.Synthesize(ctx, "hi")
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Error("Synthesize on hanging binary: want error, got nil")
+	}
+	if elapsed > 3*time.Second {
+		t.Errorf("Synthesize did not abort: %v", elapsed)
+	}
+	// Close should now force-kill. (PerSynthTimeout default
+	// is 30s; we have a 2s hard limit in close().)
+	start = time.Now()
+	if err := p.Close(); err != nil {
+		t.Logf("Close (after force-kill): %v", err)
+	}
+	elapsed = time.Since(start)
+	if elapsed > 3*time.Second {
+		t.Errorf("Close took too long: %v", elapsed)
 	}
 }
 
