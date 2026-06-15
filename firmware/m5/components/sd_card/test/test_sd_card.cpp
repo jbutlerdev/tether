@@ -78,7 +78,8 @@ void test_sd_open_existing() {
   }
   FILE *fp = card.Open("/hello.txt", "r");
   TEST_ASSERT_NOT_NULL(fp);
-  if (fp) fclose(fp);
+  if (fp)
+    fclose(fp);
   TEST_ASSERT_EQUAL(ESP_OK, card.Unmount());
 }
 
@@ -103,7 +104,7 @@ void test_sd_write_read() {
     FILE *fp = card.Open("/data.bin", "wb");
     TEST_ASSERT_NOT_NULL(fp);
     TEST_ASSERT_EQUAL_size_t(written.size(),
-                            fwrite(written.data(), 1, written.size(), fp));
+                             fwrite(written.data(), 1, written.size(), fp));
     fclose(fp);
   }
   std::vector<uint8_t> read_back(1024);
@@ -111,7 +112,7 @@ void test_sd_write_read() {
     FILE *fp = card.Open("/data.bin", "rb");
     TEST_ASSERT_NOT_NULL(fp);
     TEST_ASSERT_EQUAL_size_t(read_back.size(),
-                            fread(read_back.data(), 1, read_back.size(), fp));
+                             fread(read_back.data(), 1, read_back.size(), fp));
     fclose(fp);
   }
   TEST_ASSERT_EQUAL_MEMORY(written.data(), read_back.data(), written.size());
@@ -166,7 +167,8 @@ void test_sd_freespace() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_sd_mount_unmount);
   RUN_TEST(test_sd_mount_idempotent);

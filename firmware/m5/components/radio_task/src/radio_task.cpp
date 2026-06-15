@@ -27,21 +27,22 @@ uint32_t RadioTask::Enqueue(std::vector<uint8_t> payload) {
   return m.msg_id;
 }
 
-void RadioTask::InjectRxForTest(RadioMessage m) {
-  rx_queue_.push(m);
-}
+void RadioTask::InjectRxForTest(RadioMessage m) { rx_queue_.push(m); }
 
 void RadioTask::InjectAckForTest(uint32_t msg_id, uint32_t bitmap) {
   HandleAck(msg_id, bitmap);
 }
 
 void RadioTask::StartSending() {
-  if (outbox_.empty()) return;
+  if (outbox_.empty())
+    return;
   current_msg_id_ = outbox_.front().msg_id;
   current_payload_ = std::move(outbox_.front().payload);
   outbox_.pop();
-  current_chunks_total_ = (current_payload_.size() + kChunkSize - 1) / kChunkSize;
-  if (current_chunks_total_ == 0) current_chunks_total_ = 1;
+  current_chunks_total_ =
+      (current_payload_.size() + kChunkSize - 1) / kChunkSize;
+  if (current_chunks_total_ == 0)
+    current_chunks_total_ = 1;
   current_chunks_acked_ = 0;
   acked_bitmap_ = 0;
   retransmits_left_ = kMaxRetransmits;
@@ -75,7 +76,8 @@ void RadioTask::HandleRxPacket(const RadioMessage & /*m*/) {
 }
 
 void RadioTask::HandleAck(uint32_t msg_id, uint32_t bitmap) {
-  if (msg_id != current_msg_id_) return;
+  if (msg_id != current_msg_id_)
+    return;
   acks_received_++;
   acked_bitmap_ |= bitmap;
   current_chunks_acked_ = __builtin_popcount(acked_bitmap_);
@@ -96,49 +98,49 @@ bool RadioTask::Step() {
     HandleRxPacket(m);
   }
   switch (state_) {
-    case RadioState::kIdle:
-      if (!outbox_.empty()) {
-        StartSending();
-      }
-      break;
-    case RadioState::kSendingStart:
-      // Emit one START packet.
-      {
-        std::vector<uint8_t> start_pkt{0x01, 0x02, 0x03}; // placeholder
-        radio_.Transmit(start_pkt);
-        pkts_sent_++;
-      }
-      if (--start_repeats_remaining_ <= 0) {
-        state_ = RadioState::kSendingData;
-      }
-      break;
-    case RadioState::kSendingData:
-      if (!SendOneDataChunk()) {
-        // All chunks acked; we're done.
-        if (current_chunks_acked_ >= current_chunks_total_) {
-          state_ = RadioState::kIdle;
-          last_acked_ = true;
+  case RadioState::kIdle:
+    if (!outbox_.empty()) {
+      StartSending();
+    }
+    break;
+  case RadioState::kSendingStart:
+    // Emit one START packet.
+    {
+      std::vector<uint8_t> start_pkt{0x01, 0x02, 0x03}; // placeholder
+      radio_.Transmit(start_pkt);
+      pkts_sent_++;
+    }
+    if (--start_repeats_remaining_ <= 0) {
+      state_ = RadioState::kSendingData;
+    }
+    break;
+  case RadioState::kSendingData:
+    if (!SendOneDataChunk()) {
+      // All chunks acked; we're done.
+      if (current_chunks_acked_ >= current_chunks_total_) {
+        state_ = RadioState::kIdle;
+        last_acked_ = true;
+      } else {
+        // Retransmit budget check.
+        if (retransmits_left_ > 0) {
+          retransmits_left_--;
+          retransmits_++;
+          // Loop; SendOneDataChunk() will find an unacked chunk.
         } else {
-          // Retransmit budget check.
-          if (retransmits_left_ > 0) {
-            retransmits_left_--;
-            retransmits_++;
-            // Loop; SendOneDataChunk() will find an unacked chunk.
-          } else {
-            state_ = RadioState::kIdle;
-            last_failed_ = true;
-            last_acked_ = false;
-          }
+          state_ = RadioState::kIdle;
+          last_failed_ = true;
+          last_acked_ = false;
         }
       }
-      break;
-    case RadioState::kWaitingAck:
-    case RadioState::kRxListening:
-      // Phase 4 handles the full state machine; for Phase 3 these
-      // are no-ops.
-      break;
+    }
+    break;
+  case RadioState::kWaitingAck:
+  case RadioState::kRxListening:
+    // Phase 4 handles the full state machine; for Phase 3 these
+    // are no-ops.
+    break;
   }
   return state_ != RadioState::kIdle;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

@@ -9,6 +9,4 @@ esp_err_t esp_vfs_littlefs_register(const esp_vfs_littlefs_conf_t * /*conf*/) {
   return ESP_OK;
 }
 
-esp_err_t esp_vfs_littlefs_unregister(const char * /*label*/) {
-  return ESP_OK;
-}
+esp_err_t esp_vfs_littlefs_unregister(const char * /*label*/) { return ESP_OK; }

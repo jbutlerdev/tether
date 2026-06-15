@@ -15,7 +15,7 @@
 namespace tether::m5 {
 
 class Watchdog {
- public:
+public:
   // Register a task to be fed. `task_name` is for diagnostics; the
   // real hardware also takes a TaskHandle_t.
   bool Register(const std::string &task_name);
@@ -36,7 +36,7 @@ class Watchdog {
   void SetHungThresholdMsForTest(uint32_t ms) { hung_threshold_ms_ = ms; }
   bool IsHungForTest(const std::string &task_name) const;
 
- private:
+private:
   struct TaskInfo {
     uint64_t last_fed_at_ms = 0;
     uint64_t feed_count = 0;
@@ -47,4 +47,4 @@ class Watchdog {
   uint32_t hung_threshold_ms_ = 5000;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

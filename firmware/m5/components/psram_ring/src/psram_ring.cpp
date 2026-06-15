@@ -24,9 +24,7 @@ namespace tether::m5 {
 namespace {
 constexpr char kTag[] = "tether.ring";
 
-bool IsPowerOfTwo(size_t n) {
-  return n != 0 && (n & (n - 1)) == 0;
-}
+bool IsPowerOfTwo(size_t n) { return n != 0 && (n & (n - 1)) == 0; }
 } // namespace
 
 PsramRing::PsramRing(size_t capacity) : capacity_(capacity) {
@@ -69,16 +67,19 @@ PsramRing::~PsramRing() {
 }
 
 size_t PsramRing::Write(const uint8_t *data, size_t len) {
-  if (!buf_ || !data || len == 0) return 0;
+  if (!buf_ || !data || len == 0)
+    return 0;
   size_t head = head_.load(std::memory_order_relaxed);
   size_t tail = tail_.load(std::memory_order_acquire);
   size_t available = capacity_ - (head - tail);
-  if (available == 0) return 0;
+  if (available == 0)
+    return 0;
   size_t to_write = (len < available) ? len : available;
   // Wrap-around copy: write in up to two segments.
   size_t head_idx = head & (capacity_ - 1);
   size_t first = capacity_ - head_idx;
-  if (first > to_write) first = to_write;
+  if (first > to_write)
+    first = to_write;
   std::memcpy(buf_ + head_idx, data, first);
   size_t second = to_write - first;
   if (second > 0) {
@@ -90,15 +91,18 @@ size_t PsramRing::Write(const uint8_t *data, size_t len) {
 }
 
 size_t PsramRing::Read(uint8_t *out, size_t len) {
-  if (!buf_ || !out || len == 0) return 0;
+  if (!buf_ || !out || len == 0)
+    return 0;
   size_t tail = tail_.load(std::memory_order_relaxed);
   size_t head = head_.load(std::memory_order_acquire);
   size_t available = head - tail;
-  if (available == 0) return 0;
+  if (available == 0)
+    return 0;
   size_t to_read = (len < available) ? len : available;
   size_t tail_idx = tail & (capacity_ - 1);
   size_t first = capacity_ - tail_idx;
-  if (first > to_read) first = to_read;
+  if (first > to_read)
+    first = to_read;
   std::memcpy(out, buf_ + tail_idx, first);
   size_t second = to_read - first;
   if (second > 0) {
@@ -119,4 +123,4 @@ void PsramRing::ResetForTest() {
   tail_.store(0, std::memory_order_relaxed);
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

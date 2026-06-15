@@ -17,7 +17,10 @@ void Reset() {
 } // namespace
 
 void setUp() { Reset(); }
-void tearDown() { delete g_wdt; g_wdt = nullptr; }
+void tearDown() {
+  delete g_wdt;
+  g_wdt = nullptr;
+}
 
 // Test 1: every 500 ms, all registered tasks are fed.
 void test_watchdog_feeds_all_tasks() {
@@ -38,7 +41,8 @@ void test_watchdog_triggers_on_hung_task() {
   g_wdt->Register("audio_capture");
   g_wdt->FeedAll();
   // 5 s threshold; advance past it via repeated feeds.
-  for (int i = 0; i < 20; ++i) g_wdt->FeedAll();
+  for (int i = 0; i < 20; ++i)
+    g_wdt->FeedAll();
   // audio_capture is fed every FeedAll() so it's never hung.
   TEST_ASSERT_FALSE(g_wdt->IsHungForTest("audio_capture"));
   TEST_ASSERT_FALSE(g_wdt->IsHungForTest("nonexistent"));
@@ -55,13 +59,15 @@ void test_watchdog_excludes_isr() {
 // Test 4: panic resets — multiple feeds without crash.
 void test_watchdog_panic_resets() {
   g_wdt->Register("audio_capture");
-  for (int i = 0; i < 100; ++i) g_wdt->FeedAll();
+  for (int i = 0; i < 100; ++i)
+    g_wdt->FeedAll();
   TEST_ASSERT_EQUAL(100, g_wdt->FeedCount());
   TEST_ASSERT_EQUAL(100, g_wdt->FeedCountFor("audio_capture"));
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_watchdog_feeds_all_tasks);
   RUN_TEST(test_watchdog_triggers_on_hung_task);

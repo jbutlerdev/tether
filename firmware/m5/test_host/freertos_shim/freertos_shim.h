@@ -130,17 +130,29 @@ typedef int esp_err_t;
 #define ESP_ERR_NOT_FOUND -6
 
 #define ESP_LOGI(tag, ...)                                                     \
-  do { std::fprintf(stderr, "I (%s) ", tag); std::fprintf(stderr, __VA_ARGS__); \
-       std::fprintf(stderr, "\n"); } while (0)
+  do {                                                                         \
+    std::fprintf(stderr, "I (%s) ", tag);                                      \
+    std::fprintf(stderr, __VA_ARGS__);                                         \
+    std::fprintf(stderr, "\n");                                                \
+  } while (0)
 #define ESP_LOGW(tag, ...)                                                     \
-  do { std::fprintf(stderr, "W (%s) ", tag); std::fprintf(stderr, __VA_ARGS__); \
-       std::fprintf(stderr, "\n"); } while (0)
+  do {                                                                         \
+    std::fprintf(stderr, "W (%s) ", tag);                                      \
+    std::fprintf(stderr, __VA_ARGS__);                                         \
+    std::fprintf(stderr, "\n");                                                \
+  } while (0)
 #define ESP_LOGE(tag, ...)                                                     \
-  do { std::fprintf(stderr, "E (%s) ", tag); std::fprintf(stderr, __VA_ARGS__); \
-       std::fprintf(stderr, "\n"); } while (0)
+  do {                                                                         \
+    std::fprintf(stderr, "E (%s) ", tag);                                      \
+    std::fprintf(stderr, __VA_ARGS__);                                         \
+    std::fprintf(stderr, "\n");                                                \
+  } while (0)
 #define ESP_LOGD(tag, ...)                                                     \
-  do { std::fprintf(stderr, "D (%s) ", tag); std::fprintf(stderr, __VA_ARGS__); \
-       std::fprintf(stderr, "\n"); } while (0)
+  do {                                                                         \
+    std::fprintf(stderr, "D (%s) ", tag);                                      \
+    std::fprintf(stderr, __VA_ARGS__);                                         \
+    std::fprintf(stderr, "\n");                                                \
+  } while (0)
 
 #ifdef __cplusplus
 }

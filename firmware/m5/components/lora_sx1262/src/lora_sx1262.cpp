@@ -33,25 +33,25 @@ constexpr int8_t kPinSx1262Busy = 13;
 constexpr int8_t kPinSx1262Irq = 14;
 
 class RadioLibBackend : public RadioBackend {
- public:
+public:
   // The module is constructed on first use; the SPI bus mutex is taken
   // around every operation to honor the load-bearing pattern from
   // research.md §7.4.
-  RadioLibBackend() : module_(new SX1262(new Module(kPinSx1262Cs,
-                                                   /*irq=*/kPinSx1262Irq,
-                                                   /*rst=*/kPinSx1262Reset,
-                                                   /*busy=*/kPinSx1262Busy))) {}
+  RadioLibBackend()
+      : module_(new SX1262(new Module(kPinSx1262Cs,
+                                      /*irq=*/kPinSx1262Irq,
+                                      /*rst=*/kPinSx1262Reset,
+                                      /*busy=*/kPinSx1262Busy))) {}
 
   void Configure(const Preset &preset) override {
     int8_t sf = static_cast<int8_t>(preset.spread_factor);
     float bw = static_cast<float>(preset.bandwidth_hz) / 1000.0f; // kHz
     uint8_t cr = static_cast<uint8_t>(preset.coding_rate);
-    int8_t err = module_->begin(bw, sf, cr,
-                                preset.sync_word,
-                                preset.tx_power_dbm,
-                                /*preambleLength=*/16,
-                                /*tcxoVoltage=*/1.6,
-                                /*useRegulatorLDO=*/false);
+    int8_t err =
+        module_->begin(bw, sf, cr, preset.sync_word, preset.tx_power_dbm,
+                       /*preambleLength=*/16,
+                       /*tcxoVoltage=*/1.6,
+                       /*useRegulatorLDO=*/false);
     if (err != RADIOLIB_ERR_NONE) {
       ESP_LOGE("tether.lora", "begin() failed: %d", err);
     }
@@ -72,8 +72,8 @@ class RadioLibBackend : public RadioBackend {
   }
 
   void Send(std::span<const uint8_t> packet) override {
-    int8_t err = module_->transmit(packet.data(),
-                                   static_cast<size_t>(packet.size()));
+    int8_t err =
+        module_->transmit(packet.data(), static_cast<size_t>(packet.size()));
     if (err != RADIOLIB_ERR_NONE) {
       ESP_LOGW("tether.lora", "transmit() returned %d", err);
     }
@@ -103,7 +103,7 @@ class RadioLibBackend : public RadioBackend {
   void Sleep() override { module_->sleep(); }
   void Standby() override { module_->standby(); }
 
- private:
+private:
   // Owned via a pointer so the destructor runs before the underlying
   // module is destroyed (the SX1262 object must outlive the SPI bus).
   std::unique_ptr<SX1262> module_;
@@ -122,7 +122,8 @@ void LoraRadio::Init(const Preset &preset) {
 
 bool LoraRadio::SetChannel(uint8_t ch) {
   auto channel = Channel::FromIndex(ch);
-  if (!channel.has_value()) return false;
+  if (!channel.has_value())
+    return false;
   Bus().Lock(portMAX_DELAY);
   backend_->SetFrequency(channel->frequency_hz);
   Bus().Unlock();
@@ -165,4 +166,4 @@ void LoraRadio::Standby() {
   Bus().Unlock();
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

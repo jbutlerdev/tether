@@ -18,7 +18,7 @@
 namespace tether::m5 {
 
 class I2SAmp {
- public:
+public:
   I2SAmp() = default;
   ~I2SAmp() = default;
 
@@ -46,7 +46,7 @@ class I2SAmp {
   // Test seam: reset all internal state.
   void ResetForTest();
 
- private:
+private:
   // Current queued tone. freq_hz == 0 means "no tone".
   int freq_hz_ = 0;
   int duration_ms_ = 0;
@@ -58,4 +58,4 @@ class I2SAmp {
   size_t total_samples_ = 0;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

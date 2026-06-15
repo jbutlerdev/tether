@@ -19,8 +19,10 @@ LoraRadio *g_radio = nullptr;
 RadioTask *g_task = nullptr;
 
 void Reset() {
-  delete g_task; g_task = nullptr;
-  delete g_radio; g_radio = nullptr;
+  delete g_task;
+  g_task = nullptr;
+  delete g_radio;
+  g_radio = nullptr;
   g_backend = std::make_shared<MockRadioBackend>();
   g_radio = new LoraRadio(g_backend);
   g_task = new RadioTask(*g_radio);
@@ -29,8 +31,10 @@ void Reset() {
 
 void setUp() { Reset(); }
 void tearDown() {
-  delete g_task; g_task = nullptr;
-  delete g_radio; g_radio = nullptr;
+  delete g_task;
+  g_task = nullptr;
+  delete g_radio;
+  g_radio = nullptr;
   g_backend.reset();
 }
 
@@ -52,7 +56,8 @@ void test_radio_picks_pending_from_queue() {
 void test_radio_sends_start_3x() {
   g_task->Enqueue({0xAA, 0xBB});
   // 3 STARTs.
-  for (int i = 0; i < 3; ++i) g_task->Step();
+  for (int i = 0; i < 3; ++i)
+    g_task->Step();
   // 3 pkts sent.
   TEST_ASSERT_GREATER_THAN(2, g_task->PktsSent());
 }
@@ -65,7 +70,8 @@ void test_radio_sends_data_with_acks() {
   // Drive until the message is acked.
   for (int i = 0; i < 50; ++i) {
     g_task->Step();
-    if (g_task->LastMessageAcked()) break;
+    if (g_task->LastMessageAcked())
+      break;
     g_task->InjectAckForTest(g_task->NextMsgId() - 1, 0x1);
   }
   TEST_ASSERT_TRUE(g_task->LastMessageAcked());
@@ -75,7 +81,8 @@ void test_radio_sends_data_with_acks() {
 void test_radio_max_5_retransmits() {
   g_task->Enqueue({0x10, 0x20});
   // Drain 50 steps without injecting an ACK.
-  for (int i = 0; i < 100; ++i) g_task->Step();
+  for (int i = 0; i < 100; ++i)
+    g_task->Step();
   TEST_ASSERT_TRUE(g_task->LastMessageFailed());
   TEST_ASSERT_GREATER_THAN(4, g_task->Retransmits());
 }
@@ -108,7 +115,8 @@ void test_radio_receives_ui_update() {
 void test_radio_handles_msg_id_gap() {
   g_task->InjectRxForTest(RadioMessage{5, {0x01}});
   g_task->InjectRxForTest(RadioMessage{7, {0x02}});
-  for (int i = 0; i < 5; ++i) g_task->Step();
+  for (int i = 0; i < 5; ++i)
+    g_task->Step();
   TEST_ASSERT_TRUE(true);
 }
 
@@ -116,7 +124,8 @@ void test_radio_handles_msg_id_gap() {
 void test_radio_replay_drop() {
   g_task->InjectRxForTest(RadioMessage{42, {0x01}});
   g_task->InjectRxForTest(RadioMessage{42, {0x01}});
-  for (int i = 0; i < 5; ++i) g_task->Step();
+  for (int i = 0; i < 5; ++i)
+    g_task->Step();
   TEST_ASSERT_TRUE(true);
 }
 
@@ -128,7 +137,8 @@ void test_radio_idle_low_power() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_radio_picks_pending_from_queue);
   RUN_TEST(test_radio_sends_start_3x);

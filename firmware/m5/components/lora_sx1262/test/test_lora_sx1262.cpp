@@ -150,7 +150,8 @@ void test_lora_channel_from_index() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_lora_init_sets_preset);
   RUN_TEST(test_lora_set_channel_0);

@@ -38,7 +38,7 @@ inline constexpr char kSpiBusTag[] = "tether.spi";
 // handles. Construction initializes the bus; the singleton is obtained
 // via `Bus()`.
 class SpiBus {
- public:
+public:
   // Initialize the bus and arm the mutex. Pin numbers map directly to
   // ESP-IDF `spi_bus_initialize` arguments.
   SpiBus(spi_host_device_t host, gpio_num_t pin_mosi, gpio_num_t pin_miso,
@@ -67,7 +67,7 @@ class SpiBus {
   // never calls this; tests use it between cases.
   ~SpiBus();
 
- private:
+private:
   spi_host_device_t host_;
   bool bus_initialized_ = false;
   SemaphoreHandle_t mutex_ = nullptr;
@@ -80,4 +80,4 @@ class SpiBus {
 // instance.
 SpiBus &Bus();
 
-}  // namespace tether::m5
+} // namespace tether::m5

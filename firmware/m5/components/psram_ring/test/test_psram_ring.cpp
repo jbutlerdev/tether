@@ -72,7 +72,8 @@ void test_ring_wraparound() {
 void test_ring_partial_reads() {
   PsramRing ring(64);
   std::vector<uint8_t> in(32);
-  for (size_t i = 0; i < in.size(); ++i) in[i] = static_cast<uint8_t>(i);
+  for (size_t i = 0; i < in.size(); ++i)
+    in[i] = static_cast<uint8_t>(i);
   TEST_ASSERT_EQUAL_size_t(32, ring.Write(in.data(), 32));
   std::vector<uint8_t> out(32);
   TEST_ASSERT_EQUAL_size_t(8, ring.Read(out.data(), 8));
@@ -90,7 +91,8 @@ void test_ring_is_power_of_2() {
   // Valid capacities construct without throwing.
   PsramRing r1(64);
   PsramRing r2(1024);
-  (void)r1; (void)r2;
+  (void)r1;
+  (void)r2;
 }
 
 // Test 7: SPSC concurrency — producer + consumer threads, no loss.
@@ -140,7 +142,8 @@ void test_ring_capacity() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_ring_write_read_round_trip);
   RUN_TEST(test_ring_write_full);

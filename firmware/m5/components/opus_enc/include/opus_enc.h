@@ -17,7 +17,7 @@ namespace tether::m5 {
 inline constexpr int kOpusFrameSamples = 160;
 
 class OpusEncoder {
- public:
+public:
   // Construct an encoder for the given sample rate, bitrate, and
   // complexity. The default values match the spec.
   OpusEncoder(int sample_rate = 8000, int bitrate = 16000, int complexity = 5);
@@ -43,7 +43,7 @@ class OpusEncoder {
   // Test seam: was the encoder successfully initialized?
   bool IsInitialized() const { return enc_ != nullptr; }
 
- private:
+private:
   int sample_rate_ = 8000;
   int bitrate_ = 16000;
   int complexity_ = 5;
@@ -51,4 +51,4 @@ class OpusEncoder {
   void *enc_ = nullptr; // Opaque pointer to OpusEncoder state
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

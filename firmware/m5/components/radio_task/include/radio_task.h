@@ -31,7 +31,7 @@ enum class RadioState : uint8_t {
 };
 
 class RadioTask {
- public:
+public:
   RadioTask(LoraRadio &radio);
 
   // Queue a new outbound message. Returns the assigned msg_id.
@@ -63,7 +63,7 @@ class RadioTask {
   RadioState State() const { return state_; }
   uint32_t NextMsgId() const { return next_msg_id_; }
 
- private:
+private:
   void StartSending();
   bool SendOneDataChunk();
   void HandleRxPacket(const RadioMessage &m);
@@ -92,4 +92,4 @@ class RadioTask {
   bool last_failed_ = false;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

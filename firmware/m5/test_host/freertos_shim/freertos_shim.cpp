@@ -113,7 +113,8 @@ void vTaskDelete(TaskHandle_t handle) {
   {
     std::lock_guard<std::mutex> lk(g_task_map_mutex);
     auto it = g_task_map.find(handle);
-    if (it == g_task_map.end()) return;
+    if (it == g_task_map.end())
+      return;
     victim = it->second;
     g_task_map.erase(it);
   }
@@ -140,10 +141,12 @@ TaskHandle_t xTaskGetCurrentTaskHandle(void) {
 }
 
 const char *pcTaskGetName(TaskHandle_t handle) {
-  if (!handle) return "?";
+  if (!handle)
+    return "?";
   std::lock_guard<std::mutex> lk(g_task_map_mutex);
   auto it = g_task_map.find(handle);
-  if (it == g_task_map.end()) return "?";
+  if (it == g_task_map.end())
+    return "?";
   return it->second->name.c_str();
 }
 
@@ -158,22 +161,23 @@ SemaphoreHandle_t xSemaphoreCreateMutex(void) {
 }
 
 void vSemaphoreDelete(SemaphoreHandle_t sem) {
-  if (!sem) return;
+  if (!sem)
+    return;
   std::shared_ptr<xSemaphoreHandle_t> s;
   {
     std::lock_guard<std::mutex> lk(g_sem_map_mutex);
     auto it = g_sem_map.find(sem);
-    if (it == g_sem_map.end()) return;
+    if (it == g_sem_map.end())
+      return;
     s = it->second;
   }
   {
     std::lock_guard<std::mutex> lk(g_sem_deleted_mutex);
     auto it = g_sem_deleted.find(sem);
-    if (it != g_sem_deleted.end()) it->second->deleted.store(true);
+    if (it != g_sem_deleted.end())
+      it->second->deleted.store(true);
   }
-  {
-    std::lock_guard<std::mutex> lk(s->m);
-  }
+  { std::lock_guard<std::mutex> lk(s->m); }
   s->cv.notify_all();
   std::lock_guard<std::mutex> lk(g_sem_map_mutex);
   g_sem_map.erase(sem);
@@ -182,26 +186,30 @@ void vSemaphoreDelete(SemaphoreHandle_t sem) {
 }
 
 BaseType_t xSemaphoreTake(SemaphoreHandle_t sem, TickType_t ticks) {
-  if (!sem) return pdFAIL;
+  if (!sem)
+    return pdFAIL;
   std::shared_ptr<SemDeleted> del;
   std::shared_ptr<xSemaphoreHandle_t> s;
   {
     std::lock_guard<std::mutex> lk(g_sem_map_mutex);
     auto sit = g_sem_map.find(sem);
-    if (sit == g_sem_map.end()) return pdFAIL;
+    if (sit == g_sem_map.end())
+      return pdFAIL;
     s = sit->second;
   }
   {
     std::lock_guard<std::mutex> lk(g_sem_deleted_mutex);
     auto dit = g_sem_deleted.find(sem);
-    if (dit == g_sem_deleted.end()) return pdFAIL;
+    if (dit == g_sem_deleted.end())
+      return pdFAIL;
     del = dit->second;
   }
   std::unique_lock<std::mutex> lk(s->m);
   auto deadline = std::chrono::steady_clock::now() +
                   std::chrono::milliseconds(ticks * portTICK_PERIOD_MS);
   while (s->taken) {
-    if (del->deleted.load()) return pdFAIL;
+    if (del->deleted.load())
+      return pdFAIL;
     if (ticks == portMAX_DELAY) {
       s->cv.wait(lk);
     } else {
@@ -209,7 +217,8 @@ BaseType_t xSemaphoreTake(SemaphoreHandle_t sem, TickType_t ticks) {
         return pdFAIL;
       }
     }
-    if (del->deleted.load()) return pdFAIL;
+    if (del->deleted.load())
+      return pdFAIL;
   }
   s->taken = true;
   s->owner = CurrentId();
@@ -217,17 +226,20 @@ BaseType_t xSemaphoreTake(SemaphoreHandle_t sem, TickType_t ticks) {
 }
 
 BaseType_t xSemaphoreGive(SemaphoreHandle_t sem) {
-  if (!sem) return pdFAIL;
+  if (!sem)
+    return pdFAIL;
   std::shared_ptr<xSemaphoreHandle_t> s;
   {
     std::lock_guard<std::mutex> lk(g_sem_map_mutex);
     auto it = g_sem_map.find(sem);
-    if (it == g_sem_map.end()) return pdFAIL;
+    if (it == g_sem_map.end())
+      return pdFAIL;
     s = it->second;
   }
   {
     std::lock_guard<std::mutex> lk(s->m);
-    if (!s->taken) return pdFAIL;
+    if (!s->taken)
+      return pdFAIL;
     s->taken = false;
   }
   s->cv.notify_one();
@@ -245,12 +257,14 @@ QueueHandle_t xQueueCreate(UBaseType_t length, UBaseType_t item_size) {
 }
 
 void vQueueDelete(QueueHandle_t q) {
-  if (!q) return;
+  if (!q)
+    return;
   std::shared_ptr<xQueueHandle_t> qh;
   {
     std::lock_guard<std::mutex> lk(g_queue_map_mutex);
     auto it = g_queue_map.find(q);
-    if (it == g_queue_map.end()) return;
+    if (it == g_queue_map.end())
+      return;
     qh = it->second;
     g_queue_map.erase(it);
   }
@@ -263,12 +277,14 @@ void vQueueDelete(QueueHandle_t q) {
 }
 
 BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t ticks) {
-  if (!q || !item) return pdFAIL;
+  if (!q || !item)
+    return pdFAIL;
   std::shared_ptr<xQueueHandle_t> queue;
   {
     std::lock_guard<std::mutex> lk(g_queue_map_mutex);
     auto it = g_queue_map.find(q);
-    if (it == g_queue_map.end()) return pdFAIL;
+    if (it == g_queue_map.end())
+      return pdFAIL;
     queue = it->second;
   }
   std::unique_lock<std::mutex> lk(queue->m);
@@ -283,22 +299,25 @@ BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t ticks) {
       }
     }
   }
-  if (queue->closed) return pdFAIL;
+  if (queue->closed)
+    return pdFAIL;
   QueueItem qi;
   qi.bytes.assign(reinterpret_cast<const uint8_t *>(item),
-                   reinterpret_cast<const uint8_t *>(item) + queue->item_size);
+                  reinterpret_cast<const uint8_t *>(item) + queue->item_size);
   queue->q.push(std::move(qi));
   queue->cv_pop.notify_one();
   return pdPASS;
 }
 
 BaseType_t xQueueReceive(QueueHandle_t q, void *out, TickType_t ticks) {
-  if (!q || !out) return pdFAIL;
+  if (!q || !out)
+    return pdFAIL;
   std::shared_ptr<xQueueHandle_t> queue;
   {
     std::lock_guard<std::mutex> lk(g_queue_map_mutex);
     auto it = g_queue_map.find(q);
-    if (it == g_queue_map.end()) return pdFAIL;
+    if (it == g_queue_map.end())
+      return pdFAIL;
     queue = it->second;
   }
   std::unique_lock<std::mutex> lk(queue->m);
@@ -313,7 +332,8 @@ BaseType_t xQueueReceive(QueueHandle_t q, void *out, TickType_t ticks) {
       }
     }
   }
-  if (queue->closed && queue->q.empty()) return pdFAIL;
+  if (queue->closed && queue->q.empty())
+    return pdFAIL;
   auto &front = queue->q.front();
   std::memcpy(out, front.bytes.data(), queue->item_size);
   queue->q.pop();

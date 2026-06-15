@@ -33,10 +33,12 @@ bool StorageFlush::Init() {
 }
 
 size_t StorageFlush::RunOnce() {
-  if (!card_.IsMounted()) return 0;
+  if (!card_.IsMounted())
+    return 0;
   uint8_t buf[kFlushChunk];
   size_t got = ring_.Read(buf, sizeof(buf));
-  if (got == 0) return 0;
+  if (got == 0)
+    return 0;
   // Pick a file name lazily. Real firmware uses a timestamped
   // directory like /sdcard/2026-01-01/000123.opus; the host build
   // uses a simpler test-friendly path.
@@ -73,13 +75,15 @@ void StorageFlush::RotateFileForTest() {
     return;
   }
   size_t start = pos;
-  while (start > 0 && std::isdigit(static_cast<unsigned char>(last_file_[start - 1]))) {
+  while (start > 0 &&
+         std::isdigit(static_cast<unsigned char>(last_file_[start - 1]))) {
     --start;
   }
   int n = std::atoi(last_file_.c_str() + start);
   char tail[32];
-  std::snprintf(tail, sizeof tail, "%0*d", static_cast<int>(last_file_.size() - start), n + 1);
+  std::snprintf(tail, sizeof tail, "%0*d",
+                static_cast<int>(last_file_.size() - start), n + 1);
   last_file_ = last_file_.substr(0, start) + tail;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

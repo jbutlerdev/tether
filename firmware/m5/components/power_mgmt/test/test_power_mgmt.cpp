@@ -16,7 +16,10 @@ void Reset() {
 } // namespace
 
 void setUp() { Reset(); }
-void tearDown() { delete g_pm; g_pm = nullptr; }
+void tearDown() {
+  delete g_pm;
+  g_pm = nullptr;
+}
 
 // Test 1: deep sleep after 30 s idle (we use 5 s for the test).
 void test_power_deep_sleep_after_idle() {
@@ -60,7 +63,8 @@ void test_power_light_sleep_during_idle() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_power_deep_sleep_after_idle);
   RUN_TEST(test_power_wake_on_activity);

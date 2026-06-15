@@ -21,11 +21,13 @@ StorageFlush *g_flush = nullptr;
 std::string g_root;
 
 void Reset() {
-  delete g_flush; g_flush = nullptr;
-  delete g_card; g_card = nullptr;
-  delete g_ring; g_ring = nullptr;
-  g_root = std::string("/tmp/tether_storage_test_") +
-           std::to_string(getpid());
+  delete g_flush;
+  g_flush = nullptr;
+  delete g_card;
+  g_card = nullptr;
+  delete g_ring;
+  g_ring = nullptr;
+  g_root = std::string("/tmp/tether_storage_test_") + std::to_string(getpid());
   std::filesystem::remove_all(g_root);
   g_card = new SdCard();
   g_card->Mount(g_root.c_str());
@@ -36,9 +38,12 @@ void Reset() {
 
 void setUp() { Reset(); }
 void tearDown() {
-  delete g_flush; g_flush = nullptr;
-  delete g_card; g_card = nullptr;
-  delete g_ring; g_ring = nullptr;
+  delete g_flush;
+  g_flush = nullptr;
+  delete g_card;
+  g_card = nullptr;
+  delete g_ring;
+  g_ring = nullptr;
   if (!g_root.empty()) {
     std::error_code ec;
     std::filesystem::remove_all(g_root, ec);
@@ -104,7 +109,8 @@ void test_flush_rotate_file() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_flush_writes_ring_to_sd);
   RUN_TEST(test_flush_many_small_chunks);

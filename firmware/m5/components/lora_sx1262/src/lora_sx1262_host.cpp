@@ -82,7 +82,8 @@ void LoraRadio::Init(const Preset &preset) {
 
 bool LoraRadio::SetChannel(uint8_t ch) {
   auto channel = Channel::FromIndex(ch);
-  if (!channel.has_value()) return false;
+  if (!channel.has_value())
+    return false;
   Bus().Lock(portMAX_DELAY);
   backend_->SetFrequency(channel->frequency_hz);
   Bus().Unlock();
@@ -125,6 +126,6 @@ void LoraRadio::Standby() {
   Bus().Unlock();
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5
 
-#endif  // TETHER_M5_HOST_TEST
+#endif // TETHER_M5_HOST_TEST

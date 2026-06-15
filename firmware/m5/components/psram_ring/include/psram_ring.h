@@ -20,7 +20,7 @@
 namespace tether::m5 {
 
 class PsramRing {
- public:
+public:
   // Build a ring with `capacity` slots. Throws std::invalid_argument if
   // capacity is not a power of two.
   explicit PsramRing(size_t capacity);
@@ -49,7 +49,7 @@ class PsramRing {
   // Test seam: reset the ring to empty (does not free memory).
   void ResetForTest();
 
- private:
+private:
   uint8_t *buf_ = nullptr;
   size_t capacity_ = 0;
   // Head: writer's next position (number of bytes written cumulatively).
@@ -59,4 +59,4 @@ class PsramRing {
   std::atomic<size_t> tail_{0};
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

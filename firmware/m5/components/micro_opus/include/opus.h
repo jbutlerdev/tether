@@ -24,17 +24,17 @@ typedef struct OpusEncoder OpusEncoder;
 #define OPUS_OK 0
 #define OPUS_BAD_ARG -1
 #define OPUS_APPLICATION_VOIP 2048
-#define OPUS_SET_BITRATE(x) (4000 + ((x) & 0xFFFF))
-#define OPUS_SET_COMPLEXITY(x) (4010 + ((x) & 0xFF))
-#define OPUS_SET_VBR(x) (4006 + ((x) & 0xFF))
-#define OPUS_SET_VBR_CONSTRAINT(x) (4020 + ((x) & 0xFF))
-#define OPUS_SET_PACKET_LOSS_PERC(x) (4014 + ((x) & 0xFF))
-#define OPUS_SET_SIGNAL(x) (4024 + ((x) & 0xFF))
+#define OPUS_SET_BITRATE(x) (4000 + ((x)&0xFFFF))
+#define OPUS_SET_COMPLEXITY(x) (4010 + ((x)&0xFF))
+#define OPUS_SET_VBR(x) (4006 + ((x)&0xFF))
+#define OPUS_SET_VBR_CONSTRAINT(x) (4020 + ((x)&0xFF))
+#define OPUS_SET_PACKET_LOSS_PERC(x) (4014 + ((x)&0xFF))
+#define OPUS_SET_SIGNAL(x) (4024 + ((x)&0xFF))
 #define OPUS_SIGNAL_VOICE 3001
 
 int opus_encoder_get_size(int channels);
-OpusEncoder *opus_encoder_create(int sample_rate, int channels,
-                                  int application, int *error);
+OpusEncoder *opus_encoder_create(int sample_rate, int channels, int application,
+                                 int *error);
 int opus_encoder_destroy(OpusEncoder *st);
 int opus_encode(OpusEncoder *st, const int16_t *pcm, int frame_size,
                 unsigned char *data, int max_data_bytes);

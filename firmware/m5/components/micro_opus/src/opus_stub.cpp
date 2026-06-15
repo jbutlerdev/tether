@@ -26,11 +26,12 @@ struct OpusEncoder {
 
 int opus_encoder_get_size(int /*channels*/) { return sizeof(OpusEncoder); }
 
-OpusEncoder *opus_encoder_create(int sample_rate, int channels,
-                                  int application, int *error) {
+OpusEncoder *opus_encoder_create(int sample_rate, int channels, int application,
+                                 int *error) {
   auto *e = new (std::nothrow) OpusEncoder;
   if (!e) {
-    if (error) *error = OPUS_BAD_ARG;
+    if (error)
+      *error = OPUS_BAD_ARG;
     return nullptr;
   }
   std::memset(e, 0, sizeof(*e));
@@ -43,12 +44,14 @@ OpusEncoder *opus_encoder_create(int sample_rate, int channels,
   e->vbr_constraint = 0;
   e->packet_loss_perc = 0;
   e->signal = OPUS_SIGNAL_VOICE;
-  if (error) *error = OPUS_OK;
+  if (error)
+    *error = OPUS_OK;
   return e;
 }
 
 int opus_encoder_destroy(OpusEncoder *st) {
-  if (!st) return OPUS_BAD_ARG;
+  if (!st)
+    return OPUS_BAD_ARG;
   delete st;
   return OPUS_OK;
 }
@@ -57,7 +60,8 @@ int opus_encode(OpusEncoder * /*st*/, const int16_t *pcm, int frame_size,
                 unsigned char *data, int max_data_bytes) {
   // Minimal encoder stub: produce a 1-byte "encoded" packet per
   // frame so the firmware boots. The real micro-opus is many KB.
-  if (!pcm || !data || max_data_bytes < 1) return OPUS_BAD_ARG;
+  if (!pcm || !data || max_data_bytes < 1)
+    return OPUS_BAD_ARG;
   (void)frame_size;
   data[0] = 0x00;
   return 1;
@@ -73,19 +77,33 @@ int opus_encoder_ctl(OpusEncoder *st, int request, ...) {
   int val = cmd >> 8;
   (void)val;
   switch (sub) {
-    case 0x10: st->bitrate = arg; break;          // SET_BITRATE
-    case 0x0A: st->complexity = arg; break;       // SET_COMPLEXITY
-    case 0x06: st->vbr = arg; break;              // SET_VBR
-    case 0x14: st->vbr_constraint = arg; break;   // SET_VBR_CONSTRAINT
-    case 0x0E: st->packet_loss_perc = arg; break; // SET_PACKET_LOSS_PERC
-    case 0x18: st->signal = arg; break;           // SET_SIGNAL
+  case 0x10:
+    st->bitrate = arg;
+    break; // SET_BITRATE
+  case 0x0A:
+    st->complexity = arg;
+    break; // SET_COMPLEXITY
+  case 0x06:
+    st->vbr = arg;
+    break; // SET_VBR
+  case 0x14:
+    st->vbr_constraint = arg;
+    break; // SET_VBR_CONSTRAINT
+  case 0x0E:
+    st->packet_loss_perc = arg;
+    break; // SET_PACKET_LOSS_PERC
+  case 0x18:
+    st->signal = arg;
+    break; // SET_SIGNAL
   }
   return OPUS_OK;
 }
 
 const char *opus_strerror(int error) {
   switch (error) {
-    case OPUS_OK: return "OK";
-    default: return "error";
+  case OPUS_OK:
+    return "OK";
+  default:
+    return "error";
   }
 }

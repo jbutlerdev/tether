@@ -43,9 +43,10 @@ bool AudioCapture::Init() {
 }
 
 size_t AudioCapture::RunOnce() {
-  if (!i2s_running_) return 0;
-  // Drain one frame of PCM. Real hardware calls I2SMic::ReadSamples;
-  // host tests use the g_mock_pcm buffer.
+  if (!i2s_running_)
+    return 0;
+    // Drain one frame of PCM. Real hardware calls I2SMic::ReadSamples;
+    // host tests use the g_mock_pcm buffer.
 #ifdef TETHER_M5_HOST_TEST
   std::memcpy(pcm_buf_, g_mock_pcm, sizeof(pcm_buf_));
 #else
@@ -74,7 +75,8 @@ size_t AudioCapture::RunOnce() {
 }
 
 void AudioCapture::SetInputPcmForTest(const int16_t *pcm, size_t n) {
-  if (!pcm) return;
+  if (!pcm)
+    return;
   size_t take = (n < 160) ? n : 160;
   std::memcpy(g_mock_pcm, pcm, take * sizeof(int16_t));
   if (take < 160) {
@@ -82,4 +84,4 @@ void AudioCapture::SetInputPcmForTest(const int16_t *pcm, size_t n) {
   }
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

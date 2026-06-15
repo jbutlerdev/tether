@@ -22,4 +22,4 @@ PowerState PowerMgmt::Tick(uint32_t elapsed_ms) {
   return state_;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

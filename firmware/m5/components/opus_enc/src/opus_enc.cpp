@@ -39,7 +39,7 @@ OpusEncoder::OpusEncoder(int sample_rate, int bitrate, int complexity)
   }
   opus_encoder_ctl(e, OPUS_SET_BITRATE(bitrate_));
   opus_encoder_ctl(e, OPUS_SET_COMPLEXITY(complexity_));
-  opus_encoder_ctl(e, OPUS_SET_VBR(1));         // VBR on
+  opus_encoder_ctl(e, OPUS_SET_VBR(1)); // VBR on
   opus_encoder_ctl(e, OPUS_SET_VBR_CONSTRAINT(0));
   opus_encoder_ctl(e, OPUS_SET_PACKET_LOSS_PERC(0));
   enc_ = e;
@@ -59,11 +59,12 @@ OpusEncoder::~OpusEncoder() {
 
 std::vector<uint8_t> OpusEncoder::EncodeFrame(const int16_t *pcm) {
   std::vector<uint8_t> out;
-  if (!enc_ || !pcm) return out;
+  if (!enc_ || !pcm)
+    return out;
 #ifdef TETHER_M5_HOST_TEST
   out.resize(kOpusMaxPacketBytes);
-  opus_int32 n = opus_encode(static_cast<::OpusEncoder *>(enc_), pcm, frame_size_,
-                             out.data(), out.size());
+  opus_int32 n = opus_encode(static_cast<::OpusEncoder *>(enc_), pcm,
+                             frame_size_, out.data(), out.size());
   if (n < 0) {
     ESP_LOGE(kTag, "opus_encode: %s", opus_strerror(n));
     out.clear();
@@ -74,4 +75,4 @@ std::vector<uint8_t> OpusEncoder::EncodeFrame(const int16_t *pcm) {
   return out;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

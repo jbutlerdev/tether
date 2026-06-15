@@ -73,9 +73,7 @@ void test_spi_bus_lock_blocks_other_core() {
 
   // Release; the next attempt from any thread must succeed.
   TEST_ASSERT_TRUE(bus->Unlock());
-  std::thread t2([&]() {
-    acquired.store(bus->Lock(pdMS_TO_TICKS(50)));
-  });
+  std::thread t2([&]() { acquired.store(bus->Lock(pdMS_TO_TICKS(50))); });
   t2.join();
   TEST_ASSERT_TRUE(acquired.load());
   TEST_ASSERT_TRUE(bus->Unlock());
@@ -100,7 +98,8 @@ void test_spi_bus_unknown_device() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_spi_bus_init);
   RUN_TEST(test_spi_bus_lock_unlock);

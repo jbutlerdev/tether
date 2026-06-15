@@ -84,8 +84,7 @@ size_t I2SMic::ReadSamples(int16_t *out, size_t max_samples) {
   if (!g_mic_injected.empty() && out) {
     size_t n = std::min(max_samples, g_mic_injected.size());
     std::copy(g_mic_injected.begin(), g_mic_injected.begin() + n, out);
-    g_mic_injected.erase(g_mic_injected.begin(),
-                         g_mic_injected.begin() + n);
+    g_mic_injected.erase(g_mic_injected.begin(), g_mic_injected.begin() + n);
     return n;
   }
   return 0;
@@ -102,14 +101,16 @@ size_t I2SMic::ReadSamples(int16_t *out, size_t max_samples) {
 void I2SMic::Start() {
 #ifdef TETHER_M5_HOST_TEST
 #else
-  if (g_rx_handle) i2s_channel_enable(g_rx_handle);
+  if (g_rx_handle)
+    i2s_channel_enable(g_rx_handle);
 #endif
 }
 
 void I2SMic::Stop() {
 #ifdef TETHER_M5_HOST_TEST
 #else
-  if (g_rx_handle) i2s_channel_disable(g_rx_handle);
+  if (g_rx_handle)
+    i2s_channel_disable(g_rx_handle);
 #endif
 }
 
@@ -118,7 +119,8 @@ void I2SMic::InjectForTest(const int16_t *samples, size_t n) {
   extern std::vector<int16_t> g_mic_injected;
   g_mic_injected.assign(samples, samples + n);
 #else
-  (void)samples; (void)n;
+  (void)samples;
+  (void)n;
 #endif
 }
 
@@ -126,4 +128,4 @@ void I2SMic::InjectForTest(const int16_t *samples, size_t n) {
 std::vector<int16_t> g_mic_injected;
 #endif
 
-}  // namespace tether::m5
+} // namespace tether::m5

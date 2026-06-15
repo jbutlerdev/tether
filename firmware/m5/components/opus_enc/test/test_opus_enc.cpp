@@ -21,7 +21,7 @@ void tearDown() {}
 // Helper: bytes.size() must be in the half-open range [lo, hi].
 #define ASSERT_BYTES_IN_RANGE(bytes, lo, hi)                                   \
   do {                                                                         \
-    TEST_ASSERT_GREATER_THAN((lo) - 1, (bytes).size());                        \
+    TEST_ASSERT_GREATER_THAN((lo)-1, (bytes).size());                          \
     TEST_ASSERT_LESS_THAN((hi) + 1, (bytes).size());                           \
   } while (0)
 
@@ -106,12 +106,14 @@ void test_opus_encode_repeatable() {
   // Allow up to 8 bytes drift (libopus 1.3.1 picks different VBR
   // encodings for back-to-back identical frames in some cases).
   int diff = static_cast<int>(a.size()) - static_cast<int>(b.size());
-  if (diff < 0) diff = -diff;
+  if (diff < 0)
+    diff = -diff;
   TEST_ASSERT_LESS_THAN(9, diff);
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_opus_init);
   RUN_TEST(test_opus_encode_zero_pcm);

@@ -42,20 +42,28 @@ enum class PttState : uint8_t {
 
 inline const char *PttStateName(PttState s) {
   switch (s) {
-    case PttState::kIdle: return "Idle";
-    case PttState::kRecording: return "Recording";
-    case PttState::kQueued: return "Queued";
-    case PttState::kTransmitting: return "Transmitting";
-    case PttState::kAcked: return "Acked";
-    case PttState::kCanceled: return "Canceled";
-    case PttState::kFailed: return "Failed";
+  case PttState::kIdle:
+    return "Idle";
+  case PttState::kRecording:
+    return "Recording";
+  case PttState::kQueued:
+    return "Queued";
+  case PttState::kTransmitting:
+    return "Transmitting";
+  case PttState::kAcked:
+    return "Acked";
+  case PttState::kCanceled:
+    return "Canceled";
+  case PttState::kFailed:
+    return "Failed";
   }
   return "?";
 }
 
 class Ptt {
- public:
-  using StateChangeHandler = std::function<void(PttState old_s, PttState new_s)>;
+public:
+  using StateChangeHandler =
+      std::function<void(PttState old_s, PttState new_s)>;
 
   Ptt() = default;
 
@@ -90,7 +98,7 @@ class Ptt {
   int AllAckedCount() const { return acked_count_; }
   int FailedCount() const { return failed_count_; }
 
- private:
+private:
   void Transition(PttState s);
 
   PttState state_ = PttState::kIdle;
@@ -101,4 +109,4 @@ class Ptt {
   StateChangeHandler state_change_;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

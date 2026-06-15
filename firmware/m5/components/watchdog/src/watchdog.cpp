@@ -14,7 +14,8 @@ constexpr char kTag[] = "tether.wdt";
 }
 
 bool Watchdog::Register(const std::string &task_name) {
-  if (task_name.empty()) return false;
+  if (task_name.empty())
+    return false;
   tasks_[task_name] = TaskInfo{};
   return true;
 }
@@ -30,14 +31,16 @@ void Watchdog::FeedAll() {
 
 uint64_t Watchdog::FeedCountFor(const std::string &task_name) const {
   auto it = tasks_.find(task_name);
-  if (it == tasks_.end()) return 0;
+  if (it == tasks_.end())
+    return 0;
   return it->second.feed_count;
 }
 
 bool Watchdog::IsHungForTest(const std::string &task_name) const {
   auto it = tasks_.find(task_name);
-  if (it == tasks_.end()) return false;
+  if (it == tasks_.end())
+    return false;
   return (now_ms_ - it->second.last_fed_at_ms) > hung_threshold_ms_;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

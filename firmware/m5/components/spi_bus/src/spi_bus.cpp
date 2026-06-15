@@ -60,7 +60,8 @@ SpiBus::~SpiBus() {
 }
 
 esp_err_t SpiBus::AddDevice(int cs_pin, int clock_hz, int queue_size) {
-  if (!bus_initialized_) return ESP_FAIL;
+  if (!bus_initialized_)
+    return ESP_FAIL;
   if (handles_.find(cs_pin) != handles_.end()) {
     return ESP_OK; // already registered
   }
@@ -83,12 +84,14 @@ esp_err_t SpiBus::AddDevice(int cs_pin, int clock_hz, int queue_size) {
 
 spi_device_handle_t SpiBus::Handle(int cs_pin) const {
   auto it = handles_.find(cs_pin);
-  if (it == handles_.end()) return nullptr;
+  if (it == handles_.end())
+    return nullptr;
   return it->second;
 }
 
 bool SpiBus::Lock(TickType_t timeout_ticks) {
-  if (!mutex_) return false;
+  if (!mutex_)
+    return false;
   if (xSemaphoreGetMutexHolder(mutex_) == xTaskGetCurrentTaskHandle()) {
     // Already own the mutex — refuse recursive lock.
     return false;
@@ -97,7 +100,8 @@ bool SpiBus::Lock(TickType_t timeout_ticks) {
 }
 
 bool SpiBus::Unlock() {
-  if (!mutex_) return false;
+  if (!mutex_)
+    return false;
   if (xSemaphoreGetMutexHolder(mutex_) != xTaskGetCurrentTaskHandle()) {
     return false;
   }
@@ -110,10 +114,10 @@ SpiBus *g_bus_instance = nullptr;
 
 SpiBus &Bus() {
   if (!g_bus_instance) {
-    g_bus_instance = new SpiBus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13,
-                                GPIO_NUM_12);
+    g_bus_instance =
+        new SpiBus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12);
   }
   return *g_bus_instance;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

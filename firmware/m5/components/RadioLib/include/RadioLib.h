@@ -17,7 +17,7 @@
 class Module;
 
 class Module {
- public:
+public:
   Module(int8_t cs, int8_t irq, int8_t rst, int8_t busy)
       : cs_(cs), irq_(irq), rst_(rst), busy_(busy) {}
   int8_t cs_;
@@ -27,7 +27,7 @@ class Module {
 };
 
 class SX1262 {
- public:
+public:
   explicit SX1262(Module *mod) : mod_(mod) {}
   int begin(float bw, int8_t sf, uint8_t cr, uint8_t sync_word, int8_t pwr,
             uint16_t preamble, float tcxo_v, bool ldo);

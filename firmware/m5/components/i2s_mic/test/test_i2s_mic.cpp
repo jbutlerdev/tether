@@ -25,7 +25,8 @@ void test_mic_inject_read() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_mic_inject_read);
   (void)0;

@@ -30,8 +30,7 @@ void tearDown() {}
 size_t CountZeroCrossings(const std::vector<int16_t> &buf) {
   size_t count = 0;
   for (size_t i = 1; i < buf.size(); ++i) {
-    if ((buf[i - 1] <= 0 && buf[i] > 0) ||
-        (buf[i - 1] >= 0 && buf[i] < 0)) {
+    if ((buf[i - 1] <= 0 && buf[i] > 0) || (buf[i - 1] >= 0 && buf[i] < 0)) {
       ++count;
     }
   }
@@ -46,8 +45,8 @@ void test_amp_sine_440hz() {
   size_t got = amp.ReadSamples(buf.data(), buf.size());
   TEST_ASSERT_EQUAL_size_t(800, got);
   // Buffer should not be all zeros.
-  bool any_nonzero = std::any_of(buf.begin(), buf.end(),
-                                 [](int16_t s) { return s != 0; });
+  bool any_nonzero =
+      std::any_of(buf.begin(), buf.end(), [](int16_t s) { return s != 0; });
   TEST_ASSERT_TRUE(any_nonzero);
   // Estimate the dominant frequency via zero crossings.
   size_t crossings = CountZeroCrossings(buf);
@@ -116,19 +115,22 @@ void test_amp_tone_length() {
   TEST_ASSERT_EQUAL_size_t(2000, got);
   size_t nonzero = 0;
   for (auto s : buf) {
-    if (s != 0) ++nonzero;
+    if (s != 0)
+      ++nonzero;
   }
   // The exact nonzero count depends on the phase: at phase 0 the sine
   // is 0, and any other phase zero-crossing also produces 0. With a
   // 200 ms 440 Hz tone we expect roughly 1600 - (cycles) - 1 ≈ 1584
   // non-zero samples. Allow a ±32 sample drift for variations.
   int diff = static_cast<int>(nonzero) - 1584;
-  if (diff < 0) diff = -diff;
+  if (diff < 0)
+    diff = -diff;
   TEST_ASSERT_LESS_THAN(33, diff);
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_amp_sine_440hz);
   RUN_TEST(test_amp_sine_1khz);

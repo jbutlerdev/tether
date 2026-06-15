@@ -25,7 +25,7 @@ namespace tether::m5 {
 inline constexpr char kSdCardTag[] = "tether.sd";
 
 class SdCard {
- public:
+public:
   SdCard() = default;
   ~SdCard();
 
@@ -68,9 +68,9 @@ class SdCard {
   // The path used for Mount(). nullptr if not mounted.
   const char *MountRoot() const { return mount_root_; }
 
- private:
+private:
   bool mounted_ = false;
   char mount_root_[256] = {};
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

@@ -13,7 +13,7 @@
 namespace tether::m5 {
 
 class I2SMic {
- public:
+public:
   I2SMic() = default;
   ~I2SMic() = default;
 
@@ -35,4 +35,4 @@ class I2SMic {
   void InjectForTest(const int16_t *samples, size_t n);
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

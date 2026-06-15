@@ -63,8 +63,10 @@ struct Channel {
   uint64_t frequency_hz = 0;
 
   static std::optional<Channel> FromIndex(uint8_t idx) {
-    if (idx >= 64) return std::nullopt;
-    return Channel{idx, kUs915StartHz + static_cast<uint64_t>(idx) * kUs915StepHz};
+    if (idx >= 64)
+      return std::nullopt;
+    return Channel{idx,
+                   kUs915StartHz + static_cast<uint64_t>(idx) * kUs915StepHz};
   }
 };
 
@@ -73,7 +75,7 @@ struct Channel {
 // Operations LoraRadio performs on the SX1262. Implementations: real
 // RadioLib (firmware) and MockRadioBackend (host tests).
 class RadioBackend {
- public:
+public:
   virtual ~RadioBackend() = default;
 
   virtual void Configure(const Preset &preset) = 0;
@@ -89,7 +91,7 @@ class RadioBackend {
 // ── Mock backend for host tests ────────────────────────────────────────
 
 class MockRadioBackend : public RadioBackend {
- public:
+public:
   std::vector<std::string> call_log;
   SpreadFactor last_spread_factor = SpreadFactor::kSF7;
   BandwidthHz last_bandwidth_hz = BandwidthHz::k125kHz;
@@ -119,7 +121,7 @@ class MockRadioBackend : public RadioBackend {
 // ── LoraRadio (production) ─────────────────────────────────────────────
 
 class LoraRadio {
- public:
+public:
   explicit LoraRadio(std::shared_ptr<RadioBackend> backend);
 
   // Initialize the radio with the given preset. The driver takes the SPI
@@ -143,8 +145,8 @@ class LoraRadio {
   void Sleep();
   void Standby();
 
- private:
+private:
   std::shared_ptr<RadioBackend> backend_;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

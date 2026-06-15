@@ -39,7 +39,8 @@ SdCard::~SdCard() {
 }
 
 esp_err_t SdCard::Mount(const char * /*root*/) {
-  if (mounted_) return ESP_OK;
+  if (mounted_)
+    return ESP_OK;
 
   esp_vfs_littlefs_conf_t conf = {};
   conf.base_path = kVfsRoot;
@@ -59,7 +60,8 @@ esp_err_t SdCard::Mount(const char * /*root*/) {
 }
 
 esp_err_t SdCard::Unmount() {
-  if (!mounted_) return ESP_OK;
+  if (!mounted_)
+    return ESP_OK;
   Bus().Lock(portMAX_DELAY);
   esp_err_t err = esp_vfs_littlefs_unregister(kPartitionLabel);
   Bus().Unlock();
@@ -69,7 +71,8 @@ esp_err_t SdCard::Unmount() {
 }
 
 FILE *SdCard::Open(const char *path, const char *mode) {
-  if (!mounted_ || !path || !mode) return nullptr;
+  if (!mounted_ || !path || !mode)
+    return nullptr;
   Bus().Lock(portMAX_DELAY);
   FILE *fp = fopen(path, mode);
   Bus().Unlock();
@@ -77,7 +80,8 @@ FILE *SdCard::Open(const char *path, const char *mode) {
 }
 
 int SdCard::Remove(const char *path) {
-  if (!mounted_ || !path) return -1;
+  if (!mounted_ || !path)
+    return -1;
   Bus().Lock(portMAX_DELAY);
   int rc = unlink(path);
   Bus().Unlock();
@@ -85,7 +89,8 @@ int SdCard::Remove(const char *path) {
 }
 
 int SdCard::Rename(const char *from, const char *to) {
-  if (!mounted_ || !from || !to) return -1;
+  if (!mounted_ || !from || !to)
+    return -1;
   Bus().Lock(portMAX_DELAY);
   int rc = rename(from, to);
   Bus().Unlock();
@@ -93,10 +98,12 @@ int SdCard::Rename(const char *from, const char *to) {
 }
 
 size_t SdCard::TotalBytes() const {
-  if (!mounted_) return 0;
+  if (!mounted_)
+    return 0;
 #ifdef TETHER_M5_HOST_TEST
   struct statvfs st;
-  if (statvfs(mount_root_, &st) != 0) return 0;
+  if (statvfs(mount_root_, &st) != 0)
+    return 0;
   return static_cast<size_t>(st.f_blocks) * st.f_frsize;
 #else
   return 0; // TODO(phase-4): use esp_littlefs_info()
@@ -104,14 +111,16 @@ size_t SdCard::TotalBytes() const {
 }
 
 size_t SdCard::FreeBytes() const {
-  if (!mounted_) return 0;
+  if (!mounted_)
+    return 0;
 #ifdef TETHER_M5_HOST_TEST
   struct statvfs st;
-  if (statvfs(mount_root_, &st) != 0) return 0;
+  if (statvfs(mount_root_, &st) != 0)
+    return 0;
   return static_cast<size_t>(st.f_bavail) * st.f_frsize;
 #else
   return 0; // TODO(phase-4): use esp_littlefs_info()
 #endif
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

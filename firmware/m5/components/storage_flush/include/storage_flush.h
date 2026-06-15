@@ -10,7 +10,7 @@
 namespace tether::m5 {
 
 class StorageFlush {
- public:
+public:
   StorageFlush(PsramRing &ring, SdCard &card);
 
   // Initialize. Returns true on success.
@@ -30,7 +30,7 @@ class StorageFlush {
   // Test seam: return the most recent file path used.
   const std::string &LastFile() const { return last_file_; }
 
- private:
+private:
   PsramRing &ring_;
   SdCard &card_;
   std::string last_file_;
@@ -38,4 +38,4 @@ class StorageFlush {
   uint64_t chunks_written_ = 0;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

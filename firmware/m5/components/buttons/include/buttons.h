@@ -52,7 +52,7 @@ struct ButtonEvent {
 using EventHandler = std::function<void(ButtonEvent)>;
 
 class Buttons {
- public:
+public:
   Buttons() = default;
   ~Buttons();
 
@@ -90,7 +90,7 @@ class Buttons {
   // Internal access for the debounce task entry point.
   bool IsDebounceTaskRunningForTask() const { return task_running_; }
 
- private:
+private:
   EventHandler handler_;
   // For each button: last raw state, last debounce time.
   struct PinState {
@@ -110,4 +110,4 @@ class Buttons {
   bool task_running_ = false;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

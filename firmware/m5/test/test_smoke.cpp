@@ -48,7 +48,8 @@ void test_smoke_full_task_set() {
   // Skip the SD mount in the smoke test; storage_flush is exercised
   // in its own component test.
 
-  std::shared_ptr<MockRadioBackend> backend = std::make_shared<MockRadioBackend>();
+  std::shared_ptr<MockRadioBackend> backend =
+      std::make_shared<MockRadioBackend>();
   LoraRadio radio(backend);
   RadioTask rt(radio);
 
@@ -70,14 +71,16 @@ void test_smoke_full_task_set() {
   // Drive the audio capture for 200 frames.
   for (int i = 0; i < kLoadFrames; ++i) {
     cap.RunOnce();
-    if (i % 20 == 0) wdt.FeedAll();
+    if (i % 20 == 0)
+      wdt.FeedAll();
   }
   TEST_ASSERT_EQUAL(kLoadFrames, cap.FramesEncoded());
 
   // Drive the radio task to drain its outbox.
   for (int i = 0; i < 50; ++i) {
     rt.Enqueue({0xDE, 0xAD, 0xBE, 0xEF});
-    for (int s = 0; s < 5; ++s) rt.Step();
+    for (int s = 0; s < 5; ++s)
+      rt.Step();
     rt.InjectAckForTest(/*msg_id=*/i + 1, /*bitmap=*/0x1);
   }
   TEST_ASSERT_GREATER_THAN(0, rt.AcksReceived());
@@ -125,7 +128,8 @@ void test_smoke_concurrent_ring() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_smoke_full_task_set);
   RUN_TEST(test_smoke_concurrent_ring);

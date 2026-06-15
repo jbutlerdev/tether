@@ -63,4 +63,4 @@ void I2SAmp::ResetForTest() {
   total_samples_ = 0;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

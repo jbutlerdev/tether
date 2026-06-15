@@ -127,7 +127,8 @@ void test_buttons_prev_no_long_press() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_buttons_press_release);
   RUN_TEST(test_buttons_debounce);

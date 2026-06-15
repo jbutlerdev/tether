@@ -40,7 +40,8 @@ void DebounceTaskEntry(void *arg) {
 Buttons::~Buttons() { StopDebounceTask(); }
 
 bool Buttons::Init(EventHandler handler) {
-  if (!handler) return false;
+  if (!handler)
+    return false;
   handler_ = std::move(handler);
   for (auto &p : state_) {
     p = PinState{};
@@ -51,7 +52,8 @@ bool Buttons::Init(EventHandler handler) {
 
 void Buttons::SimulatePressForTest(Button b) {
   size_t i = static_cast<size_t>(b);
-  if (i >= 3) return;
+  if (i >= 3)
+    return;
   if (state_[i].raw_pressed != true) {
     state_[i].raw_pressed = true;
     state_[i].last_raw_change_at_ms = now_ms_;
@@ -61,7 +63,8 @@ void Buttons::SimulatePressForTest(Button b) {
 
 void Buttons::SimulateReleaseForTest(Button b) {
   size_t i = static_cast<size_t>(b);
-  if (i >= 3) return;
+  if (i >= 3)
+    return;
   if (state_[i].raw_pressed != false) {
     state_[i].raw_pressed = false;
     state_[i].last_raw_change_at_ms = now_ms_;
@@ -101,8 +104,7 @@ void Buttons::Tick(uint32_t elapsed_ms) {
       uint32_t held_ms = now_ms_ - s.press_started_at_ms;
       bool should_fire_long = false;
       Event long_event = Event::kPress;
-      if (i == static_cast<size_t>(Button::kPtt) &&
-          held_ms >= long_ptt_ms_) {
+      if (i == static_cast<size_t>(Button::kPtt) && held_ms >= long_ptt_ms_) {
         should_fire_long = true;
         long_event = Event::kLongPressPtt;
       } else if (i == static_cast<size_t>(Button::kNext) &&
@@ -123,10 +125,11 @@ void Buttons::Tick(uint32_t elapsed_ms) {
 
 bool Buttons::StartDebounceTask(uint32_t period_ms) {
   (void)period_ms;
-  if (task_running_) return true;
+  if (task_running_)
+    return true;
   task_running_ = true;
-  BaseType_t rc = xTaskCreate(DebounceTaskEntry, "buttons_debounce",
-                              2048, this, 5, &task_handle_);
+  BaseType_t rc = xTaskCreate(DebounceTaskEntry, "buttons_debounce", 2048, this,
+                              5, &task_handle_);
   if (rc != pdPASS) {
     task_running_ = false;
     return false;
@@ -135,10 +138,11 @@ bool Buttons::StartDebounceTask(uint32_t period_ms) {
 }
 
 void Buttons::StopDebounceTask() {
-  if (!task_running_) return;
+  if (!task_running_)
+    return;
   task_running_ = false;
   // The task self-deletes when it sees task_running_ = false.
   task_handle_ = nullptr;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

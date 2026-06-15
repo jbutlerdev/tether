@@ -16,7 +16,7 @@
 namespace tether::m5 {
 
 class AudioCapture {
- public:
+public:
   AudioCapture(PsramRing &ring, OpusEncoder &enc);
 
   // Initialize the I2S mic and Opus encoder. Returns true on success.
@@ -45,7 +45,7 @@ class AudioCapture {
   // Test seam: signal that I2S is not running (idle low-power state).
   void SetI2SRunningForTest(bool running) { i2s_running_ = running; }
 
- private:
+private:
   PsramRing &ring_;
   OpusEncoder &enc_;
   int16_t pcm_buf_[160] = {};
@@ -57,4 +57,4 @@ class AudioCapture {
   size_t mock_allocs_per_run_ = 0;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

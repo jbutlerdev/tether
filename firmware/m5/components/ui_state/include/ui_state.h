@@ -24,7 +24,7 @@ enum class UiScreen : uint8_t {
 };
 
 class UiState {
- public:
+public:
   UiState() = default;
 
   // Wire to a Ptt state-change observer.
@@ -40,10 +40,13 @@ class UiState {
   void SetScreenForTest(UiScreen s) { screen_ = s; }
 
   // History of (PttState, UiScreen) transitions, for tests.
-  struct LogEntry { PttState ptt; UiScreen ui; };
+  struct LogEntry {
+    PttState ptt;
+    UiScreen ui;
+  };
   const std::vector<LogEntry> &Log() const { return log_; }
 
- private:
+private:
   void OnPttChange(PttState old_s, PttState new_s);
 
   Ptt *ptt_ = nullptr;
@@ -51,4 +54,4 @@ class UiState {
   std::vector<LogEntry> log_;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

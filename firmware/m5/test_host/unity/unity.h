@@ -35,8 +35,8 @@ void setUp(void);
 void tearDown(void);
 
 /* Assertion primitives. */
-void UnityAssertEqualNumber(int expected, int actual,
-                            const char *file, int line, const char *msg);
+void UnityAssertEqualNumber(int expected, int actual, const char *file,
+                            int line, const char *msg);
 void UnityAssertEqualString(const char *expected, const char *actual,
                             const char *file, int line);
 void UnityAssertEqualPtr(const void *expected, const void *actual,
@@ -61,28 +61,25 @@ typedef struct UnityTestRunner UnityTestRunner;
 /* ── TEST_* macros (subset of real Unity) ─────────────────────────────── */
 
 #define TEST_ASSERT_EQUAL(expected, actual)                                    \
-  UnityAssertEqualNumber((expected), (actual), __FILE__, __LINE__,              \
+  UnityAssertEqualNumber((expected), (actual), __FILE__, __LINE__,             \
                          "TEST_ASSERT_EQUAL(" #expected "," #actual ")")
 
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                \
-  UnityAssertEqualNumber((expected), (actual),                                  \
-                         __FILE__, __LINE__,                                    \
+  UnityAssertEqualNumber((expected), (actual), __FILE__, __LINE__,             \
                          "TEST_ASSERT_EQUAL_INT(" #expected "," #actual ")")
 #define TEST_ASSERT_EQUAL_size_t(expected, actual)                             \
-  UnityAssertEqualNumber((int)(expected), (int)(actual),                        \
-                         __FILE__, __LINE__,                                    \
-                         "TEST_ASSERT_EQUAL_size_t(" #expected "," #actual ")")
+  UnityAssertEqualNumber((int)(expected), (int)(actual), __FILE__, __LINE__,   \
+                         "TEST_ASSERT_EQUAL_size_t(" #expected "," #actual     \
+                         ")")
 #define TEST_ASSERT_EQUAL_UINT8(expected, actual)                              \
-  UnityAssertEqualNumber((int)(expected), (int)(actual),                        \
-                         __FILE__, __LINE__,                                    \
+  UnityAssertEqualNumber((int)(expected), (int)(actual), __FILE__, __LINE__,   \
                          "TEST_ASSERT_EQUAL_UINT8(" #expected "," #actual ")")
 #define TEST_ASSERT_EQUAL_UINT32(expected, actual)                             \
-  UnityAssertEqualNumber((int)(expected), (int)(actual),                        \
-                         __FILE__, __LINE__,                                    \
-                         "TEST_ASSERT_EQUAL_UINT32(" #expected "," #actual ")")
+  UnityAssertEqualNumber((int)(expected), (int)(actual), __FILE__, __LINE__,   \
+                         "TEST_ASSERT_EQUAL_UINT32(" #expected "," #actual     \
+                         ")")
 #define TEST_ASSERT_EQUAL_HEX32(expected, actual)                              \
-  UnityAssertEqualNumber((int)(expected), (int)(actual),                        \
-                         __FILE__, __LINE__,                                    \
+  UnityAssertEqualNumber((int)(expected), (int)(actual), __FILE__, __LINE__,   \
                          "TEST_ASSERT_EQUAL_HEX32(" #expected "," #actual ")")
 #define TEST_ASSERT_EQUAL_PTR(expected, actual)                                \
   UnityAssertEqualPtr((expected), (actual), __FILE__, __LINE__)
@@ -95,16 +92,16 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_EQUAL_STRING(expected, actual)                             \
   UnityAssertEqualString((expected), (actual), __FILE__, __LINE__)
 #define TEST_ASSERT_EQUAL_MEMORY(expected, actual, len)                        \
-  UnityAssertEqualMemory((expected), (actual), (unsigned int)(len),             \
-                         __FILE__, __LINE__)
+  UnityAssertEqualMemory((expected), (actual), (unsigned int)(len), __FILE__,  \
+                         __LINE__)
 #define TEST_ASSERT_GREATER_THAN(threshold, actual)                            \
-  UnityAssertTrue(((actual) > (threshold)), __FILE__, __LINE__,                 \
+  UnityAssertTrue(((actual) > (threshold)), __FILE__, __LINE__,                \
                   "TEST_ASSERT_GREATER_THAN(" #threshold ", " #actual ")")
 #define TEST_ASSERT_LESS_THAN(threshold, actual)                               \
-  UnityAssertTrue(((actual) < (threshold)), __FILE__, __LINE__,                 \
+  UnityAssertTrue(((actual) < (threshold)), __FILE__, __LINE__,                \
                   "TEST_ASSERT_LESS_THAN(" #threshold ", " #actual ")")
 #ifdef __cplusplus
-#define TEST_ASSERT_THROW(stmt, ex_type)                                        \
+#define TEST_ASSERT_THROW(stmt, ex_type)                                       \
   do {                                                                         \
     bool caught = false;                                                       \
     try {                                                                      \
@@ -115,14 +112,18 @@ typedef struct UnityTestRunner UnityTestRunner;
     }                                                                          \
     if (!caught) {                                                             \
       UnityAssertTrue(false, __FILE__, __LINE__,                               \
-                      "TEST_ASSERT_THROW(" #stmt ", " #ex_type ") did not throw"); \
+                      "TEST_ASSERT_THROW(" #stmt ", " #ex_type                 \
+                      ") did not throw");                                      \
     }                                                                          \
   } while (0)
 #else
 #define TEST_ASSERT_THROW(stmt, ex_type) /* not available in C tests */
 #endif
 #define TEST_IGNORE_MESSAGE(msg)                                               \
-  do { UnityIgnoreTest(msg); return; } while (0)
+  do {                                                                         \
+    UnityIgnoreTest(msg);                                                      \
+    return;                                                                    \
+  } while (0)
 
 /* ── Test registration / suite definition ─────────────────────────────── */
 

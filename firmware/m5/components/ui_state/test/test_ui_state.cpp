@@ -15,8 +15,10 @@ namespace {
 Ptt *g_ptt = nullptr;
 UiState *g_ui = nullptr;
 void Reset() {
-  delete g_ui; g_ui = nullptr;
-  delete g_ptt; g_ptt = nullptr;
+  delete g_ui;
+  g_ui = nullptr;
+  delete g_ptt;
+  g_ptt = nullptr;
   g_ptt = new Ptt();
   g_ui = new UiState();
   g_ui->SetPtt(g_ptt);
@@ -25,8 +27,10 @@ void Reset() {
 
 void setUp() { Reset(); }
 void tearDown() {
-  delete g_ui; g_ui = nullptr;
-  delete g_ptt; g_ptt = nullptr;
+  delete g_ui;
+  g_ui = nullptr;
+  delete g_ptt;
+  g_ptt = nullptr;
 }
 
 // Test 1: IDLE → idle screen.
@@ -77,7 +81,8 @@ void test_ui_log_populated() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_ui_idle_screen);
   RUN_TEST(test_ui_recording_screen);

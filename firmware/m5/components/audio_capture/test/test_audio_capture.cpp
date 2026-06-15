@@ -37,9 +37,12 @@ void Reset() {
 
 void setUp() { Reset(); }
 void tearDown() {
-  delete g_cap; g_cap = nullptr;
-  delete g_enc; g_enc = nullptr;
-  delete g_ring; g_ring = nullptr;
+  delete g_cap;
+  g_cap = nullptr;
+  delete g_enc;
+  g_enc = nullptr;
+  delete g_ring;
+  g_ring = nullptr;
 }
 
 // Test 1: 1 s of synthetic PCM produces 50 Opus frames in the ring.
@@ -105,7 +108,8 @@ void test_capture_no_alloc_in_task() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_capture_writes_to_ring);
   RUN_TEST(test_capture_handles_ring_full);

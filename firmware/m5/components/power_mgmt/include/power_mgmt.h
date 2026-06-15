@@ -18,7 +18,7 @@ enum class PowerState : uint8_t {
 };
 
 class PowerMgmt {
- public:
+public:
   PowerMgmt() = default;
 
   // Initialize with thresholds. Defaults: light sleep after 5 s idle,
@@ -41,7 +41,7 @@ class PowerMgmt {
   void SetWakeSourceTimerForTest(bool enabled) { wake_timer_ = enabled; }
   void SetWakeSourceRxForTest(bool enabled) { wake_rx_ = enabled; }
 
- private:
+private:
   PowerState state_ = PowerState::kActive;
   uint32_t idle_ms_ = 0;
   uint32_t light_threshold_ms_ = 5000;
@@ -51,4 +51,4 @@ class PowerMgmt {
   bool wake_rx_ = true;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

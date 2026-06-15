@@ -8,8 +8,8 @@
 
 #include <unity.h>
 
-#include "ptt.h"
 #include "buttons.h"
+#include "ptt.h"
 
 using tether::m5::Button;
 using tether::m5::ButtonEvent;
@@ -27,7 +27,9 @@ void Capture(PttState old_s, PttState new_s) {
 
 ButtonEvent Press(Button b) { return ButtonEvent{b, Event::kPress}; }
 ButtonEvent Release(Button b) { return ButtonEvent{b, Event::kRelease}; }
-ButtonEvent LongPtt() { return ButtonEvent{Button::kPtt, Event::kLongPressPtt}; }
+ButtonEvent LongPtt() {
+  return ButtonEvent{Button::kPtt, Event::kLongPressPtt};
+}
 } // namespace
 
 void setUp() {
@@ -177,7 +179,8 @@ void test_ptt_state_change_handler() {
 }
 
 int main(int argc, const char **argv) {
-  (void)argc; (void)argv;
+  (void)argc;
+  (void)argv;
   UNITY_BEGIN();
   RUN_TEST(test_ptt_idle_to_recording_on_press);
   RUN_TEST(test_ptt_recording_to_queued_on_release);
