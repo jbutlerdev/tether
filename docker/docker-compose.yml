@@ -1,0 +1,15 @@
+services:
+  tether-dev:
+    build:
+      context: .
+      dockerfile: docker/dev.Dockerfile
+    image: tether-dev:latest
+    container_name: tether-dev
+    volumes:
+      - ..:/src
+    working_dir: /src
+    environment:
+      - IDF_PATH=/opt/esp-idf
+      - GOPATH=/root/go
+    stdin_open: true
+    tty: true

@@ -1,0 +1,35 @@
+name: firmware-build
+
+on:
+  push:
+    branches: [main, 'phase/*']
+  pull_request:
+
+jobs:
+  m5:
+    name: m5-esp-idf-build
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build M5 firmware
+        run: |
+          cd firmware/m5
+          idf.py build
+
+  bridge:
+    name: bridge-platformio-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PlatformIO
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install platformio
+      - name: Test bridge firmware
+        run: |
+          cd firmware/bridge
+          pio test
