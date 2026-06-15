@@ -87,7 +87,8 @@ function(add_host_test name)
     ${comp_dir}/test/test_${name}.cpp
     ${comp_dir}/test/test_${name}_state.cpp
     ${comp_dir}/test/test_${name}_render.cpp
-    ${comp_dir}/test/test_${name}_reset.cpp)
+    ${comp_dir}/test/test_${name}_reset.cpp
+    ${comp_dir}/test/test_${name}_phase8.cpp)
     if(EXISTS ${candidate})
       list(APPEND test_srcs ${candidate})
     endif()

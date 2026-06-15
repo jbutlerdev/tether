@@ -2,27 +2,35 @@
 #include <unity.h>
 
 #include "power_mgmt.h"
+#include "test_power_mgmt_state.h"
 
+using tether::m5::Peripheral;
 using tether::m5::PowerMgmt;
 using tether::m5::PowerState;
 
-namespace {
 PowerMgmt *g_pm = nullptr;
-void Reset() {
+void ResetPowerMgmt() {
   delete g_pm;
   g_pm = new PowerMgmt();
   g_pm->Init(1000, 5000); // 1 s light, 5 s deep
 }
-} // namespace
 
-void setUp() { Reset(); }
+void setUp() { ResetPowerMgmt(); }
 void tearDown() {
   delete g_pm;
   g_pm = nullptr;
 }
 
 // Test 1: deep sleep after 30 s idle (we use 5 s for the test).
+// Phase 8 added the requirement that all peripherals be gated
+// off before deep sleep is reachable; we gate them at the
+// top of every test that expects deep sleep.
 void test_power_deep_sleep_after_idle() {
+  g_pm->GateOff(Peripheral::kLora);
+  g_pm->GateOff(Peripheral::kI2SAmp);
+  g_pm->GateOff(Peripheral::kI2SMic);
+  g_pm->GateOff(Peripheral::kEpd);
+  g_pm->GateOff(Peripheral::kSd);
   g_pm->Tick(2000);
   TEST_ASSERT_EQUAL(static_cast<int>(PowerState::kLightSleep),
                     static_cast<int>(g_pm->State()));
@@ -62,6 +70,8 @@ void test_power_light_sleep_during_idle() {
                     static_cast<int>(g_pm->State()));
 }
 
+extern "C" void register_power_mgmt_phase8_tests();
+
 int main(int argc, const char **argv) {
   (void)argc;
   (void)argv;
@@ -70,6 +80,7 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_power_wake_on_activity);
   RUN_TEST(test_power_wake_on_timer);
   RUN_TEST(test_power_light_sleep_during_idle);
+  register_power_mgmt_phase8_tests();
   (void)0;
   UNITY_END();
 }
