@@ -60,9 +60,7 @@ public:
 
   // Conv list. The UI does not own this; the conv_manager
   // task feeds it. The pointer must outlive the UiState.
-  void SetConversations(const std::vector<ConvInfo> *convs) {
-    convs_ = convs;
-  }
+  void SetConversations(const std::vector<ConvInfo> *convs) { convs_ = convs; }
 
   // EPD controller. Default-constructed one is used if none is
   // wired; tests inject a controller to inspect what was

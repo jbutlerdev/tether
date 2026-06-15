@@ -84,8 +84,7 @@ void WriteFile(const std::string &dir, const std::string &name,
     std::fprintf(stderr, "FAIL: cannot open %s for write\n", path.c_str());
     std::exit(1);
   }
-  f.write(reinterpret_cast<const char *>(buf),
-          static_cast<std::streamsize>(n));
+  f.write(reinterpret_cast<const char *>(buf), static_cast<std::streamsize>(n));
   std::fprintf(stdout, "wrote %s (%zu bytes)\n", path.c_str(), n);
 }
 

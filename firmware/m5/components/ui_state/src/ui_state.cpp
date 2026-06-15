@@ -62,14 +62,22 @@ enum SettingsCursor : uint8_t {
 
 const char *UiState::ScreenName() const {
   switch (screen_) {
-  case UiScreen::kIdle:         return "Idle";
-  case UiScreen::kRecording:    return "Recording";
-  case UiScreen::kQueued:       return "Queued";
-  case UiScreen::kTransmitting: return "Transmitting";
-  case UiScreen::kAcked:        return "Acked";
-  case UiScreen::kSettings:     return "Settings";
-  case UiScreen::kLowBattery:   return "LowBattery";
-  case UiScreen::kTtsPlayback:  return "TtsPlayback";
+  case UiScreen::kIdle:
+    return "Idle";
+  case UiScreen::kRecording:
+    return "Recording";
+  case UiScreen::kQueued:
+    return "Queued";
+  case UiScreen::kTransmitting:
+    return "Transmitting";
+  case UiScreen::kAcked:
+    return "Acked";
+  case UiScreen::kSettings:
+    return "Settings";
+  case UiScreen::kLowBattery:
+    return "LowBattery";
+  case UiScreen::kTtsPlayback:
+    return "TtsPlayback";
   }
   return "?";
 }
@@ -135,8 +143,7 @@ void UiState::OnButtonEvent(ButtonEvent ev) {
         if (settings_cursor_ == kSettingsVolume) {
           ChangeVolume(+static_cast<int>(kVolumeStep));
         } else {
-          settings_cursor_ =
-              (settings_cursor_ + 1) % kSettingsCount;
+          settings_cursor_ = (settings_cursor_ + 1) % kSettingsCount;
         }
         Render();
       } else if (ev.event == Event::kLongPressNext) {
@@ -209,8 +216,7 @@ void UiState::AdvanceConv(int delta) {
   }
   size_t n = convs_->size();
   long long cur = static_cast<long long>(current_index_) + delta;
-  cur = ((cur % static_cast<long long>(n)) +
-         static_cast<long long>(n)) %
+  cur = ((cur % static_cast<long long>(n)) + static_cast<long long>(n)) %
         static_cast<long long>(n);
   current_index_ = static_cast<size_t>(cur);
 
@@ -226,8 +232,10 @@ void UiState::AdvanceConv(int delta) {
 
 void UiState::ChangeVolume(int delta) {
   int v = static_cast<int>(volume_) + delta;
-  if (v < kVolumeMin) v = kVolumeMin;
-  if (v > kVolumeMax) v = kVolumeMax;
+  if (v < kVolumeMin)
+    v = kVolumeMin;
+  if (v > kVolumeMax)
+    v = kVolumeMax;
   volume_ = static_cast<uint8_t>(v);
 }
 
@@ -255,14 +263,30 @@ void UiState::Render() {
     return;
   }
   switch (screen_) {
-  case UiScreen::kIdle:         RenderIdle(); break;
-  case UiScreen::kRecording:    RenderRecording(); break;
-  case UiScreen::kQueued:       RenderQueued(); break;
-  case UiScreen::kTransmitting: RenderTransmitting(); break;
-  case UiScreen::kTtsPlayback:  RenderTts(); break;
-  case UiScreen::kSettings:     RenderSettings(); break;
-  case UiScreen::kLowBattery:   RenderLowBattery(); break;
-  case UiScreen::kAcked:        RenderIdle(); break;
+  case UiScreen::kIdle:
+    RenderIdle();
+    break;
+  case UiScreen::kRecording:
+    RenderRecording();
+    break;
+  case UiScreen::kQueued:
+    RenderQueued();
+    break;
+  case UiScreen::kTransmitting:
+    RenderTransmitting();
+    break;
+  case UiScreen::kTtsPlayback:
+    RenderTts();
+    break;
+  case UiScreen::kSettings:
+    RenderSettings();
+    break;
+  case UiScreen::kLowBattery:
+    RenderLowBattery();
+    break;
+  case UiScreen::kAcked:
+    RenderIdle();
+    break;
   }
 }
 

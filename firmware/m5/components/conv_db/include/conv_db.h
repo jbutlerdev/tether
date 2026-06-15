@@ -38,13 +38,13 @@
 
 namespace tether::m5 {
 
-inline constexpr size_t kConvNameMax = 24;     // NUL-terminated within 24 B
-inline constexpr size_t kConvTargetMax = 128;  // matrix room id / forge uuid
-inline constexpr size_t kConvIdSize = 16;      // UUID bytes
-inline constexpr size_t kConvEncKeySize = 16;  // AES-128
+inline constexpr size_t kConvNameMax = 24;    // NUL-terminated within 24 B
+inline constexpr size_t kConvTargetMax = 128; // matrix room id / forge uuid
+inline constexpr size_t kConvIdSize = 16;     // UUID bytes
+inline constexpr size_t kConvEncKeySize = 16; // AES-128
 inline constexpr size_t kHistoryEntryTextMax = 64;
 inline constexpr size_t kHistoryRingMax = 50;
-inline constexpr size_t kConvDbMax = 16;       // hard cap from research.md §9
+inline constexpr size_t kConvDbMax = 16; // hard cap from research.md §9
 
 // Fixed-size ConvInfo; binary-stable for the on-disk format.
 // The struct uses natural alignment. We store the entire
@@ -56,14 +56,14 @@ inline constexpr size_t kConvDbMax = 16;       // hard cap from research.md §9
 struct ConvInfo {
   uint8_t id[kConvIdSize] = {};
   char name[kConvNameMax] = {};
-  uint8_t kind = 0;          // 0=Matrix, 1=Forge, 2=Broadcast
+  uint8_t kind = 0; // 0=Matrix, 1=Forge, 2=Broadcast
   char target[kConvTargetMax] = {};
   uint8_t enc_key[kConvEncKeySize] = {};
   int64_t last_activity_ms = 0;
   uint16_t unread = 0;
-  bool exists = false;       // tombstone flag (kept in case the wire
-                             // format needs to distinguish "removed"
-                             // from "never existed")
+  bool exists = false; // tombstone flag (kept in case the wire
+                       // format needs to distinguish "removed"
+                       // from "never existed")
 };
 static_assert(sizeof(ConvInfo) > 0, "ConvInfo must be non-empty");
 
@@ -71,9 +71,9 @@ static_assert(sizeof(ConvInfo) > 0, "ConvInfo must be non-empty");
 struct HistoryEntry {
   uint32_t msg_id = 0;
   int64_t timestamp_ms = 0;
-  uint8_t direction = 0;     // 0=out, 1=in, 2=system
+  uint8_t direction = 0; // 0=out, 1=in, 2=system
   char text[kHistoryEntryTextMax] = {};
-  uint8_t status = 0;        // 0=pending, 1=acked, 2=failed
+  uint8_t status = 0; // 0=pending, 1=acked, 2=failed
 };
 static_assert(sizeof(HistoryEntry) > 0, "HistoryEntry must be non-empty");
 
@@ -135,8 +135,7 @@ public:
   // Append a history entry to the ring. The ring is bounded at
   // kHistoryRingMax (50). Newer entries overwrite the oldest.
   // Returns ESP_ERR_NOT_FOUND if the conv does not exist.
-  esp_err_t AppendHistory(const uint8_t id[kConvIdSize],
-                          const HistoryEntry &e);
+  esp_err_t AppendHistory(const uint8_t id[kConvIdSize], const HistoryEntry &e);
 
   // Read up to `max` history entries, most recent first.
   std::vector<HistoryEntry> GetHistory(const uint8_t id[kConvIdSize],

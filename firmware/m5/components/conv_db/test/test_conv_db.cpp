@@ -202,7 +202,7 @@ void test_convdb_history_append_get() {
   e1.timestamp_ms = 1700000000000LL;
   e1.direction = 1; // in
   std::strncpy(e1.text, "hello", sizeof e1.text - 1);
-  e1.status = 1;    // acked
+  e1.status = 1; // acked
   TEST_ASSERT_EQUAL(ESP_OK, g_db->AppendHistory(c.id, e1));
 
   HistoryEntry e2{};
@@ -210,7 +210,7 @@ void test_convdb_history_append_get() {
   e2.timestamp_ms = 1700000001000LL;
   e2.direction = 0; // out
   std::strncpy(e2.text, "world", sizeof e2.text - 1);
-  e2.status = 0;    // pending
+  e2.status = 0; // pending
   TEST_ASSERT_EQUAL(ESP_OK, g_db->AppendHistory(c.id, e2));
 
   std::vector<HistoryEntry> h = g_db->GetHistory(c.id, 50);

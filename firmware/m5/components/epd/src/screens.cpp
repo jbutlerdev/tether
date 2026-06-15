@@ -39,8 +39,8 @@ void SetPixel(uint8_t *buf, int x, int y, bool on) {
       y >= static_cast<int>(kEpdHeight)) {
     return;
   }
-  size_t byte_idx = static_cast<size_t>(y) * kEpdStride +
-                    (static_cast<size_t>(x) / 8);
+  size_t byte_idx =
+      static_cast<size_t>(y) * kEpdStride + (static_cast<size_t>(x) / 8);
   uint8_t mask = static_cast<uint8_t>(1u << (7 - (x % 8)));
   if (on) {
     buf[byte_idx] |= mask;
@@ -250,8 +250,7 @@ void RenderIdle(const IdleState &s, uint8_t *out_buf) {
     std::snprintf(tab_label, sizeof tab_label, "[%u]", (unsigned)c.unread);
     DrawString(out_buf, strip_x + 2, strip_y + 2, tab_label, true);
     // Name (truncated to 7 chars at 6 px each = 42 px).
-    DrawStringTruncated(out_buf, strip_x + 2, strip_y + 12, c.name, 42,
-                        active);
+    DrawStringTruncated(out_buf, strip_x + 2, strip_y + 12, c.name, 42, active);
     strip_x += kTabW;
   }
 }
@@ -306,8 +305,7 @@ void RenderQueued(const QueuedState &s, uint8_t *out_buf) {
   DrawString(out_buf, kMargin + 16, kMargin + 12, "QUEUED", true);
   DrawStringTruncated(out_buf, kMargin, kMargin + 40, s.conv.name, 180, true);
   char size[16];
-  std::snprintf(size, sizeof size, "%.1f KB",
-                s.file_bytes / 1024.0f);
+  std::snprintf(size, sizeof size, "%.1f KB", s.file_bytes / 1024.0f);
   DrawString(out_buf, kMargin, kMargin + 60, size, true);
 }
 
@@ -330,8 +328,9 @@ void RenderTransmitting(const TransmittingState &s, uint8_t *out_buf) {
   char timer[32];
   uint32_t es = s.elapsed_ms / 1000;
   uint32_t ts = s.estimated_total_ms / 1000;
-  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u", (unsigned)(es % 60),
-                (unsigned)(es / 60), (unsigned)(ts % 60), (unsigned)(ts / 60));
+  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u",
+                (unsigned)(es % 60), (unsigned)(es / 60), (unsigned)(ts % 60),
+                (unsigned)(ts / 60));
   DrawString(out_buf, 100, kMargin + 12, timer, true);
 
   // Conv name.
@@ -388,8 +387,9 @@ void RenderTtsPlayback(const TtsState &s, uint8_t *out_buf) {
   char timer[24];
   uint32_t es = s.elapsed_ms / 1000;
   uint32_t ts = s.total_ms / 1000;
-  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u", (unsigned)(es % 60),
-                (unsigned)(es / 60), (unsigned)(ts % 60), (unsigned)(ts / 60));
+  std::snprintf(timer, sizeof timer, "%02u:%02u / %02u:%02u",
+                (unsigned)(es % 60), (unsigned)(es / 60), (unsigned)(ts % 60),
+                (unsigned)(ts / 60));
   DrawString(out_buf, 140, kMargin + 100, timer, true);
 }
 

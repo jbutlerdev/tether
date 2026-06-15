@@ -31,14 +31,14 @@
 
 using tether::m5::BitmapDrawProgressBar;
 using tether::m5::BitmapDrawText;
-using tether::m5::kEpdWidth;
-using tether::m5::kEpdStride;
 using tether::m5::ConvDb;
 using tether::m5::ConvInfo;
 using tether::m5::EPD;
 using tether::m5::HistoryEntry;
 using tether::m5::IdleState;
 using tether::m5::kEpdBufSize;
+using tether::m5::kEpdStride;
+using tether::m5::kEpdWidth;
 using tether::m5::LowBatteryState;
 using tether::m5::QueuedState;
 using tether::m5::RecordingState;
@@ -116,7 +116,7 @@ std::vector<uint8_t> ReadGolden(const std::string &name) {
 // Marked [[maybe_unused]] to keep the host build warning-free
 // under -Werror=unused-function.
 [[maybe_unused]] static void WriteGolden(const std::string &name,
-                                          const uint8_t *buf, size_t n) {
+                                         const uint8_t *buf, size_t n) {
   std::filesystem::create_directories(g_testdata_dir);
   std::string path = g_testdata_dir + "/" + name;
   std::ofstream f(path, std::ios::binary | std::ios::trunc);
@@ -320,8 +320,7 @@ void test_epd_controller_refresh() {
   }
   TEST_ASSERT_EQUAL(ESP_OK, epd.PartialRefresh(buf));
   TEST_ASSERT_EQUAL(1u, epd.PartialRefreshCount());
-  TEST_ASSERT_EQUAL(0, std::memcmp(epd.LastPartialBitmap(), buf,
-                                    kEpdBufSize));
+  TEST_ASSERT_EQUAL(0, std::memcmp(epd.LastPartialBitmap(), buf, kEpdBufSize));
   TEST_ASSERT_EQUAL(ESP_OK, epd.FullRefresh(buf));
   TEST_ASSERT_EQUAL(0u, epd.PartialRefreshCount()); // reset on full
   TEST_ASSERT_EQUAL(0, std::memcmp(epd.LastFullBitmap(), buf, kEpdBufSize));

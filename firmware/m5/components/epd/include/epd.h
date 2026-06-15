@@ -41,7 +41,7 @@ namespace tether::m5 {
 // Display geometry (matches the GDEQ0154T100 panel).
 inline constexpr size_t kEpdWidth = 200;
 inline constexpr size_t kEpdHeight = 200;
-inline constexpr size_t kEpdStride = kEpdWidth / 8; // 25 bytes / row
+inline constexpr size_t kEpdStride = kEpdWidth / 8;            // 25 bytes / row
 inline constexpr size_t kEpdBufSize = kEpdStride * kEpdHeight; // 5000 bytes
 // Threshold for switching from partial to full refresh (plan §5.4).
 inline constexpr uint32_t kEpdFullRefreshEvery = 50;
@@ -51,7 +51,7 @@ inline constexpr uint32_t kEpdFullRefreshEvery = 50;
 struct IdleState {
   // List of conversations (already sorted by activity).
   std::vector<ConvInfo> convs;
-  size_t current_index = 0;  // index into `convs` of the active conv
+  size_t current_index = 0; // index into `convs` of the active conv
   // Last 3 history entries (most recent first) for the active
   // conversation. Empty if no history.
   std::vector<HistoryEntry> recent;
@@ -65,12 +65,12 @@ struct IdleState {
   // LoRa channel (0..63) and the current conv-switch scroll
   // position.
   uint8_t channel = 0;
-  uint8_t scroll_pos = 0;  // first row of the conv tab strip
+  uint8_t scroll_pos = 0; // first row of the conv tab strip
 };
 
 struct RecordingState {
-  ConvInfo conv;             // the conv the recording is bound to
-  uint32_t elapsed_ms = 0;   // duration of the recording so far
+  ConvInfo conv;               // the conv the recording is bound to
+  uint32_t elapsed_ms = 0;     // duration of the recording so far
   uint16_t peak_amplitude = 0; // mic peak, 0..32767
 };
 
@@ -91,7 +91,7 @@ struct TransmittingState {
 
 struct TtsState {
   ConvInfo conv;
-  std::string current_text;  // truncated for EPD
+  std::string current_text; // truncated for EPD
   uint32_t elapsed_ms = 0;
   uint32_t total_ms = 0;
 };
@@ -163,9 +163,7 @@ public:
   // Test seams: force the watchdog trip and inspect the bitmaps.
   void InjectControllerHangForTest() { controller_responsive_ = false; }
   void ClearControllerHangForTest() { controller_responsive_ = true; }
-  bool IsControllerResponsiveForTest() const {
-    return controller_responsive_;
-  }
+  bool IsControllerResponsiveForTest() const { return controller_responsive_; }
 
 private:
   uint8_t last_full_[kEpdBufSize] = {};

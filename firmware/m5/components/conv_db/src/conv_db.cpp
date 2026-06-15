@@ -251,10 +251,9 @@ std::vector<ConvInfo> ConvDb::List() {
     }
   }
   // Sort by last_activity_ms descending.
-  std::sort(out.begin(), out.end(),
-            [](const ConvInfo &a, const ConvInfo &b) {
-              return a.last_activity_ms > b.last_activity_ms;
-            });
+  std::sort(out.begin(), out.end(), [](const ConvInfo &a, const ConvInfo &b) {
+    return a.last_activity_ms > b.last_activity_ms;
+  });
   if (out.size() > kConvDbMax) {
     out.resize(kConvDbMax);
   }

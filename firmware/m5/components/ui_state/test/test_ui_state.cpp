@@ -373,8 +373,7 @@ void test_ui_ptt_canceled_to_idle() {
   g_ptt->OnButton(Press(Button::kPtt));
   g_ptt->OnButton(Release(Button::kPtt));
   g_ptt->OnRadioAccepted();
-  g_ptt->OnButton(
-      ButtonEvent{Button::kPtt, Event::kLongPressPtt});
+  g_ptt->OnButton(ButtonEvent{Button::kPtt, Event::kLongPressPtt});
   TEST_ASSERT_EQUAL(static_cast<int>(UiScreen::kIdle),
                     static_cast<int>(g_ui->Screen()));
 }

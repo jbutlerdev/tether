@@ -44,10 +44,10 @@ struct UiUpdatePacket {
 // real hardware this is a serialized proto; on host it is a
 // plain struct the test sink records.
 struct OutgoingPacket {
-  uint8_t msg_type = 0;       // 0x07 = MSG_TYPE_UI_UPDATE per proto
+  uint8_t msg_type = 0; // 0x07 = MSG_TYPE_UI_UPDATE per proto
   bool is_sync_request = false;
-  ConvInfo info;              // populated for UI_UPDATE
-  bool remove = false;        // populated for UI_UPDATE
+  ConvInfo info;       // populated for UI_UPDATE
+  bool remove = false; // populated for UI_UPDATE
 };
 
 // The packet sink. In production this is the radio task; in
