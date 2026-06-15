@@ -33,3 +33,4 @@ logs/
 .vscode/
 .idea/
 cov.out
+go/forge.cov
