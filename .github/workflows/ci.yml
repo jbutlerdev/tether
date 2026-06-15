@@ -48,9 +48,10 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          # Pin to v2.x; the v1.64.x line is built with Go 1.24 and
-          # refuses to lint modules targeting Go 1.25 (see plan.md).
-          version: v2.0.2
+          # Use a v2.x release built with Go 1.25. Earlier v2.0.x
+          # releases were built with Go 1.24 and refuse to lint
+          # modules targeting Go 1.25.
+          version: v2.12.2
           working-directory: go
           # Config path is relative to working-directory; `go/` is
           # already the cwd, so the config is `.golangci.yml` there.
