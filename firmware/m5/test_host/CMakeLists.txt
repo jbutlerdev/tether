@@ -110,3 +110,4 @@ function(add_coverage_target name target)
 endfunction()
 
 add_host_test(spi_bus)
+add_host_test(lora_sx1262)
