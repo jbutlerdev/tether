@@ -15,8 +15,8 @@
 #pragma once
 
 #include <array>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace tether::m5 {
@@ -61,9 +61,9 @@ public:
   // Returns the OKM. An over-length request returns an empty
   // vector (the caller must check the size against `length`).
   std::vector<uint8_t> HkdfSha256(const std::vector<uint8_t> &ikm,
-                                 const std::vector<uint8_t> &salt,
-                                 const std::vector<uint8_t> &info,
-                                 std::size_t length) const;
+                                  const std::vector<uint8_t> &salt,
+                                  const std::vector<uint8_t> &info,
+                                  std::size_t length) const;
 
   // ConvKey derives the per-conversation AES-128 key from a
   // 16-byte master PSK and a 16-byte conversation id. It is
@@ -78,4 +78,4 @@ public:
   std::array<uint8_t, kNonceSize> NonceFromMsgID(uint32_t msg_id) const;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

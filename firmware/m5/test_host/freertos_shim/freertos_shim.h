@@ -167,4 +167,4 @@ typedef int esp_err_t;
 // with no platform dependencies.
 namespace tether::m5::test {
 void sha256(const uint8_t *data, std::size_t len, uint8_t out[32]);
-}  // namespace tether::m5::test
+} // namespace tether::m5::test

@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 namespace tether::m5 {
@@ -45,9 +45,7 @@ enum class NvsKey : uint8_t {
 // values > 100 are clamped to 100. The firmware's volume
 // consumer calls this at the point of use; the raw NVS value
 // is preserved for debugging.
-inline uint8_t ClampVolume(uint8_t v) {
-  return v > 100 ? 100 : v;
-}
+inline uint8_t ClampVolume(uint8_t v) { return v > 100 ? 100 : v; }
 
 // ── NvsHandle — facade around the platform NVS API ──────────────────
 //
@@ -79,4 +77,4 @@ public:
 // build calls NvsHandle::ResetForTest.
 void nvs_factory_reset();
 
-}  // namespace tether::m5
+} // namespace tether::m5

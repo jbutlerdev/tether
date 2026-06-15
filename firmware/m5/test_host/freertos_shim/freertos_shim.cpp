@@ -367,7 +367,9 @@ constexpr uint32_t kSha256K[64] = {
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-inline uint32_t rotr(uint32_t x, uint32_t n) { return (x >> n) | (x << (32 - n)); }
+inline uint32_t rotr(uint32_t x, uint32_t n) {
+  return (x >> n) | (x << (32 - n));
+}
 
 void Sha256Transform(uint32_t state[8], const uint8_t block[64]) {
   uint32_t w[64];
@@ -389,13 +391,26 @@ void Sha256Transform(uint32_t state[8], const uint8_t block[64]) {
     uint32_t S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
     uint32_t mj = (a & b) ^ (a & c) ^ (b & c);
     uint32_t t2 = S0 + mj;
-    h = g; g = f; f = e; e = d + t1; d = c; c = b; b = a; a = t1 + t2;
+    h = g;
+    g = f;
+    f = e;
+    e = d + t1;
+    d = c;
+    c = b;
+    b = a;
+    a = t1 + t2;
   }
-  state[0] += a; state[1] += b; state[2] += c; state[3] += d;
-  state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+  state[0] += a;
+  state[1] += b;
+  state[2] += c;
+  state[3] += d;
+  state[4] += e;
+  state[5] += f;
+  state[6] += g;
+  state[7] += h;
 }
 
-}  // namespace
+} // namespace
 
 void sha256(const uint8_t *data, std::size_t len, uint8_t out[32]) {
   uint32_t state[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -433,4 +448,4 @@ void sha256(const uint8_t *data, std::size_t len, uint8_t out[32]) {
   }
 }
 
-}  // namespace tether::m5::test
+} // namespace tether::m5::test

@@ -28,14 +28,14 @@ namespace tether::m5 {
 // (plan §10.1) and the post-mortem dump (plan §9.3) decode them
 // with Watchdog::ResetReasonName.
 enum class ResetReason : uint8_t {
-  kUnknown = 0,       // uninitialised; should never appear in
-                      // production after the first boot
-  kPowerOn = 1,       // cold boot from a power cycle
-  kSoftRestart = 2,   // esp_restart() called explicitly
-  kTaskWdt = 3,       // esp_task_wdt fired: a registered task was
-                      // starved past hung_threshold_ms
-  kPanic = 4,         // an exception/assert fired
-  kBrownout = 5,      // voltage dropped below the safe threshold
+  kUnknown = 0,     // uninitialised; should never appear in
+                    // production after the first boot
+  kPowerOn = 1,     // cold boot from a power cycle
+  kSoftRestart = 2, // esp_restart() called explicitly
+  kTaskWdt = 3,     // esp_task_wdt fired: a registered task was
+                    // starved past hung_threshold_ms
+  kPanic = 4,       // an exception/assert fired
+  kBrownout = 5,    // voltage dropped below the safe threshold
 };
 
 // ResetRecord is one entry in the bounded reset history. The

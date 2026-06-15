@@ -68,24 +68,28 @@ struct InitDefaults {
 InitDefaults g_init;
 #endif
 
-}  // namespace
+} // namespace
 
 // ── Read ───────────────────────────────────────────────────────────
 
 bool NvsHandle::GetUint8(NvsKey k, uint8_t *out) {
-  if (out == nullptr) return false;
+  if (out == nullptr)
+    return false;
   auto &s = Store();
   auto it = s.find(k);
-  if (it == s.end() || it->second.bytes.empty()) return false;
+  if (it == s.end() || it->second.bytes.empty())
+    return false;
   *out = it->second.bytes[0];
   return true;
 }
 
 bool NvsHandle::GetUint16(NvsKey k, uint16_t *out) {
-  if (out == nullptr) return false;
+  if (out == nullptr)
+    return false;
   auto &s = Store();
   auto it = s.find(k);
-  if (it == s.end() || it->second.bytes.size() < 2) return false;
+  if (it == s.end() || it->second.bytes.size() < 2)
+    return false;
   // Little-endian on the wire and in memory.
   *out = static_cast<uint16_t>(it->second.bytes[0]) |
          (static_cast<uint16_t>(it->second.bytes[1]) << 8);
@@ -93,10 +97,12 @@ bool NvsHandle::GetUint16(NvsKey k, uint16_t *out) {
 }
 
 bool NvsHandle::GetUint32(NvsKey k, uint32_t *out) {
-  if (out == nullptr) return false;
+  if (out == nullptr)
+    return false;
   auto &s = Store();
   auto it = s.find(k);
-  if (it == s.end() || it->second.bytes.size() < 4) return false;
+  if (it == s.end() || it->second.bytes.size() < 4)
+    return false;
   *out = static_cast<uint32_t>(it->second.bytes[0]) |
          (static_cast<uint32_t>(it->second.bytes[1]) << 8) |
          (static_cast<uint32_t>(it->second.bytes[2]) << 16) |
@@ -105,10 +111,12 @@ bool NvsHandle::GetUint32(NvsKey k, uint32_t *out) {
 }
 
 bool NvsHandle::GetBytes(NvsKey k, uint8_t *out, size_t len) {
-  if (out == nullptr || len == 0) return false;
+  if (out == nullptr || len == 0)
+    return false;
   auto &s = Store();
   auto it = s.find(k);
-  if (it == s.end() || it->second.bytes.size() < len) return false;
+  if (it == s.end() || it->second.bytes.size() < len)
+    return false;
   std::memcpy(out, it->second.bytes.data(), len);
   return true;
 }
@@ -121,8 +129,8 @@ bool NvsHandle::SetUint8(NvsKey k, uint8_t v) {
 }
 
 bool NvsHandle::SetUint16(NvsKey k, uint16_t v) {
-  Store()[k] = NvsEntry{{static_cast<uint8_t>(v & 0xFF),
-                          static_cast<uint8_t>((v >> 8) & 0xFF)}};
+  Store()[k] = NvsEntry{
+      {static_cast<uint8_t>(v & 0xFF), static_cast<uint8_t>((v >> 8) & 0xFF)}};
   return true;
 }
 
@@ -137,7 +145,8 @@ bool NvsHandle::SetUint32(NvsKey k, uint32_t v) {
 }
 
 bool NvsHandle::SetBytes(NvsKey k, const uint8_t *in, size_t len) {
-  if (in == nullptr || len == 0) return false;
+  if (in == nullptr || len == 0)
+    return false;
   Store()[k] = NvsEntry{std::vector<uint8_t>(in, in + len)};
   return true;
 }
@@ -151,4 +160,4 @@ void nvs_factory_reset() {
   ApplyDefaults();
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

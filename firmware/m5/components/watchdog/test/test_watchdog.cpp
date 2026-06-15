@@ -3,8 +3,8 @@
 
 #include <unity.h>
 
-#include "watchdog.h"
 #include "test_watchdog_state.h"
+#include "watchdog.h"
 
 using tether::m5::ResetReason;
 using tether::m5::Watchdog;

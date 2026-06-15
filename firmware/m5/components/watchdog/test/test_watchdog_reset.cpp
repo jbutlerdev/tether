@@ -13,8 +13,8 @@
 
 #include <unity.h>
 
-#include "watchdog.h"
 #include "test_watchdog_state.h"
+#include "watchdog.h"
 
 using tether::m5::ResetReason;
 using tether::m5::Watchdog;
@@ -33,8 +33,7 @@ void test_watchdog_record_watchdog_reset() {
   g_wdt->RecordReset(ResetReason::kTaskWdt, "audio_capture");
   TEST_ASSERT_EQUAL(static_cast<int>(ResetReason::kTaskWdt),
                     static_cast<int>(g_wdt->LastResetReason()));
-  TEST_ASSERT_EQUAL_STRING("audio_capture",
-                          g_wdt->LastPanickedTask().c_str());
+  TEST_ASSERT_EQUAL_STRING("audio_capture", g_wdt->LastPanickedTask().c_str());
 }
 
 void test_watchdog_record_panic_reset() {
@@ -119,8 +118,8 @@ void test_watchdog_reason_name() {
                            Watchdog::ResetReasonName(ResetReason::kTaskWdt));
   TEST_ASSERT_EQUAL_STRING("panic",
                            Watchdog::ResetReasonName(ResetReason::kPanic));
-  TEST_ASSERT_EQUAL_STRING("soft-restart",
-                           Watchdog::ResetReasonName(ResetReason::kSoftRestart));
+  TEST_ASSERT_EQUAL_STRING(
+      "soft-restart", Watchdog::ResetReasonName(ResetReason::kSoftRestart));
   TEST_ASSERT_EQUAL_STRING("brownout",
                            Watchdog::ResetReasonName(ResetReason::kBrownout));
   TEST_ASSERT_EQUAL_STRING("unknown",

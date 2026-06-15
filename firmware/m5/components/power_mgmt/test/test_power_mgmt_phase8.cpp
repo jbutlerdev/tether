@@ -126,8 +126,8 @@ void test_power_mgmt_wake_on_ptt_helper() {
 //
 // We pin the math via the public API.
 void test_power_mgmt_battery_sanity() {
-  BatteryEstimate est = g_pm->EstimateBatteryLifeHours(
-      0.01f /*1% duty cycle*/, 2000.0f, 80.0f, 0.05f);
+  BatteryEstimate est = g_pm->EstimateBatteryLifeHours(0.01f /*1% duty cycle*/,
+                                                       2000.0f, 80.0f, 0.05f);
   // 1% duty of 2000 mAh: 80 mA * 0.01 + 0.05 * 0.99 = 0.85 mA avg
   // → 2000 / 0.85 ≈ 2353 hours.
   // Allow ±5% for float rounding.
@@ -147,11 +147,10 @@ void test_power_mgmt_six_hour_target() {
   // each, plus 1 RX packet burst. That's a duty cycle around
   // 5-10% (active current ~80 mA vs sleep 0.05 mA).
   for (float duty : {0.05f, 0.10f, 0.20f}) {
-    BatteryEstimate est = g_pm->EstimateBatteryLifeHours(
-        duty, 2000.0f, 80.0f, 0.05f);
+    BatteryEstimate est =
+        g_pm->EstimateBatteryLifeHours(duty, 2000.0f, 80.0f, 0.05f);
     char msg[64];
-    std::snprintf(msg, sizeof(msg),
-                  "duty=%.2f gave %.1f h, want ≥ 6 h", duty,
+    std::snprintf(msg, sizeof(msg), "duty=%.2f gave %.1f h, want ≥ 6 h", duty,
                   est.hours);
     TEST_ASSERT_TRUE(est.hours >= 6.0);
   }
@@ -168,8 +167,8 @@ void test_power_mgmt_deep_sleep_50uA() {
   // the wild, but the model says we will not exceed 50 µA
   // in deep sleep — the rest of the design (peripheral
   // gating) enforces that.
-  BatteryEstimate est = g_pm->EstimateBatteryLifeHours(
-      0.0f, 2000.0f, 80.0f, 0.05f);
+  BatteryEstimate est =
+      g_pm->EstimateBatteryLifeHours(0.0f, 2000.0f, 80.0f, 0.05f);
   TEST_ASSERT_EQUAL(40000.0, est.hours); // exact float
 }
 

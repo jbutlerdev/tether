@@ -97,15 +97,17 @@ void PowerMgmt::WakeOnPtt() {
 
 // ── Phase 8: battery life model ──────────────────────────────────────
 
-BatteryEstimate PowerMgmt::EstimateBatteryLifeHours(float duty_cycle,
-                                                   float capacity_mah,
-                                                   float active_current_ma,
-                                                   float sleep_current_ma) const {
+BatteryEstimate
+PowerMgmt::EstimateBatteryLifeHours(float duty_cycle, float capacity_mah,
+                                    float active_current_ma,
+                                    float sleep_current_ma) const {
   BatteryEstimate est;
-  if (duty_cycle < 0.0f) duty_cycle = 0.0f;
-  if (duty_cycle > 1.0f) duty_cycle = 1.0f;
-  float avg = active_current_ma * duty_cycle +
-              sleep_current_ma * (1.0f - duty_cycle);
+  if (duty_cycle < 0.0f)
+    duty_cycle = 0.0f;
+  if (duty_cycle > 1.0f)
+    duty_cycle = 1.0f;
+  float avg =
+      active_current_ma * duty_cycle + sleep_current_ma * (1.0f - duty_cycle);
   if (avg <= 0.0f) {
     est.hours = 0.0f;
     est.is_feasible_6h_target = false;

@@ -105,8 +105,13 @@ func TestAppservice_ReceivesRoomMessage(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	// Give Run a moment to subscribe.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	ev := matrix.Event{
 		Type:   "m.room.message",
@@ -158,7 +163,13 @@ func TestAppservice_IgnoresOwnMessages(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	// An event from our own user — should be ignored.
 	m.InjectEvent(matrix.Event{
@@ -215,7 +226,13 @@ func TestAppservice_HandlesRoomInvite(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	rid := roomID("!r2:example.com")
 	m.InjectEvent(matrix.Event{
@@ -271,7 +288,13 @@ func TestAppservice_HandlesRoomLeave(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	rid := roomID("!r3:example.com")
 	m.InjectEvent(matrix.Event{
@@ -319,8 +342,13 @@ func TestAppservice_ReconnectOnError(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	// Give Run time to do its first Subscribe.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	// First event — should be received.
 	if !m.InjectEvent(matrix.Event{
@@ -397,7 +425,13 @@ func TestAppservice_IgnoresEmptyBody(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	m.InjectEvent(matrix.Event{
 		Type:   "m.room.message",
@@ -444,7 +478,13 @@ func TestAppservice_HandlesRenameCommand(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	rid := roomID("!r4:example.com")
 	m.InjectEvent(matrix.Event{
@@ -489,7 +529,13 @@ func TestAppservice_RunReturnsOnContextCancel(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- as.Run(ctx) }()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 	cancel()
 
 	select {
@@ -528,7 +574,13 @@ func TestAppservice_ConcurrentInvariants(t *testing.T) {
 		_ = as.Run(runCtx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the appservice to subscribe (no fixed sleep — race-free).
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if !m.WaitForSubscription(waitCtx) {
+		waitCancel()
+		t.Fatal("appservice did not subscribe within 2s")
+	}
+	waitCancel()
 
 	var wg sync.WaitGroup
 	const n = 64

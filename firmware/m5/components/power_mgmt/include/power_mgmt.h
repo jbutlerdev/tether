@@ -120,10 +120,9 @@ public:
   //
   // The 6-hour target is checked: is_feasible_6h_target is true
   // iff hours >= 6.0.
-  BatteryEstimate EstimateBatteryLifeHours(float duty_cycle,
-                                          float capacity_mah,
-                                          float active_current_ma,
-                                          float sleep_current_ma) const;
+  BatteryEstimate EstimateBatteryLifeHours(float duty_cycle, float capacity_mah,
+                                           float active_current_ma,
+                                           float sleep_current_ma) const;
 
   // Wake sources (real hardware): PTT, RTC timer, RX packet.
   // On host these are flags that tests can set.

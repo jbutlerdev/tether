@@ -37,9 +37,7 @@ void setUp() {}
 void tearDown() {}
 
 // ── Test 1: schema version is pinned at 1 ────────────────────────────
-void test_nvs_version_pinned() {
-  TEST_ASSERT_EQUAL(1, kNvsVersion);
-}
+void test_nvs_version_pinned() { TEST_ASSERT_EQUAL(1, kNvsVersion); }
 
 // ── Test 2: defaults — node.id is 0xFFFF ─────────────────────────────
 void test_nvs_default_node_id() {

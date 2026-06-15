@@ -17,10 +17,10 @@
 #include <vector>
 
 #ifdef TETHER_M5_HOST_TEST
-#include "freertos_shim.h"  // provides tether::m5::test::sha256 on host
+#include "freertos_shim.h" // provides tether::m5::test::sha256 on host
 #else
-#include "mbedtls/sha256.h"
 #include "esp_log.h"
+#include "mbedtls/sha256.h"
 #endif
 
 namespace tether::m5 {
@@ -95,23 +95,21 @@ void HmacSha256Sum(const HmacSha256State &ctx, uint8_t out[32]) {
   Sha256(buf.data(), buf.size(), out);
 }
 
-void HmacSha256(const uint8_t *key, std::size_t key_len,
-                const uint8_t *msg, std::size_t msg_len,
-                uint8_t out[32]) {
+void HmacSha256(const uint8_t *key, std::size_t key_len, const uint8_t *msg,
+                std::size_t msg_len, uint8_t out[32]) {
   HmacSha256State ctx;
   HmacSha256Init(ctx, key, key_len);
   HmacSha256Update(ctx, msg, msg_len);
   HmacSha256Sum(ctx, out);
 }
 
-}  // namespace
+} // namespace
 
 // HkdfSha256 — see header.
-std::vector<uint8_t>
-AesLink::HkdfSha256(const std::vector<uint8_t> &ikm,
-                    const std::vector<uint8_t> &salt,
-                    const std::vector<uint8_t> &info,
-                    std::size_t length) const {
+std::vector<uint8_t> AesLink::HkdfSha256(const std::vector<uint8_t> &ikm,
+                                         const std::vector<uint8_t> &salt,
+                                         const std::vector<uint8_t> &info,
+                                         std::size_t length) const {
   std::vector<uint8_t> out;
   if (length == 0) {
     return out;
@@ -128,8 +126,8 @@ AesLink::HkdfSha256(const std::vector<uint8_t> &ikm,
 
   // Extract: PRK = HMAC-SHA256(salt, IKM)
   uint8_t prk[kSha256DigestSize];
-  HmacSha256(effective_salt.data(), effective_salt.size(),
-             ikm.data(), ikm.size(), prk);
+  HmacSha256(effective_salt.data(), effective_salt.size(), ikm.data(),
+             ikm.size(), prk);
 
   // Expand: OKM = T(1) || T(2) || ... || T(N)
   //   T(0) = empty
@@ -170,8 +168,7 @@ AesLink::ConvKey(const std::array<uint8_t, kKeySize> &master,
 }
 
 // NonceFromMsgID — see header.
-std::array<uint8_t, kNonceSize>
-AesLink::NonceFromMsgID(uint32_t msg_id) const {
+std::array<uint8_t, kNonceSize> AesLink::NonceFromMsgID(uint32_t msg_id) const {
   std::array<uint8_t, kNonceSize> n{};
   n[0] = static_cast<uint8_t>(msg_id & 0xFF);
   n[1] = static_cast<uint8_t>((msg_id >> 8) & 0xFF);
@@ -181,4 +178,4 @@ AesLink::NonceFromMsgID(uint32_t msg_id) const {
   return n;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

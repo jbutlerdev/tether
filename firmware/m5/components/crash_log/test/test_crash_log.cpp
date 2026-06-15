@@ -49,11 +49,12 @@ constexpr char kTestRoot[] = "/tmp/tether_crash_log_test";
 void ResetRoot() {
   // Best-effort wipe. We don't fail on error — the production
   // path is also best-effort.
-  std::string cmd = std::string("rm -rf ") + kTestRoot + " && mkdir -p " + kTestRoot;
+  std::string cmd =
+      std::string("rm -rf ") + kTestRoot + " && mkdir -p " + kTestRoot;
   (void)!system(cmd.c_str());
 }
 
-}  // namespace
+} // namespace
 
 void setUp() { ResetRoot(); }
 void tearDown() { ResetRoot(); }
@@ -66,8 +67,7 @@ void test_crash_log_write_read_round_trip() {
   rec.magic = CrashRecord::kMagic;
   rec.reason = 3; // kTaskWdt
   rec.boot_count = 42;
-  std::strncpy(rec.task_name, "audio_capture",
-               sizeof(rec.task_name) - 1);
+  std::strncpy(rec.task_name, "audio_capture", sizeof(rec.task_name) - 1);
   std::strncpy(rec.note, "missed 5 feeds", sizeof(rec.note) - 1);
   rec.timestamp_unix_ms = 1718443200000ULL;
   TEST_ASSERT_TRUE(log.Write("test1.bin", rec));
@@ -163,8 +163,7 @@ void test_crash_log_format_stability() {
   rec.reason = 4; // kPanic
   rec.boot_count = 0xCAFE;
   std::strncpy(rec.task_name, "ui_state", sizeof(rec.task_name) - 1);
-  std::strncpy(rec.note, "out of memory in render",
-               sizeof(rec.note) - 1);
+  std::strncpy(rec.note, "out of memory in render", sizeof(rec.note) - 1);
   rec.timestamp_unix_ms = 0x0123456789ABCDEFULL;
   TEST_ASSERT_TRUE(log.Write("stable.bin", rec));
   // Read the raw bytes back and verify the first 4 bytes are

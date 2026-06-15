@@ -224,6 +224,27 @@ func (m *MockClient) Subscribe(ctx context.Context) (<-chan Event, <-chan struct
 	return ch, done, nil
 }
 
+// WaitForSubscription blocks until a subscription is active on this
+// mock, the context is canceled, or the timeout expires. Tests use
+// this instead of a fixed sleep to avoid races with slow CI runners.
+func (m *MockClient) WaitForSubscription(ctx context.Context) bool {
+	tick := time.NewTicker(2 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		m.subMu.Lock()
+		active := m.subActive
+		m.subMu.Unlock()
+		if active {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-tick.C:
+		}
+	}
+}
+
 // InjectEvent delivers ev to the current subscription, if any.
 // Returns false if no subscription is active.
 //
