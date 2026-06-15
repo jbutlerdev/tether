@@ -162,6 +162,7 @@ add_host_test(conv_manager)
 add_host_test(aes_link)
 add_host_test(crash_log)
 add_host_test(ota)
+add_host_test(nvs)
 
 # gen_epd_goldens — auxiliary tool that writes the EPD golden
 # fixtures. Not a test; not registered with ctest. Run by hand
