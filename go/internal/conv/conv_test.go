@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"maunium.net/go/mautrix/id"
+
 	"github.com/jbutlerdev/tether/go/internal/conv"
 )
 
@@ -262,5 +264,60 @@ func TestMemStore_RoundTripBytes(t *testing.T) {
 	}
 	if !bytes.Equal(got.ID[:], want[:]) {
 		t.Errorf("ID round-trip: want %x, got %x", want, got.ID)
+	}
+}
+
+// TestConversation_IDString verifies the canonical hex encoding
+// of a Conversation.ID.
+func TestConversation_IDString(t *testing.T) {
+	t.Parallel()
+	c := conv.Conversation{
+		ID: [16]byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB},
+	}
+	got := c.IDString()
+	want := "deadbeef00112233445566778899aabb"
+	if len(got) != 32 {
+		t.Errorf("IDString length: want 32, got %d", len(got))
+	}
+	if got != want {
+		t.Errorf("IDString: want %q, got %q", want, got)
+	}
+}
+
+// TestRoomIDToConvID_Deterministic verifies that the same room
+// id always hashes to the same conv id.
+func TestRoomIDToConvID_Deterministic(t *testing.T) {
+	t.Parallel()
+	id1 := conv.RoomIDToConvID(id.RoomID("!r1:example.com"))
+	id2 := conv.RoomIDToConvID(id.RoomID("!r1:example.com"))
+	if id1 != id2 {
+		t.Errorf("RoomIDToConvID not deterministic: %x vs %x", id1, id2)
+	}
+}
+
+// TestRoomIDToConvID_DistinctRooms verifies that two distinct
+// room ids produce two distinct conv ids.
+func TestRoomIDToConvID_DistinctRooms(t *testing.T) {
+	t.Parallel()
+	id1 := conv.RoomIDToConvID(id.RoomID("!r1:example.com"))
+	id2 := conv.RoomIDToConvID(id.RoomID("!r2:example.com"))
+	if id1 == id2 {
+		t.Errorf("distinct rooms derived the same conv id: %x", id1)
+	}
+}
+
+// TestMemStore_BufferSizeOption verifies that the buffer-size
+// option is accepted (the value is observable indirectly via
+// the publish drop-on-full path; this test only checks that
+// construction does not panic with a non-default size).
+func TestMemStore_BufferSizeOption(t *testing.T) {
+	t.Parallel()
+	store := conv.NewMemStore(conv.MemStoreOptionBufferSize(8))
+	defer func() {
+		// No Close method; the in-memory store is GC'd.
+		_ = store
+	}()
+	if store == nil {
+		t.Fatal("NewMemStore: nil")
 	}
 }
