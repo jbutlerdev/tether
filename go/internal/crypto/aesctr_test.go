@@ -191,7 +191,7 @@ func TestAESCtr_NonceUniqueness(t *testing.T) {
 // correctly.
 func TestAESCtr_LinkKey_SelfConsistent(t *testing.T) {
 	t.Parallel()
-	master := bytes.Repeat([]byte{0xAB}, 16)            // 16-byte master PSK
+	master := bytes.Repeat([]byte{0xAB}, 16) // 16-byte master PSK
 	convID := []byte("conv:room!aabbcc:matrix.example.com")
 	key, err := crypto.ConvKey(master, convID)
 	if err != nil {

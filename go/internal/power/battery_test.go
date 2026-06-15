@@ -111,8 +111,8 @@ func TestBattery_InfeasibleCases(t *testing.T) {
 	t.Parallel()
 	// Zero or negative capacity or current: no estimate.
 	for _, c := range []struct {
-		name                                 string
-		duty, capacity, active, sleep        float64
+		name                          string
+		duty, capacity, active, sleep float64
 	}{
 		{"zero capacity", 0.05, 0, 80, 0.05},
 		{"negative capacity", 0.05, -1, 80, 0.05},

@@ -35,25 +35,29 @@ import (
 // ── RFC 5869 §A.1 — Basic test case with SHA-256 and zero-length salt/info
 //
 // Inputs:
-//   IKM  = 0x0b * 22                (22 bytes of 0x0b)
-//   salt = (0x00 * 13)              (13 bytes of 0x00, then 0x0c — see below)
-//   info = (0x00 * 10)              (10 bytes of 0x00, then 0x0f — see below)
+//
+//	IKM  = 0x0b * 22                (22 bytes of 0x0b)
+//	salt = (0x00 * 13)              (13 bytes of 0x00, then 0x0c — see below)
+//	info = (0x00 * 10)              (10 bytes of 0x00, then 0x0f — see below)
 //
 // Output:
-//   PRK  = 0x0777 5d8e 3514 ab2f 1c4f 5e8b 36c4 8f87
-//          7f24 e0c0 7a8b 4d4b 4a2b 7a2d 9a8b 3c4d
-//   (full PRK is 32 bytes; see the RFC for the byte-for-byte expansion)
+//
+//	PRK  = 0x0777 5d8e 3514 ab2f 1c4f 5e8b 36c4 8f87
+//	       7f24 e0c0 7a8b 4d4b 4a2b 7a2d 9a8b 3c4d
+//	(full PRK is 32 bytes; see the RFC for the byte-for-byte expansion)
 //
 // RFC 5869 §A.1 actually uses:
-//   salt = 0x000102030405060708090a0b0c
-//   info = 0xf0f1f2f3f4f5f6f7f8f9
+//
+//	salt = 0x000102030405060708090a0b0c
+//	info = 0xf0f1f2f3f4f5f6f7f8f9
 //
 // and expects:
-//   PRK  = 0x0777 5d8e 3514 ab2f 1c4f 5e8b 36c4 8f87
-//          7f24 e0c0 7a8b 4d4b 4a2b 7a2d 9a8b 3c4d
-//   OKM  = 0x3cb25f25faacd57a90434f64d0362f2a
-//          2d2d0a90cf1a5a4c5db02d56ecc4c5bf
-//          34007208d5b887185865
+//
+//	PRK  = 0x0777 5d8e 3514 ab2f 1c4f 5e8b 36c4 8f87
+//	       7f24 e0c0 7a8b 4d4b 4a2b 7a2d 9a8b 3c4d
+//	OKM  = 0x3cb25f25faacd57a90434f64d0362f2a
+//	       2d2d0a90cf1a5a4c5db02d56ecc4c5bf
+//	       34007208d5b887185865
 //
 // The full hex of OKM (42 bytes) is the canonical output of the
 // RFC 5869 §A.1 test vector.
@@ -83,32 +87,41 @@ func TestHKDF_RFC5869_Vector1(t *testing.T) {
 // TestHKDF_RFC5869_Vector2 — RFC 5869 §A.2.
 //
 // IKM  = 0x000102030405060708090a0b0c0d0e0f
-//        101112131415161718191a1b1c1d1e1f
-//        202122232425262728292a2b2c2d2e2f
-//        303132333435363738393a3b3c3d3e3f
-//        404142434445464748494a4b4c4d4e4f   (80 octets)
+//
+//	101112131415161718191a1b1c1d1e1f
+//	202122232425262728292a2b2c2d2e2f
+//	303132333435363738393a3b3c3d3e3f
+//	404142434445464748494a4b4c4d4e4f   (80 octets)
+//
 // salt = 0x606162636465666768696a6b6c6d6e6f
-//        707172737475767778797a7b7c7d7e7f
-//        808182838485868788898a8b8c8d8e8f
-//        909192939495969798999a9b9c9d9e9f
-//        a0a1a2a3a4a5a6a7a8a9aaabacadaeaf   (80 octets)
+//
+//	707172737475767778797a7b7c7d7e7f
+//	808182838485868788898a8b8c8d8e8f
+//	909192939495969798999a9b9c9d9e9f
+//	a0a1a2a3a4a5a6a7a8a9aaabacadaeaf   (80 octets)
+//
 // info = 0xb0b1b2b3b4b5b6b7b8b9babbbcbdbebf
-//        c0c1c2c3c4c5c6c7c8c9cacbcccdcecf
-//        d0d1d2d3d4d5d6d7d8d9dadbdcdddedf
-//        e0e1e2e3e4e5e6e7e8e9eaebecedeeef
-//        f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff   (80 octets)
+//
+//	c0c1c2c3c4c5c6c7c8c9cacbcccdcecf
+//	d0d1d2d3d4d5d6d7d8d9dadbdcdddedf
+//	e0e1e2e3e4e5e6e7e8e9eaebecedeeef
+//	f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff   (80 octets)
+//
 // L    = 82
 //
 // PRK  = 0x06a6b88c5853361a06104c9ceb35b45c
-//        ef760014904671014a193f40c8fcb390
-//        6c65b40d27eb3a02f7a73f0d3a7e7dfd
-//        24b04e97a4f60f01f1d2efeedc67b9e3
+//
+//	ef760014904671014a193f40c8fcb390
+//	6c65b40d27eb3a02f7a73f0d3a7e7dfd
+//	24b04e97a4f60f01f1d2efeedc67b9e3
+//
 // OKM  = 0xb11e398dc80327a1c8e7f78c596a4934
-//        4f012eda2d4efad8a050cc4c19afa97c
-//        59045a99cac7827271cb41c65e590e09
-//        da3275600c2f09b8367793a9aca3db71
-//        cc30c58179ec3e87c14c01d5c1f3434f
-//        1d87
+//
+//	4f012eda2d4efad8a050cc4c19afa97c
+//	59045a99cac7827271cb41c65e590e09
+//	da3275600c2f09b8367793a9aca3db71
+//	cc30c58179ec3e87c14c01d5c1f3434f
+//	1d87
 func TestHKDF_RFC5869_Vector2(t *testing.T) {
 	t.Parallel()
 
@@ -155,10 +168,13 @@ func TestHKDF_RFC5869_Vector2(t *testing.T) {
 // L    = 42
 //
 // PRK  = 0x19ef24a32c717b167f33a0d6e0d4d2b9
-//        8c84b2c1f9b3c5a30b9c0a7a7e8a6f4d
+//
+//	8c84b2c1f9b3c5a30b9c0a7a7e8a6f4d
+//
 // OKM  = 0x8da4e775a563c18f715f802a063c5a31
-//        b8a11f5c5ee1879ec3454e5f3c738d2d
-//        9d201395faa4b61a96c8
+//
+//	b8a11f5c5ee1879ec3454e5f3c738d2d
+//	9d201395faa4b61a96c8
 func TestHKDF_RFC5869_Vector3(t *testing.T) {
 	t.Parallel()
 

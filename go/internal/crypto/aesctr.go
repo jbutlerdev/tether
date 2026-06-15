@@ -11,12 +11,12 @@
 // file's purpose is to provide a software implementation that
 // lets us:
 //
-//   1. Pin the project's key/nonce construction (so a typo in
-//      `NonceFromMsgID` is caught in CI, not on the bench).
-//   2. Cross-check the on-the-wire byte layout for future
-//      firmware ports.
-//   3. Allow off-air unit tests of the protocol layer without a
-//      real radio.
+//  1. Pin the project's key/nonce construction (so a typo in
+//     `NonceFromMsgID` is caught in CI, not on the bench).
+//  2. Cross-check the on-the-wire byte layout for future
+//     firmware ports.
+//  3. Allow off-air unit tests of the protocol layer without a
+//     real radio.
 //
 // The wrapper uses crypto/aes + crypto/cipher from the standard
 // library. There is no need to re-implement AES in this package.

@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	kMagic         = uint32(0x4D4F4F42)
-	kSizeOnDisk    = 116
+	kMagic      = uint32(0x4D4F4F42)
+	kSizeOnDisk = 116
 )
 
 // kKnownTimestamp is a fixed instant in time used as the
@@ -256,8 +256,8 @@ func TestParse_BigEndianRejected(t *testing.T) {
 func TestParse_RealisticInput(t *testing.T) {
 	t.Parallel()
 	rec, err := crashlog.Parse(encode(
-		4,    // kPanic
-		137,  // boot_count
+		4,   // kPanic
+		137, // boot_count
 		"ui_state", "out of memory in render (heap full)",
 	))
 	if err != nil {

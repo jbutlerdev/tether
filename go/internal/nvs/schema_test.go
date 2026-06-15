@@ -168,16 +168,16 @@ func TestSchema_FactoryResetKeys(t *testing.T) {
 	// firmware knows about. We verify the set is what
 	// docs/NVS.md documents.
 	expected := map[string]bool{
-		string(nvs.KeyNodeID):        true,
-		string(nvs.KeyMasterPSK):     true,
-		string(nvs.KeyRadioChannel):  true,
-		string(nvs.KeyRadioPreset):   true,
-		string(nvs.KeyUIVolume):      true,
-		string(nvs.KeyLastConvID):    true,
-		string(nvs.KeyOTAPending):    true,
+		string(nvs.KeyNodeID):       true,
+		string(nvs.KeyMasterPSK):    true,
+		string(nvs.KeyRadioChannel): true,
+		string(nvs.KeyRadioPreset):  true,
+		string(nvs.KeyUIVolume):     true,
+		string(nvs.KeyLastConvID):   true,
+		string(nvs.KeyOTAPending):   true,
 		// Phase 8 telemetry:
-		string(nvs.KeyResetReason):   true,
-		string(nvs.KeyBootCount):     true,
+		string(nvs.KeyResetReason): true,
+		string(nvs.KeyBootCount):   true,
 	}
 	keys := nvs.AllKeys()
 	seen := map[string]bool{}
