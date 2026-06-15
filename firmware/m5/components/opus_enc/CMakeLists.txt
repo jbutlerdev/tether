@@ -13,7 +13,7 @@ elseif(COMMAND idf_component_register)
   idf_component_register(
     SRCS "src/opus_enc.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES micro-opus
+    REQUIRES micro_opus
   )
 else()
   message(STATUS

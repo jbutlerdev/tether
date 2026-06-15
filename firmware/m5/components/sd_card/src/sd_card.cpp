@@ -11,9 +11,12 @@
 
 #include "sd_card.h"
 
+#include <cstring>
 #include <fcntl.h>
 #include <sys/stat.h>
+#ifdef TETHER_M5_HOST_TEST
 #include <sys/statvfs.h>
+#endif
 
 #include "esp_littlefs.h"
 #include "esp_log.h"
@@ -91,22 +94,24 @@ int SdCard::Rename(const char *from, const char *to) {
 
 size_t SdCard::TotalBytes() const {
   if (!mounted_) return 0;
-  Bus().Lock(portMAX_DELAY);
+#ifdef TETHER_M5_HOST_TEST
   struct statvfs st;
-  int rc = statvfs(mount_root_, &st);
-  Bus().Unlock();
-  if (rc != 0) return 0;
+  if (statvfs(mount_root_, &st) != 0) return 0;
   return static_cast<size_t>(st.f_blocks) * st.f_frsize;
+#else
+  return 0; // TODO(phase-4): use esp_littlefs_info()
+#endif
 }
 
 size_t SdCard::FreeBytes() const {
   if (!mounted_) return 0;
-  Bus().Lock(portMAX_DELAY);
+#ifdef TETHER_M5_HOST_TEST
   struct statvfs st;
-  int rc = statvfs(mount_root_, &st);
-  Bus().Unlock();
-  if (rc != 0) return 0;
+  if (statvfs(mount_root_, &st) != 0) return 0;
   return static_cast<size_t>(st.f_bavail) * st.f_frsize;
+#else
+  return 0; // TODO(phase-4): use esp_littlefs_info()
+#endif
 }
 
 }  // namespace tether::m5

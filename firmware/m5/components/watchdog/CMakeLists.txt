@@ -7,7 +7,7 @@ elseif(COMMAND idf_component_register)
   idf_component_register(
     SRCS "src/watchdog.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES esp_task_wdt
+    REQUIRES esp_system
   )
 else()
   message(STATUS "watchdog: skipped")

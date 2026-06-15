@@ -14,7 +14,7 @@ elseif(COMMAND idf_component_register)
   idf_component_register(
     SRCS "src/lora_sx1262.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES driver spi_bus
+    REQUIRES driver spi_bus RadioLib
   )
 else()
   message(STATUS

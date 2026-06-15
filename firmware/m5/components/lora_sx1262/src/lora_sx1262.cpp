@@ -18,6 +18,7 @@
 
 #include <RadioLib.h>
 
+#include "esp_log.h"
 #include "spi_bus.h"
 
 namespace tether::m5 {

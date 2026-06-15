@@ -135,3 +135,42 @@ add_host_test(radio_task)
 add_host_test(ui_state)
 add_host_test(watchdog)
 add_host_test(power_mgmt)
+
+# Phase 3 exit-gate integration test (plan.md §4.10). It exercises
+# every task component under synthetic load and verifies no
+# deadlocks. The smoke test lives in firmware/m5/test/test_smoke.cpp
+# and pulls in every host library.
+add_executable(test_smoke
+  ${CMAKE_CURRENT_SOURCE_DIR}/../test/test_smoke.cpp
+)
+target_include_directories(test_smoke PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../components
+)
+target_compile_definitions(test_smoke PRIVATE
+  TETHER_M5_HOST_TEST=1
+)
+target_compile_options(test_smoke PRIVATE
+  --coverage -fprofile-arcs -ftest-coverage
+)
+target_link_libraries(test_smoke PRIVATE
+  tether_m5_host_iface
+  unity_host
+  freertos_shim
+  spi_bus_host
+  lora_sx1262_host
+  sd_card_host
+  psram_ring_host
+  opus_enc_host
+  i2s_mic_host
+  i2s_amp_host
+  buttons_host
+  ptt_host
+  audio_capture_host
+  storage_flush_host
+  radio_task_host
+  ui_state_host
+  watchdog_host
+  power_mgmt_host
+  gcov
+)
+add_test(NAME smoke COMMAND test_smoke)

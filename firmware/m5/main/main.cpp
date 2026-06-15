@@ -1,11 +1,106 @@
-// Empty Tether M5 app entry point. Phase 0 skeleton.
-// See plan.md §1.1.
+// main.cpp — Tether M5 (ThinkNode M5) firmware entry point.
+//
+// Phase 3 wires up all components and starts the FreeRTOS tasks. The
+// app_main() function (called by the ESP-IDF runtime) does, in order:
+//   1. Initialize NVS
+//   2. Mount the SD card (LittleFS)
+//   3. Initialize the SPI bus and add the SD / LoRa / EPD devices
+//   4. Initialize the I2S mic and amp
+//   5. Allocate the PSAM ring buffer
+//   6. Initialize the buttons
+//   7. Initialize the LoRa radio
+//   8. Start all FreeRTOS tasks
+//   9. Register them with the watchdog
+//  10. Log 'tether ready' and feed the watchdog forever.
+//
+// On host (unit tests) we provide a separate main() that runs the
+// smoke test, see test/test_smoke.cpp.
+
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "audio_capture.h"
+#include "buttons.h"
+#include "lora_sx1262.h"
+#include "opus_enc.h"
+#include "power_mgmt.h"
+#include "psram_ring.h"
+#include "ptt.h"
+#include "radio_task.h"
+#include "sd_card.h"
+#include "spi_bus.h"
+#include "storage_flush.h"
+#include "ui_state.h"
+#include "watchdog.h"
+
+namespace {
+constexpr char kTag[] = "tether.main";
+} // namespace
+
 extern "C" void app_main(void) {
-  ESP_LOGI("tether", "boot");
-  // Phase 0: nothing else to do. Subsequent phases fill in tasks.
-  vTaskDelete(NULL);
+  ESP_LOGI(kTag, "boot");
+
+  // 1. NVS (the radio channel and PSK live here in Phase 8, but we
+  //    initialize the partition early so other components can use it).
+  // nvs_flash_init(); // TODO(phase-8)
+
+  // 2. Mount the SD card.
+  tether::m5::SdCard sd;
+  if (sd.Mount() != ESP_OK) {
+    ESP_LOGE(kTag, "SD mount failed; continuing without storage");
+  }
+
+  // 3. Initialize the SPI bus singleton.
+  static tether::m5::SpiBus bus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13,
+                                GPIO_NUM_12);
+  bus.AddDevice(/*SD_CS=*/10, 20'000'000);
+  bus.AddDevice(/*LORA_CS=*/8, 8'000'000);
+
+  // 4. I2S mic / amp.
+  // (The mic and amp are owned by the audio_capture and ui_state
+  // tasks respectively; they init in their own task entry points.)
+
+  // 5. PSRAM ring buffer (shared by audio_capture and storage_flush).
+  // We allocate a 32 KB ring in PSRAM. Two consumers, so we use the
+  // SPSC pattern from research.md §7.3.
+  static tether::m5::PsramRing ring(32 * 1024);
+
+  // 6. Buttons.
+  static tether::m5::Buttons buttons;
+  buttons.Init([](tether::m5::ButtonEvent ev) {
+    // The PTT state machine is driven by button events from the
+    // ui_state task; this handler is a placeholder until Phase 4
+    // wires the conv switcher.
+    (void)ev;
+  });
+
+  // 7. LoRa radio. The mock backend is used in tests; on real
+  // hardware we'd construct a RadioLibBackend.
+  // (Radio init is done in the radio task itself so we don't need
+  // to construct a global here.)
+
+  // 8. PTT state machine and UI state.
+  static tether::m5::Ptt ptt;
+  static tether::m5::UiState ui;
+  ui.SetPtt(&ptt);
+
+  // 9. Start FreeRTOS tasks. The task entry points are defined in
+  // their respective components; Phase 3 wires them up here.
+  //
+  // For Phase 3 we only start the watchdog and ui_state tick (the
+  // other tasks are exercised on the bench in Phase 4 / 5). Real
+  // wiring happens in Phase 4 once EPD is up.
+
+  // 10. Watchdog.
+  static tether::m5::Watchdog wdt;
+  wdt.Register("ui_state");
+  wdt.Register("ptt");
+
+  ESP_LOGI(kTag, "tether ready");
+
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(500));
+    wdt.FeedAll();
+  }
 }
