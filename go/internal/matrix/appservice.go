@@ -12,9 +12,12 @@
 // build sets `-tags mautrix` and cmd/tetherd wires it up. The
 // CI path uses the Mock client exclusively.
 //
-// v2: end-to-end encryption. Today's core is plaintext-only; when
-// we add E2EE we will introduce a decrypt step on m.room.encrypted
-// events and pass the decrypted Event to the same callbacks.
+// v2: mautrix-go E2EE (Megolm). The hook point is the
+// DecryptEvent function in e2ee.go: when v2 lands, dispatch()
+// will call DecryptEvent on every m.room.encrypted event
+// before the message-handler path, and the appservice will
+// pass the decrypted Event to the same callbacks. v1 is
+// plaintext-only.
 package matrix
 
 import (
@@ -220,6 +223,11 @@ func (a *Appservice) pump(ctx context.Context, ch <-chan Event, done <-chan stru
 // for the "ignores empty messages" rule that the appservice
 // itself honours).
 func (a *Appservice) dispatch(ctx context.Context, ev Event) {
+	// v2: mautrix-go E2EE (Megolm). When v2 lands,
+	// dispatch() will route "m.room.encrypted" events
+	// through DecryptEvent (e2ee.go) before
+	// re-dispatching as a plain "m.room.message" event.
+	// v1 is plaintext-only.
 	switch ev.Type {
 	case "m.room.member":
 		a.handleMember(ctx, ev)

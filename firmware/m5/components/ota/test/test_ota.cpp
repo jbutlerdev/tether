@@ -36,7 +36,11 @@
 #include <unity.h>
 
 #include "ota.h"
+#include "ota_lora.h"
 
+using tether::m5::kOtaLoraMaxChunkSize;
+using tether::m5::OtaLoraBegin;
+using tether::m5::OtaLoraFeed;
 using tether::m5::OtaState;
 using tether::m5::OtaUpdater;
 using tether::m5::Sha256;
@@ -48,7 +52,7 @@ namespace tether::m5 {
 extern std::vector<uint8_t> g_ota_bytes;
 extern bool g_ota_marked_bootable;
 extern bool g_ota_marked_invalid;
-}  // namespace tether::m5
+} // namespace tether::m5
 using tether::m5::g_ota_bytes;
 using tether::m5::g_ota_marked_bootable;
 using tether::m5::g_ota_marked_invalid;
@@ -83,11 +87,13 @@ void test_ota_begin_transitions_state() {
 void test_ota_write_chunk_appends() {
   OtaUpdater upd;
   upd.Begin();
-  TEST_ASSERT_TRUE(upd.WriteChunk(reinterpret_cast<const uint8_t *>("HELLO"), 5));
-  TEST_ASSERT_TRUE(upd.WriteChunk(reinterpret_cast<const uint8_t *>("WORLD"), 5));
+  TEST_ASSERT_TRUE(
+      upd.WriteChunk(reinterpret_cast<const uint8_t *>("HELLO"), 5));
+  TEST_ASSERT_TRUE(
+      upd.WriteChunk(reinterpret_cast<const uint8_t *>("WORLD"), 5));
   TEST_ASSERT_EQUAL(10, g_ota_bytes.size());
   TEST_ASSERT_EQUAL_STRING("HELLOWORLD",
-                          reinterpret_cast<const char *>(g_ota_bytes.data()));
+                           reinterpret_cast<const char *>(g_ota_bytes.data()));
 }
 
 // ── Test 4: VerifyAndCommit with correct SHA-256 transitions to kReady
@@ -162,10 +168,9 @@ void test_ota_sha256_empty_string() {
   // e3b0c442 98fc1c14 9afbf4c8 996fb924 27ae41e4 649b934c a495991b
   // 7852b855
   const uint8_t expected[32] = {
-      0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
-      0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
-      0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
-      0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
+      0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4,
+      0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b,
+      0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
   };
   TEST_ASSERT_EQUAL_MEMORY(expected, d.data(), 32);
 }
@@ -178,10 +183,9 @@ void test_ota_sha256_abc() {
   // ba7816bf 8f01cfea 414140de 5dae2223 b00361a3 96177a9c
   // b410ff61 f20015ad
   const uint8_t expected[32] = {
-      0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
-      0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
-      0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
-      0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
+      0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40,
+      0xde, 0x5d, 0xae, 0x22, 0x23, 0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17,
+      0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
   };
   TEST_ASSERT_EQUAL_MEMORY(expected, d.data(), 32);
 }
@@ -196,6 +200,45 @@ void test_ota_sha256_streaming() {
   b.Update(reinterpret_cast<const uint8_t *>("hello world"), 11);
   std::array<uint8_t, 32> hash_one_shot = b.Finalize();
   TEST_ASSERT_EQUAL_MEMORY(hash_chunked.data(), hash_one_shot.data(), 32);
+}
+
+// ── v2 hook tests (plan §10.4) ────────────────────────────────────
+// These tests pin the v2 OTA-LoRa hook surface. They assert
+// the v1 build:
+//   - OtaLoraBegin returns false (v1 has no OTA-LoRa path).
+//   - OtaLoraFeed returns false for any input.
+// v2 inverts both: the functions must return true on a
+// successful invocation.
+
+// Test 12: the v2 begin hook is callable in v1 and returns
+// false.
+void test_v2_ota_lora_begin_returns_false() {
+  bool got = OtaLoraBegin();
+  TEST_ASSERT_FALSE(got);
+}
+
+// Test 13: the v2 feed hook is callable in v1 and returns
+// false for any input.
+void test_v2_ota_lora_feed_returns_false() {
+  const uint8_t chunk[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+                             0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+  bool got = OtaLoraFeed(chunk, sizeof(chunk));
+  TEST_ASSERT_FALSE(got);
+}
+
+// Test 14: the v2 feed hook accepts a null pointer with
+// zero length without crashing.
+void test_v2_ota_lora_feed_null_zero() {
+  bool got = OtaLoraFeed(nullptr, 0);
+  TEST_ASSERT_FALSE(got);
+}
+
+// Test 15: the v2 feed hook handles a full-size chunk
+// (kOtaLoraMaxChunkSize) without crashing.
+void test_v2_ota_lora_feed_max_size() {
+  std::vector<uint8_t> chunk(kOtaLoraMaxChunkSize, 0xCC);
+  bool got = OtaLoraFeed(chunk.data(), chunk.size());
+  TEST_ASSERT_FALSE(got);
 }
 
 int main(int argc, const char **argv) {
@@ -213,6 +256,10 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_ota_sha256_empty_string);
   RUN_TEST(test_ota_sha256_abc);
   RUN_TEST(test_ota_sha256_streaming);
+  RUN_TEST(test_v2_ota_lora_begin_returns_false);
+  RUN_TEST(test_v2_ota_lora_feed_returns_false);
+  RUN_TEST(test_v2_ota_lora_feed_null_zero);
+  RUN_TEST(test_v2_ota_lora_feed_max_size);
   (void)0;
   UNITY_END();
 }

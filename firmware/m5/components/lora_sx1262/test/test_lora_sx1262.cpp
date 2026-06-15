@@ -6,15 +6,19 @@
 
 #include <unity.h>
 
+#include <cstdint>
 #include <memory>
 #include <span>
 #include <vector>
 
+#include "frequency_hopping.h"
 #include "lora_sx1262.h"
 
 using tether::m5::BandwidthHz;
 using tether::m5::Channel;
+using tether::m5::ChooseNextChannel;
 using tether::m5::CodingRate;
+using tether::m5::kHopNumChannels;
 using tether::m5::LoraRadio;
 using tether::m5::MockRadioBackend;
 using tether::m5::Preset;
@@ -149,6 +153,46 @@ void test_lora_channel_from_index() {
   TEST_ASSERT_FALSE(ch64.has_value());
 }
 
+// ── v2 hook tests (plan §10.4) ────────────────────────────────────
+// These tests pin the v2 frequency-hopping hook. They assert the
+// v1 build returns the input channel unchanged for every
+// (channel, counter) pair. v2 inverts the identity tests: the
+// function must return a different channel for at least one
+// (channel, counter) pair.
+
+// Test 11: the v2 hook is callable in v1.
+void test_v2_hop_stub_exists() {
+  uint8_t got = ChooseNextChannel(0, 0);
+  TEST_ASSERT_EQUAL_UINT8(0, got);
+}
+
+// Test 12: v1 returns the input channel unchanged for a
+// representative sample of (channel, counter) pairs.
+void test_v2_hop_v1_is_identity() {
+  struct Case {
+    uint8_t channel;
+    uint32_t counter;
+  };
+  const Case cases[] = {
+      {0, 0}, {0, 1},     {0, 0xFFFFFFFFu},
+      {1, 0}, {32, 1234}, {kHopNumChannels - 1, 99},
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    uint8_t got = ChooseNextChannel(cases[i].channel, cases[i].counter);
+    TEST_ASSERT_EQUAL_UINT8(cases[i].channel, got);
+  }
+}
+
+// Test 13: v1 is a no-op for the full range of channels.
+void test_v2_hop_v1_full_range_is_identity() {
+  for (uint8_t ch = 0; ch < kHopNumChannels; ++ch) {
+    for (uint32_t counter = 0; counter < 16; ++counter) {
+      uint8_t got = ChooseNextChannel(ch, counter);
+      TEST_ASSERT_EQUAL_UINT8(ch, got);
+    }
+  }
+}
+
 int main(int argc, const char **argv) {
   (void)argc;
   (void)argv;
@@ -163,6 +207,9 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_lora_receive_returns_packet);
   RUN_TEST(test_lora_receive_returns_nullopt_on_empty);
   RUN_TEST(test_lora_channel_from_index);
+  RUN_TEST(test_v2_hop_stub_exists);
+  RUN_TEST(test_v2_hop_v1_is_identity);
+  RUN_TEST(test_v2_hop_v1_full_range_is_identity);
   (void)0;
   UNITY_END();
 }
