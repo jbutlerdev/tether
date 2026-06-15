@@ -188,12 +188,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	case rfStatsMsg:
-		m.rf = RFStats{
-			SpreadFactor: msg.SpreadFactor,
-			BandwidthKHz: msg.BandwidthKHz,
-			SNRdBm:       msg.SNRdBm,
-			TxCurrentMA:  msg.TxCurrentMA,
-		}
+		m.rf = RFStats(msg)
 		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width

@@ -536,7 +536,7 @@ func (p *Pipeline) speakAndSend(ctx context.Context, convID [16]byte, text strin
 		if end > len(int16pcm) {
 			// Pad with zeros for the trailing partial frame.
 			pad := make([]int16, end-len(int16pcm))
-			frame := append(int16pcm[off:len(int16pcm)], pad...)
+			frame := append(int16pcm[off:], pad...)
 			b, err := p.cfg.Codec.Encode(frame)
 			if err != nil {
 				return fmt.Errorf("forge: encode (padded): %w", err)

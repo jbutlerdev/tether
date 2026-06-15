@@ -54,8 +54,9 @@ bool I2SMic::Init() {
   std_cfg.slot_cfg.ws_width = 16;
   std_cfg.slot_cfg.ws_pol = false;
   std_cfg.slot_cfg.bit_shift = true;
-  std_cfg.slot_cfg.left_align = true;
-  std_cfg.slot_cfg.big_endian = false;
+  // left_align and big_endian are not present in ESP-IDF v5.2's
+  // i2s_std_slot_config_t; bit_shift=true (above) gives us
+  // left-align / MSB-first, which is what we need for the INMP441.
   std_cfg.gpio_cfg.bclk = (gpio_num_t)4;
   std_cfg.gpio_cfg.ws = (gpio_num_t)5;
   std_cfg.gpio_cfg.din = (gpio_num_t)6;

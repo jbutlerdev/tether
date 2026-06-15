@@ -493,5 +493,5 @@ func TestMockClient_CloserIsIOCloser(t *testing.T) {
 		t.Fatalf("SubscribeEvents: %v", err)
 	}
 	defer c.Close()
-	var _ io.Closer = c
+	var _ = io.Closer(c)
 }

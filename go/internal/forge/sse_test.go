@@ -223,12 +223,11 @@ func TestSSEConsumer_ContextCancel(t *testing.T) {
 		select {
 		case _, ok := <-events:
 			if !ok {
-				if err := consumer.Err(); err != nil && !errors.Is(err, context.Canceled) && err != io.EOF {
-					// Acceptable: the consumer returned
-					// either ctx.Canceled (cancelled
-					// before read) or the underlying
-					// pipe error (closed before read).
-				}
+				// Consumer may return either context.Canceled
+				// (cancelled before read) or the underlying pipe
+				// error (closed before read). Both are acceptable
+				// for this test.
+				_ = consumer.Err()
 				return
 			}
 		case <-deadline:

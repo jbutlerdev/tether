@@ -80,6 +80,11 @@ func ParseKind(s string) (Kind, bool) {
 // ConvInfo is the stored metadata for a single conversation. It
 // mirrors the ConvInfo protobuf in pkg/protocol/protocolpb but is
 // shaped for in-process use (no protobuf dependency).
+//
+// matches the protobuf definition and is the dominant external
+// reference; renaming would obscure the mapping.
+//
+//nolint:revive // "ConvInfo" stutters as conv.ConvInfo but the name
 type ConvInfo struct {
 	// Name is the human-friendly name shown on the M5 EPD
 	// (≤ 24 chars; the store does not enforce this — the sync
@@ -152,6 +157,10 @@ func idToHex(b []byte) string {
 
 // ConvIDToHex returns the 32-char lowercase hex encoding of a
 // 16-byte conversation ID.
+//
+// public API and is referenced from many packages.
+//
+//nolint:revive // Stutters as conv.ConvIDToHex; the name is the
 func ConvIDToHex(b []byte) string { return idToHex(b) }
 
 // RoomIDToConvID derives a stable 16-byte conversation ID from a

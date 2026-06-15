@@ -29,11 +29,17 @@ const NVSVersion = 1
 type KeyType int
 
 const (
+	// TypeUint8 is a single-byte unsigned integer key type.
 	TypeUint8 KeyType = iota + 1
+	// TypeUint16 is a two-byte unsigned integer key type.
 	TypeUint16
+	// TypeUint32 is a four-byte unsigned integer key type.
 	TypeUint32
+	// TypeInt32 is a four-byte signed integer key type.
 	TypeInt32
+	// TypeBytes is a variable-length byte slice key type.
 	TypeBytes
+	// TypeString is a variable-length UTF-8 string key type.
 	TypeString
 )
 

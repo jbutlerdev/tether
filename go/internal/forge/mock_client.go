@@ -424,7 +424,15 @@ func randomHex(n int) string {
 func newUUID() string {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		// Fallback (see randomHex).
+		// Fallback: fill with time-based pseudo-randomness. This
+		// is test-only code; in production rand.Read on Linux
+		// does not fail, but we keep the branch to avoid a panic
+		// if a CI environment has no entropy source.
+		ns := time.Now().UnixNano()
+		for i := 0; i < 8; i++ {
+			b[i] = byte(ns >> (8 * i))
+			b[8+i] = byte(ns >> (8 * (i + 1)))
+		}
 	}
 	b[6] = (b[6] & 0x0F) | 0x40 // version 4
 	b[8] = (b[8] & 0x3F) | 0x80 // variant 10
