@@ -73,28 +73,28 @@ std::vector<std::string> ListDirHost(const std::string &dir) {
 
 #else  // real hardware
 
-// Production stubs. The real LittleFS VFS wrapper
-// (firmware/m5/components/littlefs_vfs) provides the actual
-// implementation; these stubs satisfy the linker so the
-// component compiles in isolation. The production wiring
-// (replacing these with the LfsVfs calls) is deferred to
-// v1.1 — the on-disk format is what matters for the wire
-// contract and the host tests pin that.
-bool MkdirsHost(const std::string &path) {
-  (void)path;
-  return false;
+// Production path: the helpers route through the LfsVfs
+// member of the owning CrashLog instance. We pass the vfs
+// reference in to keep the helpers in the anonymous
+// namespace (and out of the public API).
+bool MkdirsHost(LfsVfs &vfs, const std::string &path) {
+  // vfs_.Mkdir is non-recursive; the conv manager's
+  // crash subdir is one level deep, so a single Mkdir is
+  // enough. If we ever need a deeper tree, switch to a
+  // loop that walks the path components.
+  return vfs.Mkdir(path.c_str()) == 0;
 }
-bool ExistsHost(const std::string &path) {
-  (void)path;
-  return false;
+
+bool ExistsHost(LfsVfs &vfs, const std::string &path) {
+  return vfs.Exists(path.c_str());
 }
-bool RemoveHost(const std::string &path) {
-  (void)path;
-  return false;
+
+bool RemoveHost(LfsVfs &vfs, const std::string &path) {
+  return vfs.Remove(path.c_str()) == 0;
 }
-std::vector<std::string> ListDirHost(const std::string &dir) {
-  (void)dir;
-  return {};
+
+std::vector<std::string> ListDirHost(LfsVfs &vfs, const std::string &dir) {
+  return vfs.ListDir(dir.c_str());
 }
 
 #endif  // TETHER_M5_HOST_TEST
@@ -111,11 +111,27 @@ bool CrashLog::Init(const char *root) {
     sub += '/';
   }
   sub += "crash";
+#ifdef TETHER_M5_HOST_TEST
   if (!MkdirsHost(sub)) {
     return false;
   }
   root_ = r;
   inited_ = true;
+  (void)vfs_; // unused on host
+#else
+  // Mount the VFS at the chosen root, then create the
+  // crash subdirectory through the same wrapper. We do the
+  // mount first so the production MkdirsHost can call
+  // vfs_.Mkdir without checking whether the VFS is up.
+  if (vfs_.Mount(r.c_str()) != ESP_OK) {
+    return false;
+  }
+  if (!MkdirsHost(vfs_, sub)) {
+    return false;
+  }
+  root_ = r;
+  inited_ = true;
+#endif
   return true;
 }
 
@@ -137,13 +153,19 @@ bool CrashLog::Write(const char *name, const CrashRecord &rec) {
   std::fclose(fp);
   return wrote == CrashRecord::kSizeOnDisk;
 #else
-  // Production path: write through the LfsVfs wrapper. The
-  // on-disk format is the same; only the storage backend
-  // differs. The host tests pin the format; this is a
-  // straight substitution in v1.1.
-  extern LfsVfs &GetLfsVfs();
-  return GetLfsVfs().Write(full.c_str(), &rec, CrashRecord::kSizeOnDisk) ==
-         CrashRecord::kSizeOnDisk;
+  // Production path: open the file through the LfsVfs
+  // wrapper and write the record with std::fwrite. The
+  // on-disk format is the same as the host path; the
+  // LfsVfs::Open call hands us a FILE* that routes through
+  // the SD card's VFS mount (see littlefs_vfs_host.cpp /
+  // littlefs_vfs.cpp for the production wiring).
+  FILE *fp = vfs_.Open(full.c_str(), "wb");
+  if (fp == nullptr) {
+    return false;
+  }
+  size_t wrote = std::fwrite(&rec, 1, CrashRecord::kSizeOnDisk, fp);
+  std::fclose(fp);
+  return wrote == CrashRecord::kSizeOnDisk;
 #endif
 }
 
@@ -152,10 +174,17 @@ bool CrashLog::Delete(const char *name) {
     return false;
   }
   std::string full = JoinPath(root_, name);
+#ifdef TETHER_M5_HOST_TEST
   if (!ExistsHost(full)) {
     return false;
   }
   return RemoveHost(full);
+#else
+  if (!ExistsHost(vfs_, full)) {
+    return false;
+  }
+  return RemoveHost(vfs_, full);
+#endif
 }
 
 std::vector<CrashRecord> CrashLog::ListAll() {
@@ -168,10 +197,17 @@ std::vector<CrashRecord> CrashLog::ListAll() {
     sub += '/';
   }
   sub += "crash";
+#ifdef TETHER_M5_HOST_TEST
   if (!ExistsHost(sub)) {
     return out;
   }
   std::vector<std::string> files = ListDirHost(sub);
+#else
+  if (!ExistsHost(vfs_, sub)) {
+    return out;
+  }
+  std::vector<std::string> files = ListDirHost(vfs_, sub);
+#endif
   for (const auto &name : files) {
     std::string full = sub + "/" + name;
     CrashRecord rec{};
@@ -186,9 +222,18 @@ std::vector<CrashRecord> CrashLog::ListAll() {
       continue;
     }
 #else
-    extern LfsVfs &GetLfsVfs();
-    int n = GetLfsVfs().Read(full.c_str(), &rec, CrashRecord::kSizeOnDisk);
-    if (n != static_cast<int>(CrashRecord::kSizeOnDisk)) {
+    // Production path: open the file through the LfsVfs
+    // wrapper and read the record with std::fread. The
+    // on-disk format is the same as the host path; the
+    // LfsVfs::Open call hands us a FILE* that routes through
+    // the SD card's VFS mount.
+    FILE *fp = vfs_.Open(full.c_str(), "rb");
+    if (fp == nullptr) {
+      continue;
+    }
+    size_t got = std::fread(&rec, 1, CrashRecord::kSizeOnDisk, fp);
+    std::fclose(fp);
+    if (got != CrashRecord::kSizeOnDisk) {
       continue;
     }
 #endif

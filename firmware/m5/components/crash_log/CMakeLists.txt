@@ -13,7 +13,7 @@ if(DEFINED TETHER_M5_HOST_TEST)
   add_library(crash_log_host STATIC src/crash_log.cpp)
   target_include_directories(crash_log_host PUBLIC include)
   target_compile_definitions(crash_log_host PUBLIC TETHER_M5_HOST_TEST=1)
-  target_link_libraries(crash_log_host PUBLIC freertos_shim)
+  target_link_libraries(crash_log_host PUBLIC freertos_shim littlefs_vfs_host)
 elseif(COMMAND idf_component_register)
   idf_component_register(
     SRCS "src/crash_log.cpp"

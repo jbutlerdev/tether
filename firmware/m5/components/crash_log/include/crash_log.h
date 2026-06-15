@@ -20,6 +20,14 @@
 #include <string>
 #include <vector>
 
+#ifdef TETHER_M5_HOST_TEST
+#include "freertos_shim.h"
+#else
+#include "esp_err.h"
+#endif
+
+#include "littlefs_vfs.h"
+
 namespace tether::m5 {
 
 // CrashRecord is the on-disk record. Keep the layout
@@ -83,6 +91,10 @@ public:
 private:
   std::string root_;
   bool inited_ = false;
+  // vfs_ is the typed LittleFS wrapper the production path
+  // routes through. On host it is unused (the unit tests use
+  // std::filesystem via the kTestRoot scratch dir).
+  LfsVfs vfs_;
 };
 
 }  // namespace tether::m5
