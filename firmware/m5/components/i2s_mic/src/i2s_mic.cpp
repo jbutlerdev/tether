@@ -20,6 +20,10 @@ constexpr char kTag[] = "tether.mic";
 } // namespace
 
 bool I2SMic::Init() {
+#ifdef TETHER_M5_HOST_TEST
+  // No real I2S peripheral on host; tests use InjectForTest.
+  return true;
+#else
   i2s_config_t cfg = {};
   cfg.mode = I2S_MODE_MASTER | I2S_MODE_RX;
   cfg.sample_rate = 8000;
@@ -39,15 +43,16 @@ bool I2SMic::Init() {
   pins.data_out_num = I2S_PIN_NO_CHANGE;
   esp_err_t err = i2s_driver_install(I2S_NUM_0, &cfg, 0, nullptr);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_driver_install: %s", esp_err_to_name(err));
+    ESP_LOGE(kTag, "i2s_driver_install: %d", err);
     return false;
   }
   err = i2s_set_pin(I2S_NUM_0, &pins);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_set_pin: %s", esp_err_to_name(err));
+    ESP_LOGE(kTag, "i2s_set_pin: %d", err);
     return false;
   }
   return true;
+#endif
 }
 
 size_t I2SMic::ReadSamples(int16_t *out, size_t max_samples) {
