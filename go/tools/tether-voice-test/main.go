@@ -8,16 +8,16 @@
 // On success the tool prints a one-line summary to stdout and
 // exits 0. The pipeline:
 //
-//   1. Reads a 16-bit mono WAV from -in (any sample rate;
-//      we resample internally to 16 kHz for STT).
-//   2. Runs STT (Parakeet-TDT 0.6B v2 via sherpa-onnx when
-//      built with -tags parakeet; the mock otherwise).
-//   3. Prints the recognised text to stdout.
-//   4. Runs TTS (Piper subprocess when built with -tags piper
-//      and a binary is available; the mock otherwise).
-//   5. Resamples the TTS output to 8 kHz and writes a 16-bit
-//      mono WAV to -out (or to the InMemorySink if -sink is
-//      used by the test harness).
+//  1. Reads a 16-bit mono WAV from -in (any sample rate;
+//     we resample internally to 16 kHz for STT).
+//  2. Runs STT (Parakeet-TDT 0.6B v2 via sherpa-onnx when
+//     built with -tags parakeet; the mock otherwise).
+//  3. Prints the recognised text to stdout.
+//  4. Runs TTS (Piper subprocess when built with -tags piper
+//     and a binary is available; the mock otherwise).
+//  5. Resamples the TTS output to 8 kHz and writes a 16-bit
+//     mono WAV to -out (or to the InMemorySink if -sink is
+//     used by the test harness).
 //
 // The CLI lives in main() and is exercised by the unit tests
 // via RunOnce (see main_test.go). The harness uses the
@@ -57,14 +57,14 @@ type Options struct {
 //
 // The pipeline:
 //
-//   1. Read -in as a 16-bit mono WAV. Convert to float32.
-//   2. Resample to 16 kHz.
-//   3. STT.Transcribe → text.
-//   4. Print text to opts.Out.
-//   5. TTS.Synthesize → PCM at the TTS sample rate (22050).
-//   6. Resample to 8 kHz.
-//   7. Convert to int16.
-//   8. Write to -out as a 16-bit mono WAV (or to Sink).
+//  1. Read -in as a 16-bit mono WAV. Convert to float32.
+//  2. Resample to 16 kHz.
+//  3. STT.Transcribe → text.
+//  4. Print text to opts.Out.
+//  5. TTS.Synthesize → PCM at the TTS sample rate (22050).
+//  6. Resample to 8 kHz.
+//  7. Convert to int16.
+//  8. Write to -out as a 16-bit mono WAV (or to Sink).
 //
 // Returns nil on success.
 func RunOnce(opts Options) error {

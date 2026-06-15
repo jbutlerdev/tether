@@ -2,9 +2,9 @@
 //
 // The CLI exposes the full voice pipeline end-to-end:
 //
-//   voice WAV → resample 8→16kHz → STT → text → TTS → resample
-//   22→8kHz → Opus encode → fragment → LoRa → reassemble →
-//   Opus decode → audio file
+//	voice WAV → resample 8→16kHz → STT → text → TTS → resample
+//	22→8kHz → Opus encode → fragment → LoRa → reassemble →
+//	Opus decode → audio file
 //
 // The tests in this file run the same code path the CLI uses
 // (RunOnce in main.go) so the binary is exercised by `go test`.
@@ -86,11 +86,11 @@ func TestVoicePipeline_HelloWorld_RoundTrip(t *testing.T) {
 	makeTestWAV(t, inPath, 1, 8000, 440)
 
 	opts := Options{
-		InWAV:    inPath,
-		OutWAV:   outPath,
-		STT:      stt.NewMock(stt.MockOptionLatency(0)),
-		TTS:      tts.NewMock(),
-		Out:      &bytes.Buffer{},
+		InWAV:  inPath,
+		OutWAV: outPath,
+		STT:    stt.NewMock(stt.MockOptionLatency(0)),
+		TTS:    tts.NewMock(),
+		Out:    &bytes.Buffer{},
 	}
 	if err := RunOnce(opts); err != nil {
 		t.Fatalf("RunOnce: %v", err)

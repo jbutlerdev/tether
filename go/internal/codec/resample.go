@@ -103,7 +103,7 @@ func buildFilter(inRate, outRate, taps, phases int) *filter {
 
 	coeffs := make([][]float32, phases)
 	// Use Lanczos-3 windowed sinc.
-	const a = 3 // Lanczos-3
+	const a = 3       // Lanczos-3
 	filterLen := taps // filter length (samples) at upsampled rate
 	for ph := 0; ph < phases; ph++ {
 		// Fractional phase: ph / phases.

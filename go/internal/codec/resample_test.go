@@ -175,8 +175,8 @@ func TestResample_OutputLen(t *testing.T) {
 	cases := []struct {
 		inRate, outRate, inLen, want int
 	}{
-		{8000, 16000, 800, 1600},  // exactly 2x
-		{16000, 8000, 1600, 800},  // exactly 0.5x
+		{8000, 16000, 800, 1600},   // exactly 2x
+		{16000, 8000, 1600, 800},   // exactly 0.5x
 		{22050, 8000, 22050, 8000}, // exactly 0.3628x
 		{8000, 22050, 8000, 22050}, // exactly 2.75625x
 	}

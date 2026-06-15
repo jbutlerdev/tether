@@ -15,7 +15,6 @@ import (
 	"github.com/jbutlerdev/tether/go/internal/tts"
 )
 
-
 // fakePiperScript mimics Piper's line protocol. The wrapper
 // invokes it as `fake-piper --model <voice.onnx> --output-raw`.
 // We parse the args to find the voice path.
