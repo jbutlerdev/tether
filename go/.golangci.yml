@@ -1,5 +1,6 @@
 # golangci-lint configuration for the Tether Go daemon.
 # See plan.md §0.8 for the enforced gate.
+version: "2"
 run:
   timeout: 5m
   tests: true
@@ -33,9 +34,3 @@ issues:
       linters:
         - errcheck
         - gosec
-
-output:
-  formats:
-    - format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
