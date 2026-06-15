@@ -157,3 +157,14 @@ typedef int esp_err_t;
 #ifdef __cplusplus
 }
 #endif
+
+// ── Host-side SHA-256 shim ─────────────────────────────────────────────
+//
+// ESP-IDF bundles mbedTLS; on the host test build we don't link
+// mbedTLS, so we expose a small SHA-256 helper that the link-layer
+// crypto component uses. The implementation lives in
+// freertos_shim.cpp and is a textbook SHA-256 (FIPS 180-4 §6.2)
+// with no platform dependencies.
+namespace tether::m5::test {
+void sha256(const uint8_t *data, std::size_t len, uint8_t out[32]);
+}  // namespace tether::m5::test

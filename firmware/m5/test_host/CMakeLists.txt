@@ -78,17 +78,25 @@ function(add_host_test name)
   endif()
   # The test source is conventionally test_<name>.cpp but the plan
   # uses a few suffixed variants: test_<name>_state.cpp (PTT),
-  # test_<name>_render.cpp (EPD). Look for any of them.
-  if(EXISTS ${comp_dir}/test/test_${name}.cpp)
-    set(test_src ${comp_dir}/test/test_${name}.cpp)
-  elseif(EXISTS ${comp_dir}/test/test_${name}_state.cpp)
-    set(test_src ${comp_dir}/test/test_${name}_state.cpp)
-  elseif(EXISTS ${comp_dir}/test/test_${name}_render.cpp)
-    set(test_src ${comp_dir}/test/test_${name}_render.cpp)
-  else()
+  # test_<name>_render.cpp (EPD). Look for any of them, and
+  # collect all matching files into a single test binary so
+  # components with multiple test_*.cpp files (e.g. watchdog's
+  # plan §9.2 reset-reason tests) compile and run together.
+  set(test_srcs "")
+  foreach(candidate
+    ${comp_dir}/test/test_${name}.cpp
+    ${comp_dir}/test/test_${name}_state.cpp
+    ${comp_dir}/test/test_${name}_render.cpp
+    ${comp_dir}/test/test_${name}_reset.cpp
+    ${comp_dir}/test/test_${name}_phase8.cpp)
+    if(EXISTS ${candidate})
+      list(APPEND test_srcs ${candidate})
+    endif()
+  endforeach()
+  if(NOT test_srcs)
     message(FATAL_ERROR "add_host_test(${name}): no test source found")
   endif()
-  add_executable(test_${name} ${test_src})
+  add_executable(test_${name} ${test_srcs})
   target_include_directories(test_${name} PRIVATE
     ${comp_dir}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/freertos_shim
@@ -151,6 +159,10 @@ add_host_test(littlefs_vfs)
 add_host_test(conv_db)
 add_host_test(epd)
 add_host_test(conv_manager)
+add_host_test(aes_link)
+add_host_test(crash_log)
+add_host_test(ota)
+add_host_test(nvs)
 
 # gen_epd_goldens — auxiliary tool that writes the EPD golden
 # fixtures. Not a test; not registered with ctest. Run by hand
