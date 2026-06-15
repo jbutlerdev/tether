@@ -100,6 +100,9 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_GREATER_THAN(threshold, actual)                            \
   UnityAssertTrue(((actual) > (threshold)), __FILE__, __LINE__,                 \
                   "TEST_ASSERT_GREATER_THAN(" #threshold ", " #actual ")")
+#define TEST_ASSERT_LESS_THAN(threshold, actual)                               \
+  UnityAssertTrue(((actual) < (threshold)), __FILE__, __LINE__,                 \
+                  "TEST_ASSERT_LESS_THAN(" #threshold ", " #actual ")")
 #ifdef __cplusplus
 #define TEST_ASSERT_THROW(stmt, ex_type)                                        \
   do {                                                                         \
