@@ -93,6 +93,9 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_EQUAL_MEMORY(expected, actual, len)                        \
   UnityAssertEqualMemory((expected), (actual), (unsigned int)(len),             \
                          __FILE__, __LINE__)
+#define TEST_ASSERT_GREATER_THAN(threshold, actual)                            \
+  UnityAssertTrue(((actual) > (threshold)), __FILE__, __LINE__,                 \
+                  "TEST_ASSERT_GREATER_THAN(" #threshold ", " #actual ")")
 #define TEST_IGNORE_MESSAGE(msg)                                               \
   do { UnityIgnoreTest(msg); return; } while (0)
 

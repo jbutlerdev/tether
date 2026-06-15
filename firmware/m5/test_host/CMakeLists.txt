@@ -111,3 +111,4 @@ endfunction()
 
 add_host_test(spi_bus)
 add_host_test(lora_sx1262)
+add_host_test(sd_card)
