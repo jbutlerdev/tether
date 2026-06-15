@@ -136,6 +136,7 @@ add_host_test(ui_state)
 add_host_test(watchdog)
 add_host_test(power_mgmt)
 add_host_test(littlefs_vfs)
+add_host_test(conv_db)
 
 # Phase 3 exit-gate integration test (plan.md §4.10). It exercises
 # every task component under synthetic load and verifies no

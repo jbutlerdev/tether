@@ -159,6 +159,16 @@ void UnityAssertEqualNumber(int expected, int actual,
   }
 }
 
+void UnityAssertEqualInt64(long long expected, long long actual,
+                           const char *file, int line, const char *msg) {
+  if (expected != actual) {
+    char buf[160];
+    snprintf(buf, sizeof buf, "expected %lld, was %lld (%s)",
+             expected, actual, msg ? msg : "");
+    UnityFail_(file, line, buf);
+  }
+}
+
 void UnityAssertEqualInt(int expected, int actual, ...) {
   /* Trampoline to UnityAssertEqualNumber for legacy UNITY_BEGIN/END. */
   va_list ap;

@@ -37,6 +37,8 @@ void tearDown(void);
 /* Assertion primitives. */
 void UnityAssertEqualNumber(int expected, int actual, const char *file,
                             int line, const char *msg);
+void UnityAssertEqualInt64(long long expected, long long actual,
+                           const char *file, int line, const char *msg);
 void UnityAssertEqualString(const char *expected, const char *actual,
                             const char *file, int line);
 void UnityAssertEqualPtr(const void *expected, const void *actual,
@@ -67,6 +69,10 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_EQUAL_INT(expected, actual)                                \
   UnityAssertEqualNumber((expected), (actual), __FILE__, __LINE__,             \
                          "TEST_ASSERT_EQUAL_INT(" #expected "," #actual ")")
+#define TEST_ASSERT_EQUAL_INT64(expected, actual)                             \
+  UnityAssertEqualInt64((long long)(expected), (long long)(actual),            \
+                        __FILE__, __LINE__,                                    \
+                        "TEST_ASSERT_EQUAL_INT64(" #expected "," #actual ")")
 #define TEST_ASSERT_EQUAL_size_t(expected, actual)                             \
   UnityAssertEqualNumber((int)(expected), (int)(actual), __FILE__, __LINE__,   \
                          "TEST_ASSERT_EQUAL_size_t(" #expected "," #actual     \
