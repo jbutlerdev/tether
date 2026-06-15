@@ -15,6 +15,10 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
+#include <stdexcept>
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -96,6 +100,24 @@ typedef struct UnityTestRunner UnityTestRunner;
 #define TEST_ASSERT_GREATER_THAN(threshold, actual)                            \
   UnityAssertTrue(((actual) > (threshold)), __FILE__, __LINE__,                 \
                   "TEST_ASSERT_GREATER_THAN(" #threshold ", " #actual ")")
+#ifdef __cplusplus
+#define TEST_ASSERT_THROW(stmt, ex_type)                                        \
+  do {                                                                         \
+    bool caught = false;                                                       \
+    try {                                                                      \
+      stmt;                                                                    \
+    } catch (const ex_type &) {                                                \
+      caught = true;                                                           \
+    } catch (...) {                                                            \
+    }                                                                          \
+    if (!caught) {                                                             \
+      UnityAssertTrue(false, __FILE__, __LINE__,                               \
+                      "TEST_ASSERT_THROW(" #stmt ", " #ex_type ") did not throw"); \
+    }                                                                          \
+  } while (0)
+#else
+#define TEST_ASSERT_THROW(stmt, ex_type) /* not available in C tests */
+#endif
 #define TEST_IGNORE_MESSAGE(msg)                                               \
   do { UnityIgnoreTest(msg); return; } while (0)
 
