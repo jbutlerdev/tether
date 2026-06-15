@@ -151,6 +151,7 @@ add_host_test(littlefs_vfs)
 add_host_test(conv_db)
 add_host_test(epd)
 add_host_test(conv_manager)
+add_host_test(aes_link)
 
 # gen_epd_goldens — auxiliary tool that writes the EPD golden
 # fixtures. Not a test; not registered with ctest. Run by hand
