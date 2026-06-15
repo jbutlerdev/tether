@@ -18,6 +18,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* ── Test runner state ────────────────────────────────────────────────── */
@@ -121,7 +122,21 @@ int UnityTestRunnerRun(int /*argc*/, const char ** /*argv*/) {
 
 int UnityEndMain(void) {
   UnityBegin(__FILE__);
-  return UnityTestRunnerRun(0, NULL);
+  int rc = UnityTestRunnerRun(0, NULL);
+  // Force a non-zero exit code on failure even if the caller used
+  // `UNITY_END();` as a discarded statement (i.e. main() does not
+  // return the value). CTest reads the process exit code, so a
+  // failing test must surface as a non-zero status.
+  if (rc != 0) {
+    fflush(stdout);
+    fflush(stderr);
+    // std::quick_exit is not C99; use the POSIX/CRT exit.
+    // (We've already printed the summary.)
+    // We deliberately use _Exit to avoid running atexit handlers
+    // — this matches what Unity's stock fixture does.
+    _Exit(rc);
+  }
+  return rc;
 }
 
 void UnityIgnoreTest(const char *msg) {
