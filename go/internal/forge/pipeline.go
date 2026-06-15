@@ -470,6 +470,34 @@ func (p *Pipeline) bufferAndFlush(ctx context.Context, convID [16]byte, delta st
 	}
 	buf.append(delta)
 	text, shouldFlush := buf.maybeFlush(p.boundChrs, force)
+	// If the buffer is non-empty after a successful flush
+	// check, start a force-flush timer (only the first
+	// append sets it; subsequent appends within the window
+	// leave it running). The timer fires after
+	// BufferFlushTimeout and force-flushes whatever is
+	// still buffered, so a long agent reply without a
+	// sentence boundary is still spoken within the SLA.
+	if buf.text.Len() > 0 && buf.flushTimer == nil && p.flushTO > 0 {
+		buf.flushTimer = time.AfterFunc(p.flushTO, func() {
+			p.bufMu.Lock()
+			if buf.text.Len() > 0 {
+				out := buf.text.String()
+				buf.text.Reset()
+				buf.lastFlush = time.Now()
+				buf.flushTimer = nil
+				p.bufMu.Unlock()
+				_ = p.speakAndSend(ctx, convID, out)
+				return
+			}
+			buf.flushTimer = nil
+			p.bufMu.Unlock()
+		})
+	} else if buf.text.Len() == 0 && buf.flushTimer != nil {
+		// Buffer was flushed by a sentence boundary; cancel
+		// the pending timer.
+		buf.flushTimer.Stop()
+		buf.flushTimer = nil
+	}
 	p.bufMu.Unlock()
 	if !shouldFlush {
 		return nil
@@ -564,6 +592,10 @@ type sentenceBuffer struct {
 	// lastFlush is the time of the last flush. Used to
 	// force-flush stale buffers.
 	lastFlush time.Time
+	// flushTimer is the pending force-flush timer, if any.
+	// Set on the first append; cleared on a successful
+	// flush (sentence boundary or force=true).
+	flushTimer *time.Timer
 }
 
 func (b *sentenceBuffer) append(s string) {
