@@ -65,6 +65,7 @@ type MockClient struct {
 	subActive  bool
 	subCancel  context.CancelFunc
 	subCh      chan Event
+	subDone    chan struct{} // closed when subCh is about to be closed
 	subDropped atomic.Bool
 
 	// room state overrides for GetRoomState.
@@ -177,51 +178,89 @@ func (m *MockClient) LeaveRoom(ctx context.Context, roomID id.RoomID) error {
 	return nil
 }
 
-// Subscribe returns a channel of events. The channel is closed when
-// Disconnect is called or when the supplied context is canceled.
-// Only one subscription may be active at a time.
-func (m *MockClient) Subscribe(ctx context.Context) (<-chan Event, error) {
+// Subscribe returns a channel of events plus a "done" channel
+// that is closed when the subscription ends. Only one
+// subscription may be active at a time.
+func (m *MockClient) Subscribe(ctx context.Context) (<-chan Event, <-chan struct{}, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if m.isClosed() {
-		return nil, ErrMockClosed
+		return nil, nil, ErrMockClosed
 	}
 
 	m.subMu.Lock()
 	defer m.subMu.Unlock()
 	if m.subActive {
-		return nil, ErrSubscribeAlreadyActive
+		return nil, nil, ErrSubscribeAlreadyActive
 	}
 	subCtx, cancel := context.WithCancel(ctx)
 	ch := make(chan Event, 32)
+	done := make(chan struct{})
 	m.subActive = true
 	m.subDropped.Store(false)
 	m.subCh = ch
+	m.subDone = done
 	m.subCancel = cancel
 
-	// Close the channel when the caller's context is done OR
-	// when Disconnect is invoked.
+	// Close ONLY the done channel when the caller's context is
+	// done or when Disconnect is invoked. The event channel `ch`
+	// is left open — the consumer (appservice pump) selects on
+	// `done` as a "stop reading" signal. This avoids a send-
+	// vs-close race with concurrent InjectEvent calls.
 	go func() {
 		<-subCtx.Done()
 		m.subMu.Lock()
 		if m.subActive && m.subCh == ch {
-			close(ch)
+			close(done)
 			m.subCh = nil
+			m.subDone = nil
 			m.subActive = false
 			m.subDropped.Store(true)
 		}
 		m.subMu.Unlock()
 	}()
 
-	return ch, nil
+	return ch, done, nil
 }
 
 // InjectEvent delivers ev to the current subscription, if any.
-// Returns false if no subscription is active. The subMu is held
-// during the non-blocking send so that a concurrent Disconnect
-// (which closes and nil-s the channel) cannot race the send.
+// Returns false if no subscription is active.
+//
+// The send is blocking: if the buffer is full, InjectEvent waits
+// for the consumer. This matches the real mautrix appservice's
+// semantics (no event is dropped on backpressure) and keeps the
+// concurrent-invariants test honest. A concurrent Disconnect is
+// observed via the subDone channel — the send is abandoned as
+// soon as subDone is closed.
+//
+// Callers that want the non-blocking "drop on full" behaviour
+// can use InjectEventNonBlocking (test-only).
 func (m *MockClient) InjectEvent(ev Event) bool {
+	m.subMu.Lock()
+	ch := m.subCh
+	done := m.subDone
+	m.subMu.Unlock()
+	if ch == nil {
+		return false
+	}
+	if done != nil {
+		select {
+		case ch <- ev:
+			return true
+		case <-done:
+			return false
+		}
+	}
+	ch <- ev
+	return true
+}
+
+// InjectEventNonBlocking is the drop-on-full variant of
+// InjectEvent. Used by tests that want to simulate a real-world
+// "events arrive faster than the consumer can process" scenario
+// without deadlocking the test goroutine.
+func (m *MockClient) InjectEventNonBlocking(ev Event) bool {
 	m.subMu.Lock()
 	defer m.subMu.Unlock()
 	if m.subCh == nil {
@@ -231,9 +270,6 @@ func (m *MockClient) InjectEvent(ev Event) bool {
 	case m.subCh <- ev:
 		return true
 	default:
-		// Drop on full buffer. Production reconnection handles
-		// backpressure; the mock just drops to keep the test
-		// fast.
 		return false
 	}
 }

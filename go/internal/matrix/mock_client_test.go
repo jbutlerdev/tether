@@ -127,7 +127,7 @@ func TestMockClient_SubscribeReceives(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	events, err := m.Subscribe(ctx)
+	events, _, err := m.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("Subscribe: %v", err)
 	}
@@ -174,25 +174,22 @@ func TestMockClient_Reconnect(t *testing.T) {
 	// First connection.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	first, err := m.Subscribe(ctx)
+	_, firstDone, err := m.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("first Subscribe: %v", err)
 	}
 
-	// Simulate a disconnect. The channel should be closed.
+	// Simulate a disconnect. The done channel should close.
 	m.Disconnect()
 	select {
-	case _, ok := <-first:
-		if ok {
-			// Drain any pending events.
-		}
+	case <-firstDone:
 	case <-time.After(500 * time.Millisecond):
-		t.Fatal("first Subscribe: channel not closed after Disconnect")
+		t.Fatal("first Subscribe: done channel not closed after Disconnect")
 	}
 
-	// Auto-reconnect. A fresh Subscribe call returns a new, open
-	// channel.
-	second, err := m.Subscribe(ctx)
+	// Auto-reconnect. A fresh Subscribe call returns a new
+	// channel pair.
+	second, _, err := m.Subscribe(ctx)
 	if err != nil {
 		t.Fatalf("second Subscribe: %v", err)
 	}
@@ -292,6 +289,50 @@ func TestMockClient_Close(t *testing.T) {
 	defer cancel()
 	if _, err := m.SendText(ctx, roomID("!r1:example.com"), "x"); err == nil {
 		t.Error("SendText after Close: want error, got nil")
+	}
+}
+
+// TestMockClient_LeaveRoom_Error verifies that LeaveRoom returns
+// the injected error.
+func TestMockClient_LeaveRoom_Error(t *testing.T) {
+	t.Parallel()
+	wantErr := errors.New("forbidden")
+	m := matrix.NewMockClient(matrix.MockOptionLeaveError(wantErr))
+	defer m.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := m.LeaveRoom(ctx, roomID("!r:example.com")); !errors.Is(err, wantErr) {
+		t.Fatalf("LeaveRoom: want %v, got %v", wantErr, err)
+	}
+	if got := m.LeftRooms(); len(got) != 0 {
+		t.Errorf("LeftRooms on error: want [], got %v", got)
+	}
+}
+
+// TestMockClient_InjectEventNonBlocking verifies the drop-on-full
+// helper returns false when the buffer is full.
+func TestMockClient_InjectEventNonBlocking(t *testing.T) {
+	t.Parallel()
+	m := matrix.NewMockClient()
+	defer m.Close()
+
+	ev := matrix.Event{Type: "m.room.message", Room: roomID("!r:example.com"), Body: "1"}
+	if m.InjectEventNonBlocking(ev) {
+		t.Fatal("InjectEventNonBlocking with no subscription: want false")
+	}
+}
+
+// TestMockClient_SubscribeAfterClose verifies that Subscribe
+// returns ErrMockClosed after Close.
+func TestMockClient_SubscribeAfterClose(t *testing.T) {
+	t.Parallel()
+	m := matrix.NewMockClient()
+	_ = m.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if _, _, err := m.Subscribe(ctx); !errors.Is(err, matrix.ErrMockClosed) {
+		t.Errorf("Subscribe after Close: want ErrMockClosed, got %v", err)
 	}
 }
 

@@ -75,18 +75,24 @@ type Client interface {
 	LeaveRoom(ctx context.Context, roomID id.RoomID) error
 
 	// Subscribe returns a channel of events from the underlying
-	// transport. The channel is closed when the underlying
-	// connection drops. The Mock client supports reconnection
-	// (see MockClient.Reconnect). The real client is built on
-	// mautrix-go's /transactions listener, which auto-reconnects
-	// with backoff.
+	// transport, plus a "done" channel that is closed when the
+	// subscription ends (network drop, ctx cancel, etc.). The
+	// Mock client supports reconnection (see MockClient.Reconnect).
+	// The real client is built on mautrix-go's /transactions
+	// listener, which auto-reconnects with backoff.
+	//
+	// The event channel is NOT closed when the subscription
+	// ends; the done channel is the canonical "stop reading"
+	// signal. This avoids a send-vs-close race with concurrent
+	// InjectEvent calls (in the Mock) and with the network
+	// teardown path (in the real client).
 	//
 	// Subscribe MUST NOT be called more than once concurrently
 	// per Client. The Mock and the real appservice both
 	// guarantee that a second Subscribe call gets its own
 	// channel (after the first drops), so callers should track
 	// subscriptions themselves.
-	Subscribe(ctx context.Context) (<-chan Event, error)
+	Subscribe(ctx context.Context) (<-chan Event, <-chan struct{}, error)
 
 	// GetRoomState returns the current state of a room (name,
 	// topic, members, …). Used by the room-to-conversation

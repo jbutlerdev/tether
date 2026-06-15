@@ -126,6 +126,16 @@ func (a *Appservice) setRoomName(roomID id.RoomID, name string) {
 	a.roomNames[roomID] = name
 }
 
+// HandleRenameForTest sets the alias for roomID to name. It is
+// exported for the test suite only; production code must drive
+// the rename through the OnRename callback. The leading-cap
+// “Handle…” follows the Go convention that test-only helpers
+// are named distinctly from production APIs to keep the public
+// surface small.
+func (a *Appservice) HandleRenameForTest(roomID id.RoomID, name string) {
+	a.setRoomName(roomID, name)
+}
+
 // Run consumes events from the Client's Subscribe channel and
 // dispatches them. It returns when ctx is canceled. If the
 // subscription channel drops (e.g. network blip), Run transparently
@@ -144,9 +154,9 @@ func (a *Appservice) Run(ctx context.Context) error {
 			return err
 		}
 		// Subscribe with the caller's context directly so that
-		// when ctx is canceled, the subscription channel closes
-		// and the pump exits.
-		events, err := a.client.Subscribe(ctx)
+		// when ctx is canceled, the subscription's done channel
+		// closes and the pump exits.
+		events, done, err := a.client.Subscribe(ctx)
 		if err != nil {
 			// A transient subscribe failure: back off and retry.
 			if errors.Is(err, context.Canceled) {
@@ -160,9 +170,9 @@ func (a *Appservice) Run(ctx context.Context) error {
 		}
 		backoff.Reset()
 
-		// Drain the event channel until it closes (the client
-		// signals a reconnect by closing the channel).
-		a.pump(ctx, events)
+		// Drain the event channel until the subscription ends
+		// (done channel closes) or ctx is canceled.
+		a.pump(ctx, events, done)
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -170,17 +180,16 @@ func (a *Appservice) Run(ctx context.Context) error {
 	}
 }
 
-// pump reads events from ch and dispatches them. Returns when ch
-// is closed or ctx is canceled.
-func (a *Appservice) pump(ctx context.Context, ch <-chan Event) {
+// pump reads events from ch and dispatches them. Returns when
+// the done channel is closed or ctx is canceled.
+func (a *Appservice) pump(ctx context.Context, ch <-chan Event, done <-chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case ev, ok := <-ch:
-			if !ok {
-				return
-			}
+		case <-done:
+			return
+		case ev := <-ch:
 			a.dispatch(ctx, ev)
 		}
 	}
