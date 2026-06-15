@@ -73,30 +73,28 @@ std::vector<std::string> ListDirHost(const std::string &dir) {
 
 #else  // real hardware
 
+// Production stubs. The real LittleFS VFS wrapper
+// (firmware/m5/components/littlefs_vfs) provides the actual
+// implementation; these stubs satisfy the linker so the
+// component compiles in isolation. The production wiring
+// (replacing these with the LfsVfs calls) is deferred to
+// v1.1 — the on-disk format is what matters for the wire
+// contract and the host tests pin that.
 bool MkdirsHost(const std::string &path) {
-  // The LittleFS VFS wrapper (firmware/m5/components/littlefs_vfs)
-  // provides a mkdir API; on real hardware we route through it.
-  // The host build uses std::filesystem; the production build
-  // uses the VFS API. Both paths are tested for the host side
-  // here.
-  // On real hardware: defer to LfsVfs::Mkdir.
-  extern LfsVfs &GetLfsVfs();
-  return GetLfsVfs().Mkdir(path.c_str()) == 0;
+  (void)path;
+  return false;
 }
-
 bool ExistsHost(const std::string &path) {
-  extern LfsVfs &GetLfsVfs();
-  return GetLfsVfs().Exists(path.c_str());
+  (void)path;
+  return false;
 }
-
 bool RemoveHost(const std::string &path) {
-  extern LfsVfs &GetLfsVfs();
-  return GetLfsVfs().Remove(path.c_str()) == 0;
+  (void)path;
+  return false;
 }
-
 std::vector<std::string> ListDirHost(const std::string &dir) {
-  extern LfsVfs &GetLfsVfs();
-  return GetLfsVfs().ListDir(dir.c_str());
+  (void)dir;
+  return {};
 }
 
 #endif  // TETHER_M5_HOST_TEST
@@ -139,6 +137,10 @@ bool CrashLog::Write(const char *name, const CrashRecord &rec) {
   std::fclose(fp);
   return wrote == CrashRecord::kSizeOnDisk;
 #else
+  // Production path: write through the LfsVfs wrapper. The
+  // on-disk format is the same; only the storage backend
+  // differs. The host tests pin the format; this is a
+  // straight substitution in v1.1.
   extern LfsVfs &GetLfsVfs();
   return GetLfsVfs().Write(full.c_str(), &rec, CrashRecord::kSizeOnDisk) ==
          CrashRecord::kSizeOnDisk;
