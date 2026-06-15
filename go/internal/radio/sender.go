@@ -25,6 +25,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
@@ -138,7 +140,11 @@ func (s *Sender) Run(ctx context.Context) (int, *protocolpb.Envelope, int, error
 	ackedCount := 0
 
 	sendOnce := func(seq uint32) error {
-		env := s.envs[seq]
+		// Clone the envelope so the RETRANSMIT flag we set below
+		// does not race with another Sender sharing the same
+		// envs slice. (The race-detector test fails intermittently
+		// without this.)
+		env := proto.Clone(s.envs[seq]).(*protocolpb.Envelope)
 		// Mark the retransmit flag if this is a retry. (Plan §6.x:
 		// bit0 of Flags = RETRANSMIT.)
 		if states[seq].retries.Load() > 0 {

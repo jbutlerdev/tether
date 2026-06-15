@@ -123,7 +123,7 @@ func newLoopbackSide(name string, parent *loopbackPair) *loopbackSide {
 	return &loopbackSide{
 		name:    name,
 		parent:  parent,
-		rxQueue: make(chan *protocolpb.Envelope, 64),
+		rxQueue: make(chan *protocolpb.Envelope, 1024),
 		stop:    make(chan struct{}),
 	}
 }
