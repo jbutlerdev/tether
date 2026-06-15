@@ -4,19 +4,19 @@
 #include <unity.h>
 
 #include "watchdog.h"
+#include "test_watchdog_state.h"
 
+using tether::m5::ResetReason;
 using tether::m5::Watchdog;
 
-namespace {
 Watchdog *g_wdt = nullptr;
-void Reset() {
+void ResetWatchdog() {
   delete g_wdt;
   g_wdt = new Watchdog();
   g_wdt->SetHungThresholdMsForTest(5000);
 }
-} // namespace
 
-void setUp() { Reset(); }
+void setUp() { ResetWatchdog(); }
 void tearDown() {
   delete g_wdt;
   g_wdt = nullptr;
@@ -65,6 +65,30 @@ void test_watchdog_panic_resets() {
   TEST_ASSERT_EQUAL(100, g_wdt->FeedCountFor("audio_capture"));
 }
 
+// Test 5: empty task name is rejected by Register.
+void test_watchdog_empty_name_rejected() {
+  TEST_ASSERT_FALSE(g_wdt->Register(""));
+}
+
+// Test 6: FeedCountFor for an unknown task returns 0.
+void test_watchdog_feed_count_unknown_task() {
+  TEST_ASSERT_EQUAL(0, g_wdt->FeedCountFor("never_registered"));
+}
+
+// Test 7: an unknown ResetReason casts to the fallthrough name.
+// We synthesise this by casting a large uint8_t value to the
+// enum (the switch in ResetReasonName has a fallthrough return).
+void test_watchdog_unknown_reason_fallthrough() {
+  // kUnknown is the sentinel; verifying the fallthrough path
+  // is reachable only via a malformed value, which is asserted
+  // here so the test suite is robust to future enum additions.
+  ResetReason bogus = static_cast<ResetReason>(0xFF);
+  const char *name = Watchdog::ResetReasonName(bogus);
+  TEST_ASSERT_EQUAL_STRING("unknown", name);
+}
+
+extern "C" void register_watchdog_reset_tests();
+
 int main(int argc, const char **argv) {
   (void)argc;
   (void)argv;
@@ -73,6 +97,10 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_watchdog_triggers_on_hung_task);
   RUN_TEST(test_watchdog_excludes_isr);
   RUN_TEST(test_watchdog_panic_resets);
+  RUN_TEST(test_watchdog_empty_name_rejected);
+  RUN_TEST(test_watchdog_feed_count_unknown_task);
+  RUN_TEST(test_watchdog_unknown_reason_fallthrough);
+  register_watchdog_reset_tests();
   (void)0;
   UNITY_END();
 }
