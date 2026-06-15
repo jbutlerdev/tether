@@ -14,8 +14,11 @@
 #include <unity.h>
 
 #include "i2s_amp.h"
+#include "playback.h"
 
 using tether::m5::I2SAmp;
+using tether::m5::kPlaybackMaxChunkSamples;
+using tether::m5::PlayPcm;
 
 namespace {
 constexpr int kSampleRate = 8000;
@@ -128,6 +131,38 @@ void test_amp_tone_length() {
   TEST_ASSERT_LESS_THAN(33, diff);
 }
 
+// ── v2 hook tests (plan §10.4) ────────────────────────────────────
+// These tests pin the v2 M5-side TTS playback hook. They assert
+// the v1 build returns the input length unchanged for every
+// chunk size. v2 inverts the test: the function must return
+// less than num_samples when the playback buffer is full.
+
+// Test 6: the v2 hook is callable in v1.
+void test_v2_playback_stub_exists() {
+  std::vector<int16_t> buf(16, 0);
+  std::size_t got = PlayPcm(buf.data(), buf.size());
+  TEST_ASSERT_EQUAL_size_t(16, got);
+}
+
+// Test 7: v1 returns the input length unchanged for a range of
+// chunk sizes.
+void test_v2_playback_v1_passes_through() {
+  const std::size_t sizes[] = {0, 1, 16, 256, 1024, kPlaybackMaxChunkSamples};
+  for (std::size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); ++i) {
+    std::vector<int16_t> buf(sizes[i], 0);
+    std::size_t got = PlayPcm(buf.data(), sizes[i]);
+    TEST_ASSERT_EQUAL_size_t(sizes[i], got);
+  }
+}
+
+// Test 8: v1 accepts a null pointer when num_samples is zero
+// (the v2 implementation will guard the dereference; v1
+// should not crash).
+void test_v2_playback_v1_null_zero() {
+  std::size_t got = PlayPcm(nullptr, 0);
+  TEST_ASSERT_EQUAL_size_t(0, got);
+}
+
 int main(int argc, const char **argv) {
   (void)argc;
   (void)argv;
@@ -137,6 +172,9 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_amp_silence_when_not_playing);
   RUN_TEST(test_amp_concurrent_play_stop);
   RUN_TEST(test_amp_tone_length);
+  RUN_TEST(test_v2_playback_stub_exists);
+  RUN_TEST(test_v2_playback_v1_passes_through);
+  RUN_TEST(test_v2_playback_v1_null_zero);
   (void)0;
   UNITY_END();
 }
