@@ -44,7 +44,9 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pin to v2.x; the v1.64.x line is built with Go 1.24 and
+          # refuses to lint modules targeting Go 1.25 (see plan.md).
+          version: v2.0.2
           working-directory: go
           # Config path is relative to working-directory; `go/` is
           # already the cwd, so the config is `.golangci.yml` there.
@@ -75,12 +77,12 @@ jobs:
       - name: Install protoc
         run: |
           sudo apt-get update
-          # Pin protoc to the version used to generate the committed
-          # go/pkg/protocol/protocolpb/*.pb.go (see the version header
-          # in those files). Drift produces diff noise on every CI run.
-          PROTOC_ZIP=protoc-25.1-linux-x86_64.zip
+          # Pin protoc to v28.0 to match the version header in the
+          # committed go/pkg/protocol/protocolpb/*.pb.go. Drift
+          # produces diff noise on every CI run.
+          PROTOC_ZIP=protoc-28.0-linux-x86_64.zip
           sudo apt-get install -y unzip
-          curl -fLO https://github.com/protocolbuffers/protobuf/releases/download/v25.1/$PROTOC_ZIP
+          curl -fLO https://github.com/protocolbuffers/protobuf/releases/download/v28.0/$PROTOC_ZIP
           sudo unzip -o $PROTOC_ZIP -d /usr/local
           rm $PROTOC_ZIP
       - uses: actions/setup-go@v5
@@ -103,11 +105,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Source ESP-IDF environment
-        run: . /opt/esp/idf/export.sh
+      # The espressif/idf image has idf.py installed under
+      # /opt/esp/idf, but the env vars (IDF_PATH, PATH additions,
+      # Python venv activate) are not exported by default. Source
+      # the env script and run idf.py in the SAME shell so the
+      # env carries through.
       - name: idf.py build
         working-directory: firmware/m5
-        run: idf.py build
+        run: |
+          . /opt/esp/idf/export.sh > /dev/null
+          idf.py build
 
   firmware-test-bridge:
     name: firmware-test-bridge
