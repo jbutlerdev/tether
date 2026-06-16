@@ -4,6 +4,77 @@ All notable changes to Tether are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.1.3] — 2026-06-16
+
+Hardware-mod release. **Three physical modifications to the M5 PCB
+are now required** before flashing the firmware. The M5 has only one
+natively free GPIO (18), and we need four GPIOs for a shared I²S0
+audio bus. The mods are documented in
+[`docs/HARDWARE-MODS.md`](docs/HARDWARE-MODS.md) with the full
+execution plan, tools required, soldering tips, and verification
+steps. Plan for 60–90 minutes for a first attempt.
+
+### Changed
+
+* **I²S mic and amp merged into a single shared I²S0 bus in
+  full-duplex mode.** The mic (INMP441) and amp (MAX98357A) share
+  BCLK and WS; the mic's SD line goes to the ESP32's DIN, the
+  amp's DIN comes from the ESP32's DOUT. This is the standard
+  full-duplex I²S topology used by codecs with separate ADC and
+  DAC channels. Both components share a single set of I²S0 channel
+  handles (`g_i2s_tx_handle` / `g_i2s_rx_handle` in `i2s_amp.cpp`);
+  the first `Init()` to run creates them, the second is a no-op.
+* **PCA9557 I/O expander is now a first-class component.** The
+  on-board PCA9557PW (Wire1, GPIO 47 SDA / 48 SCL, address 0x18)
+  drives:
+  - Blue notification LED (pin 1)
+  - Red power LED (pin 3; hardware-OR'd with VBUS)
+  - LED power rail (pin 2)
+  - Master peripheral power-rail (pin 4; eink + GPS + LoRa +
+    sensor; LOW = unpowered)
+  - E-ink backlight power (pin 5)
+  Driver is in `firmware/m5/components/pca9557/`. Tether code
+  that needs to drive any of these goes through
+  `tether::m5::Pca9557`. Uses the legacy I2C driver
+  (`driver/i2c.h`) because ESP-IDF v5.2 doesn't have the new
+  `i2c_master_*` API yet.
+* **Pin map rewritten to reflect the hardware mods.** `board.h`
+  documents the three sacrifices (GPS slider, buzzer, VBUS
+  detect) and the four new shared I²S0 pins. GPIOs 33/34 are
+  marked as "do-not-touch" (octal PSRAM bus).
+
+### Added
+
+* **`firmware/m5/components/pca9557/`** — new component. I²C1
+  driver on Wire1 (GPIO 47/48). Public API: `Init`,
+  `SetLedNotification(bool)`, `SetLedPower(bool)`,
+  `SetLedPowerRail(bool)`, `SetEinkBacklight(bool)`,
+  `SetPeripheralPower(bool)`, `ResetForTest`.
+* **`docs/HARDWARE-MODS.md`** — the 60–90 minute execution plan
+  for the three PCB mods, with tools, time, soldering tips, and
+  verification steps.
+* **Do-not-touch comment for GPIO 33/34** at the bottom of
+  `board.h`. These are part of the octal PSRAM data bus; driving
+  them as general-purpose GPIO bricks the firmware.
+
+### Removed
+
+* **I2S1 peripheral** is no longer used. The shared I²S0 bus
+  serves both mic and amp, freeing the I2S1 peripheral for future
+  use.
+
+### Sacrificed hardware (acceptable trade-offs)
+
+| Hardware feature | Why | Net effect |
+|---|---|---|
+| GPS switch (slider) | Frees GPIO 10 for I²S0 BCLK | GPS module is now always on, ~25 mA continuous drain |
+| Buzzer (PWM audio) | Frees GPIO 9 for I²S0 DOUT | No beep tones; replaced by the blue LED |
+| VBUS detect (USB sense) | Frees GPIO 12 for I²S0 WS | No "USB plugged in" UI; v0.2.0 will use the ESP32-S3's built-in USB-OTG VBUS detection |
+
+The M5's other features — SX1262 LoRa, EPD, SD, battery, USB-C
+charging, buttons, GPS module (still functional, just always
+powered) — are untouched.
+
 ## [v0.1.2] — 2026-06-16
 
 Hardware-pin correctness pass. **The M5 firmware in v0.1.0 would

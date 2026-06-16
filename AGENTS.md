@@ -87,6 +87,53 @@ component code — `#include "board.h"` and reference the
 `kPin…` constants. The header is the single source of truth and is
 cross-checked against the Meshtastic variant.h.
 
+### 3.4.2 Three hardware modifications are required
+
+The Tether audio path needs 4 GPIOs for a shared full-duplex
+I²S0 bus, but the M5 has only one natively free pin (GPIO 18).
+Three mods are required to free the other three:
+
+1. **GPS "Always-On" hack** — bypass the L76K load switch, sever
+   the trace back to GPIO 10. *Frees GPIO 10 for I²S0 BCLK.*
+2. **Buzzer removal** — desolder the SMD buzzer. *Frees GPIO 9
+   for I²S0 DOUT (amp DIN).*
+3. **Power-Detect trace cut** — sever the trace from the USB
+   voltage divider to GPIO 12. *Frees GPIO 12 for I²S0 WS (LRC).*
+
+After the mods, the I²S0 bus is wired full-duplex (mic and amp
+share BCLK/WS, separate data lines). The PCA9557 on Wire1
+(GPIO 47/48) drives the LEDs, the e-ink backlight, and the
+master peripheral power rail — see §3.4.3.
+
+**Do not flash the firmware onto an unmodified M5.** The full
+execution plan with tools, time, and verification steps is in
+[`docs/HARDWARE-MODS.md`](docs/HARDWARE-MODS.md).
+
+**Pins explicitly do-not-touch:** GPIO 33 and GPIO 34 are part of
+the octal PSRAM bus. Driving them as general-purpose GPIO crashes
+the PSRAM controller. The pin map in `board.h` avoids them by
+design; if you add a new component, do not propose a pin map that
+touches 33/34.
+
+### 3.4.3 PCA9557 I/O expander is required
+
+The PCA9557PW on Wire1 (I²C1, GPIO 47 SDA / 48 SCL, address 0x18)
+is the canonical interface for:
+
+- **Blue notification LED** (pin 1 of the expander)
+- **Red power LED** (pin 3; hardware-OR'd with VBUS)
+- **LED power rail** (pin 2)
+- **Master peripheral power enable** (pin 4; eink + GPS + LoRa +
+  sensor — LOW = unpowered)
+- **E-ink backlight power** (pin 5)
+
+The driver is in `firmware/m5/components/pca9557/`. Tether code
+that wants to drive any of the above goes through
+`tether::m5::Pca9557`, never through direct GPIO. The expander
+also serves as the master power-gate for `power_mgmt.cpp` to
+enter deep sleep, and as the recovery vector for `watchdog.cpp`
+on LoRa fault.
+
 ### 3.5 The base station is Linux-preferred, but cross-platform
 
 * **Linux:** primary target. PulseAudio null sink is the audio routing (see `go/internal/audio/pulse.go`).
@@ -201,8 +248,9 @@ tether/
 |---|---|
 | `protocol` | On-target C++ mirror of the wire format (CRC, header encode/decode). |
 | `spi_bus` | `SpiBus` singleton + `spi_bus_mutex`; per-CS `spi_device_handle_t`. SCK=16, MOSI=15, MISO=7 (from `board.h`). |
-| `i2s_mic` | INMP441 I2S master RX, DMA 4×256 samples. I2S0: WS=35, BCLK=36, DIN=37. |
-| `i2s_amp` | MAX98357A I2S master TX + sine-wave beep generator. I2S1: WS=47, BCLK=48, DOUT=18. |
+| `i2s_mic` | INMP441 I2S RX. **Shared I2S0 full-duplex bus**: WS=12, BCLK=10, DIN=18. Requires the GPS/buzzer/power-detect mods. |
+| `i2s_amp` | MAX98357A I2S TX. **Shared I2S0 full-duplex bus**: WS=12, BCLK=10, DOUT=9. Same handle as i2s_mic (single full-duplex I2S0). |
+| `pca9557` | Wire1 I2C1 driver for the on-board PCA9557PW expander. LEDs, e-ink backlight, master peripheral power-rail. |
 | `lora_sx1262` | SX1262 driver wrapper (channel, preset, CAD, TX, RX). |
 | `sd_card` | LittleFS mount + POSIX file API. |
 | `i2s_mic` | INMP441 I2S master RX, DMA 4×256 samples. |

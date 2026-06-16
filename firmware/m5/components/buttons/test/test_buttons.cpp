@@ -102,13 +102,13 @@ void test_buttons_long_press_ptt() {
 
 // Test 4: 2 s hold on Next → kLongPressNext fires.
 void test_buttons_long_press_next() {
-  g_buttons->SimulatePressForTest(Button::kNext);
+  g_buttons->SimulatePressForTest(Button::kMenu);
   g_buttons->Tick(25);
   g_buttons->Tick(100); // long-press threshold reached
   TEST_ASSERT_EQUAL_size_t(2, g_events.size());
-  TEST_ASSERT_EQUAL(static_cast<int>(Event::kLongPressNext),
+  TEST_ASSERT_EQUAL(static_cast<int>(Event::kLongPressMenu),
                     static_cast<int>(g_events[1].event));
-  g_buttons->SimulateReleaseForTest(Button::kNext);
+  g_buttons->SimulateReleaseForTest(Button::kMenu);
   g_buttons->Tick(25);
   TEST_ASSERT_EQUAL_size_t(2, g_events.size());
 }

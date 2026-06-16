@@ -96,16 +96,17 @@ pads for free runs of three.
 | EPD CS / DC / RST | 39 / 40 / 41 | SPI + GPIO |
 | EPD BUSY | 42 | Input, polled |
 | EPD SCLK / MOSI | 38 / 45 | Shared SPI bus |
-| I2S0 (INMP441) WS / BCLK / DIN | 35 / 36 / 37 | All on the right edge, sequential. Architect's choice. |
-| I2S1 (MAX98357A) WS / BCLK / DOUT | 47 / 48 / 18 | Split config: WS+BCLK on right edge (47, 48), DOUT on left (18). GPIO 47/48 are the meshtastic `Wire1` SDA/SCL pads but Tether does not use the PCA9557, so they are free. |
+| I2S0 (shared, full-duplex) WS / BCLK / DIN / DOUT | 12 / 10 / 18 / 9 | **REQUIRES HARDWARE MODS.** Shared WS and BCLK (mic and amp); mic SD on 18, amp DIN on 9. The three required mods free 9/10/12 — see docs/HARDWARE-MODS.md. |
+| I2S1 (unused in v0.1.3) | — | Tether uses a single I²S0 bus, not two separate buses. |
 | Button A (PTT) | 21 | Pull-up, IRQ on press |
 | Button B (Menu) | 14 | Pull-up, IRQ on press |
-| GPS slider | 10 | Digital input. See SD CS note. |
-| GPS L76K UART | 19 (RX) / 20 (TX) | 9600 baud, not used in v1 |
+| GPS slider | 10 | **Sacrificed.** Trace cut as part of the GPS "Always-On" hack. The slider's position is no longer readable; the GPS module is hard-wired to 3.3 V. |
+| GPS L76K UART | 19 (RX) / 20 (TX) | 9600 baud, not used in v1. The GPS module itself is hard-wired to 3.3 V after the mod. |
 | Battery ADC | 8 (channel 7) | For low-battery detection |
-| VBUS detect | 12 | High when USB-C is plugged |
-| Buzzer | 9 | PWM, active high |
+| VBUS detect | 12 | **Sacrificed.** Trace cut; v0.2.0 will use the ESP32-S3's built-in USB-OTG VBUS detection. |
+| Buzzer | 9 | **Sacrificed.** Desoldered; the blue notification LED on the PCA9557 provides user feedback. |
 | UART1 (RAK4631 bridge) | 43 (TX) / 44 (RX) | 921 600 baud |
+| PCA9557 (Wire1) | 47 (SDA) / 48 (SCL) | I²C1, address 0x18. Drives LEDs, e-ink backlight, master peripheral power-rail. |
 
 ---
 

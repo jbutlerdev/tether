@@ -1,6 +1,6 @@
 # Hardware
 
-This is the bill of materials and the pin map for Tether v0.1.0.
+This is the bill of materials and the pin map for Tether v0.1.3.
 
 The pin map is **authoritative**: the same numbers are encoded in
 `firmware/m5/components/board/include/board.h` and were derived
@@ -8,6 +8,22 @@ from the Meshtastic variant.h for the ELECROW ThinkNode M5
 (variants/esp32s3/ELECROW-ThinkNode-M5/variant.h, branch develop).
 If you change a pin in the firmware, change it here too — and vice
 versa.
+
+> **v0.1.3 — READ THIS FIRST.** The Tether audio path requires
+> four GPIOs for a single full-duplex I²S0 bus. The stock M5 has
+> only one natively free pin (GPIO 18). To free the other three,
+> **three hardware modifications are required** before flashing
+> the firmware. They are documented in detail in
+> [`docs/HARDWARE-MODS.md`](docs/HARDWARE-MODS.md) with photos
+> and step-by-step instructions. The mods are:
+> 1. **GPS "Always-On" hack** — bypass the L76K load switch, sever
+>    the trace back to GPIO 10.
+> 2. **Buzzer removal** — desolder the SMD buzzer (frees GPIO 9).
+> 3. **Power-Detect trace cut** — sever the trace from the USB
+>    voltage divider to GPIO 12.
+>
+> **Do not flash the firmware onto an unmodified M5.** The audio
+> path will not work.
 
 ## 1. Handheld node
 

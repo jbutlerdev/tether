@@ -1,6 +1,16 @@
-// i2s_mic.cpp — I2S microphone implementation. On real hardware this
-// drives the INMP441 over I2S RX. On host it is a thin shim that
-// returns injected samples (used by the audio_capture tests).
+// i2s_mic.cpp — I2S microphone implementation.
+//
+// On real hardware this drives the INMP441 over I2S RX. The mic
+// shares the I2S0 bus with the amp (i2s_amp) in full-duplex mode:
+// the same BCLK and WS signals drive both, with the mic on the DIN
+// line and the amp on the DOUT line. See board.h::kPinI2s* for
+// the pin map and the three hardware mods that are required to
+// free GPIO 9 / 10 / 12.
+//
+// The I2S0 peripheral is initialized in shared full-duplex mode by
+// I2SAmp::Init() or I2SMic::Init() — whichever runs first. Both
+// Init() methods are idempotent: a second call is a no-op once the
+// channel handle is set.
 //
 // We use the new I2S API (driver/i2s_std.h) for IDF 5.2+.
 
@@ -22,29 +32,39 @@ namespace tether::m5 {
 
 namespace {
 constexpr char kTag[] = "tether.mic";
+} // namespace
 
 #ifndef TETHER_M5_HOST_TEST
-// I2S channel handle. Real hardware stores this as a member of the
-// Init() body; host tests don't need it.
-i2s_chan_handle_t g_rx_handle = nullptr;
+// I2S0 channel handles, shared with i2s_amp. Defined in
+// i2s_amp.cpp; declared extern here so this component can use
+// the RX handle. C++ linkage (no extern "C" wrapper).
+extern i2s_chan_handle_t g_i2s_tx_handle;
+extern i2s_chan_handle_t g_i2s_rx_handle;
 #endif
-} // namespace
 
 bool I2SMic::Init() {
 #ifdef TETHER_M5_HOST_TEST
   return true;
 #else
+  if (g_i2s_rx_handle) {
+    return true; // Already initialized (by the amp or earlier).
+  }
+  // Full-duplex I2S0 init. Same pin map for both TX (amp) and RX
+  // (mic); the peripheral drives both directions on the shared
+  // SCK/WS lines.
   i2s_chan_config_t chan_cfg = {};
   chan_cfg.id = I2S_NUM_0;
   chan_cfg.role = I2S_ROLE_MASTER;
   chan_cfg.dma_desc_num = 4;
   chan_cfg.dma_frame_num = 256;
   chan_cfg.auto_clear = false;
-  esp_err_t err = i2s_new_channel(&chan_cfg, nullptr, &g_rx_handle);
+  i2s_chan_handle_t tx_handle = nullptr;
+  esp_err_t err = i2s_new_channel(&chan_cfg, &tx_handle, &g_i2s_rx_handle);
   if (err != ESP_OK) {
     ESP_LOGE(kTag, "i2s_new_channel: %d", err);
     return false;
   }
+
   i2s_std_config_t std_cfg = {};
   std_cfg.clk_cfg.sample_rate_hz = 8000;
   std_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
@@ -56,29 +76,36 @@ bool I2SMic::Init() {
   std_cfg.slot_cfg.ws_width = 16;
   std_cfg.slot_cfg.ws_pol = false;
   std_cfg.slot_cfg.bit_shift = true;
-  // left_align and big_endian are not present in ESP-IDF v5.2's
-  // i2s_std_slot_config_t; bit_shift=true (above) gives us
-  // left-align / MSB-first, which is what we need for the INMP441.
-  // Pin map: see main/board.h. The I2S0 mic cluster (WS=35,
-  // BCLK=36, DIN=37) is on the right edge of the M5 and was chosen
-  // by the system architect because the upper-right pads (4/5/6)
-  // are already used by the SX1262 (DIO1=4, BUSY=5, RESET=6).
-  std_cfg.gpio_cfg.bclk = board::kPinI2s0Bclk;
-  std_cfg.gpio_cfg.ws = board::kPinI2s0Ws;
-  std_cfg.gpio_cfg.din = board::kPinI2s0Din;
-  std_cfg.gpio_cfg.dout = I2S_GPIO_UNUSED;
+  // bit_shift=true gives left-align / MSB-first, which is what
+  // the INMP441 wants. (ESP-IDF v5.2 removed the explicit
+  // left_align/big_endian members; bit_shift is the new API.)
+  std_cfg.gpio_cfg.bclk = board::kPinI2sBclk;
+  std_cfg.gpio_cfg.ws = board::kPinI2sWs;
+  std_cfg.gpio_cfg.din = board::kPinI2sDin;   // mic SD
+  std_cfg.gpio_cfg.dout = board::kPinI2sDout; // amp DIN (shared bus)
   std_cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
   std_cfg.gpio_cfg.invert_flags.mclk_inv = false;
   std_cfg.gpio_cfg.invert_flags.bclk_inv = false;
   std_cfg.gpio_cfg.invert_flags.ws_inv = false;
-  err = i2s_channel_init_std_mode(g_rx_handle, &std_cfg);
+
+  err = i2s_channel_init_std_mode(tx_handle, &std_cfg);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_channel_init_std_mode: %d", err);
+    ESP_LOGE(kTag, "i2s_channel_init_std_mode(tx): %d", err);
     return false;
   }
-  err = i2s_channel_enable(g_rx_handle);
+  err = i2s_channel_init_std_mode(g_i2s_rx_handle, &std_cfg);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_channel_enable: %d", err);
+    ESP_LOGE(kTag, "i2s_channel_init_std_mode(rx): %d", err);
+    return false;
+  }
+  err = i2s_channel_enable(tx_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(kTag, "i2s_channel_enable(tx): %d", err);
+    return false;
+  }
+  err = i2s_channel_enable(g_i2s_rx_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(kTag, "i2s_channel_enable(rx): %d", err);
     return false;
   }
   return true;
@@ -97,8 +124,8 @@ size_t I2SMic::ReadSamples(int16_t *out, size_t max_samples) {
   return 0;
 #else
   size_t bytes_read = 0;
-  if (g_rx_handle) {
-    i2s_channel_read(g_rx_handle, out, max_samples * sizeof(int16_t),
+  if (g_i2s_rx_handle) {
+    i2s_channel_read(g_i2s_rx_handle, out, max_samples * sizeof(int16_t),
                      &bytes_read, portMAX_DELAY);
   }
   return bytes_read / sizeof(int16_t);
@@ -108,16 +135,16 @@ size_t I2SMic::ReadSamples(int16_t *out, size_t max_samples) {
 void I2SMic::Start() {
 #ifdef TETHER_M5_HOST_TEST
 #else
-  if (g_rx_handle)
-    i2s_channel_enable(g_rx_handle);
+  if (g_i2s_rx_handle)
+    i2s_channel_enable(g_i2s_rx_handle);
 #endif
 }
 
 void I2SMic::Stop() {
 #ifdef TETHER_M5_HOST_TEST
 #else
-  if (g_rx_handle)
-    i2s_channel_disable(g_rx_handle);
+  if (g_i2s_rx_handle)
+    i2s_channel_disable(g_i2s_rx_handle);
 #endif
 }
 

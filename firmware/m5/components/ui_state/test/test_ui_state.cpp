@@ -81,7 +81,7 @@ void Reset() {
 ButtonEvent Press(Button b) { return ButtonEvent{b, Event::kPress}; }
 ButtonEvent Release(Button b) { return ButtonEvent{b, Event::kRelease}; }
 ButtonEvent LongPress(Button b) {
-  return ButtonEvent{b, Event::kLongPressNext};
+  return ButtonEvent{b, Event::kLongPressMenu};
 }
 
 } // namespace
@@ -146,9 +146,9 @@ void test_ui_advance_conv_wraps() {
   // Two conversations: pressing Next twice should wrap to 0.
   g_convs = {MakeConv("A"), MakeConv("B")};
   g_ui->SetConversations(&g_convs);
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   TEST_ASSERT_EQUAL(1, g_ui->CurrentConvIndex());
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   TEST_ASSERT_EQUAL(0, g_ui->CurrentConvIndex()); // wrapped
 }
 
@@ -166,7 +166,7 @@ void test_ui_prev_conv_wraps() {
 
 void test_ui_conv_switch_no_convs() {
   // No conversations → press B/C is a no-op, current_index stays 0.
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   TEST_ASSERT_EQUAL(0, g_ui->CurrentConvIndex());
 }
 
@@ -180,13 +180,13 @@ void test_ui_conv_switch_updates_scroll() {
     g_convs.push_back(MakeConv(nm));
   }
   g_ui->SetConversations(&g_convs);
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   // current_index = 3, scroll_pos should be 0 (3 still visible).
   TEST_ASSERT_EQUAL(3, g_ui->CurrentConvIndex());
   TEST_ASSERT_EQUAL(0, g_ui->ScrollPos());
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   // current_index = 4, scroll_pos should be 1.
   TEST_ASSERT_EQUAL(4, g_ui->CurrentConvIndex());
   TEST_ASSERT_EQUAL(1, g_ui->ScrollPos());
@@ -195,14 +195,14 @@ void test_ui_conv_switch_updates_scroll() {
 // ── Phase 4: settings mode ────────────────────────────────────────────
 
 void test_ui_settings_entry_on_long_press() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
   TEST_ASSERT_EQUAL(static_cast<int>(UiScreen::kSettings),
                     static_cast<int>(g_ui->Screen()));
 }
 
 void test_ui_settings_exit_on_ppt_press() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
   g_ui->OnButtonEvent(Press(Button::kPtt));
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
@@ -215,34 +215,34 @@ void test_ui_settings_exit_on_ppt_at_top() {
   // as the "back / exit" affordance (the v0.1.0 design used a third
   // "Prev" button that does not exist on the ELECROW hardware —
   // see AGENTS.md §3.4 and buttons.h).
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
   g_ui->OnButtonEvent(Press(Button::kPtt));
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
 }
 
 void test_ui_settings_navigate_with_next() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   // B (short) inside settings advances the cursor.
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext)); // wraps back to 0
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu)); // wraps back to 0
   // We can't read the cursor directly, but we can verify
   // settings is still active.
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
 }
 
 void test_ui_volume_change_via_b_ppt() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   // Advance to the Volume row (3 B presses from cursor=0).
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   // Default volume is 60; B +10 → 70; PTT -10 → 60.
   uint8_t initial = g_ui->Volume();
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   TEST_ASSERT_EQUAL(initial + 10, g_ui->Volume());
   g_ui->OnButtonEvent(Press(Button::kPtt));
   TEST_ASSERT_EQUAL(initial, g_ui->Volume());
@@ -252,7 +252,7 @@ void test_ui_volume_change_via_b_ppt() {
   }
   TEST_ASSERT_EQUAL(0, g_ui->Volume());
   for (int i = 0; i < 20; ++i) {
-    g_ui->OnButtonEvent(Press(Button::kNext));
+    g_ui->OnButtonEvent(Press(Button::kMenu));
   }
   TEST_ASSERT_EQUAL(100, g_ui->Volume());
 }
@@ -265,8 +265,8 @@ void test_ui_partial_refresh_counter() {
   // Force a render: the EPD rate-limiter counts partials. With
   // 2 buttons we trigger renders via kNext (kPrev no longer
   // exists on the M5).
-  g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   // Two partials, counter should be 2.
   TEST_ASSERT_EQUAL(2, g_ui->PartialRefreshCount());
 }
@@ -279,13 +279,13 @@ void test_ui_full_refresh_after_50_partials() {
   // We drive 51 renders and verify the counter is 0 at the
   // end (the 51st was a full refresh, not a partial).
   for (int i = 0; i < 25; ++i) {
-    g_ui->OnButtonEvent(Press(Button::kNext));
-    g_ui->OnButtonEvent(Press(Button::kNext));
+    g_ui->OnButtonEvent(Press(Button::kMenu));
+    g_ui->OnButtonEvent(Press(Button::kMenu));
   }
   // 50 renders. Counter should be 50 after the 50th.
   TEST_ASSERT_EQUAL(50, g_ui->PartialRefreshCount());
   // 51st render: full refresh, counter = 0.
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   TEST_ASSERT_EQUAL(0, g_ui->PartialRefreshCount());
 }
 
@@ -293,11 +293,11 @@ void test_ui_watchdog_blocks_refresh() {
   g_convs = {MakeConv("A")};
   g_ui->SetConversations(&g_convs);
   g_epd->InjectControllerHangForTest();
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   // The watchdog blocks the render, so the counter stays 0.
   TEST_ASSERT_EQUAL(0, g_ui->PartialRefreshCount());
   g_epd->ClearControllerHangForTest();
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   TEST_ASSERT_EQUAL(1, g_ui->PartialRefreshCount());
 }
 
@@ -308,7 +308,7 @@ void test_ui_render_idle_called_on_idle_state() {
   g_ui->SetConversations(&g_convs);
   // Idle is the default; the render was already issued when
   // SetPtt was called. Verify the EPD captured a bitmap.
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   const uint8_t *last = g_epd->LastPartialBitmap();
   // At least one byte in the bitmap should be non-zero
   // (the border is drawn).
@@ -363,7 +363,7 @@ void test_ui_low_battery_no_warning_at_3900() {
 void test_ui_tts_suppresses_buttons() {
   g_ui->SetScreenForTest(UiScreen::kTtsPlayback);
   size_t before = g_ui->CurrentConvIndex();
-  g_ui->OnButtonEvent(Press(Button::kNext));
+  g_ui->OnButtonEvent(Press(Button::kMenu));
   // Conv index must not change while in TTS.
   TEST_ASSERT_EQUAL(before, g_ui->CurrentConvIndex());
 }
@@ -390,29 +390,29 @@ void test_ui_ptt_canceled_to_idle() {
 }
 
 void test_ui_long_press_next_exits_settings() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
 }
 
 void test_ui_settings_ppt_navigates_back() {
   // 2-button M5: PTT press navigates the settings cursor backwards
   // (and exits at cursor=0). See AGENTS.md §3.4.
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kNext)); // cursor=1
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
+  g_ui->OnButtonEvent(Press(Button::kMenu)); // cursor=1
   g_ui->OnButtonEvent(Press(Button::kPtt));  // cursor=0
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
 }
 
 void test_ui_ppt_press_in_settings() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   g_ui->OnButtonEvent(Press(Button::kPtt));
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
 }
 
 void test_ui_ppt_release_in_settings() {
-  g_ui->OnButtonEvent(LongPress(Button::kNext));
+  g_ui->OnButtonEvent(LongPress(Button::kMenu));
   g_ui->OnButtonEvent(Release(Button::kPtt));
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
 }
@@ -476,9 +476,9 @@ int main(int argc, const char **argv) {
   // Settings
   RUN_TEST(test_ui_settings_entry_on_long_press);
   RUN_TEST(test_ui_settings_exit_on_ppt_press);
-  RUN_TEST(test_ui_settings_exit_on_prev_at_top);
+  RUN_TEST(test_ui_settings_exit_on_ppt_at_top);
   RUN_TEST(test_ui_settings_navigate_with_next);
-  RUN_TEST(test_ui_volume_change_via_b_c);
+  RUN_TEST(test_ui_volume_change_via_b_ppt);
   // EPD
   RUN_TEST(test_ui_partial_refresh_counter);
   RUN_TEST(test_ui_full_refresh_after_50_partials);
@@ -493,7 +493,7 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_ui_render_tts_direct);
   RUN_TEST(test_ui_ptt_canceled_to_idle);
   RUN_TEST(test_ui_long_press_next_exits_settings);
-  RUN_TEST(test_ui_settings_prev_navigates_back);
+  RUN_TEST(test_ui_settings_ppt_navigates_back);
   RUN_TEST(test_ui_ppt_press_in_settings);
   RUN_TEST(test_ui_ppt_release_in_settings);
   RUN_TEST(test_ui_screen_name);

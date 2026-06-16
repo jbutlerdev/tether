@@ -1062,26 +1062,33 @@ private:
 
 **Commit:** `m5: Opus encoder wrapper with bitrate/sample-rate/frame-size config`
 
-### 4.6 Task 3.6 — I2S mic + amp
+### 4.6 Task 3.6 — I2S mic + amp (shared full-duplex bus)
 
 **Files:** `firmware/m5/components/i2s_mic/i2s_mic.h`, `i2s_mic.cpp`, `i2s_amp/i2s_amp.h`, `i2s_amp.cpp`, `test/test_i2s_amp.cpp`
 
-* `i2s_mic`: standard I2S **RX master** on **I2S0**, INMP441, DMA
-  buffers (4 × 256 samples). Pin map: WS=35, BCLK=36, DIN=37 — all
-  on the right edge, free of any other function. See
-  `firmware/m5/components/board/include/board.h::kPinI2s0*`.
-* `i2s_amp`: standard I2S **TX master** on **I2S1**, MAX98357A, DMA
-  buffers (4 × 256 samples). Pin map: WS=47, BCLK=48, DOUT=18 — a
-  *split* configuration (WS+BCLK on right edge, DOUT on left).
-  There is no contiguous run of three free pins on the M5 for the
-  amp because the LoRa/EPD/SD cluster occupies the upper right.
-  See `firmware/m5/components/board/include/board.h::kPinI2s1*`.
-* `i2s_amp` also has `PlayTone(freq_hz, duration_ms)` for beep tones (sine generator)
-
-> **Note (v0.1.0):** Earlier drafts of this document did not specify
-> GPIO numbers for the I2S lines. v0.1.0 fills them in via the
-> `board` component, which is the single source of truth for all
-> M5 pin assignments.
+* `i2s_mic` and `i2s_amp` share a **single I2S0 bus in full-duplex
+  mode**. The mic and amp both use the same BCLK and WS signals;
+  the mic drives its SD line into the ESP32's DIN, and the amp
+  reads the ESP32's DOUT.
+* Pin map (from `board.h`):
+  * **WS (LRC)**: GPIO 12 (shared)
+  * **BCLK (SCK)**: GPIO 10 (shared)
+  * **Mic SD (DIN)**: GPIO 18
+  * **Amp DIN (DOUT)**: GPIO 9
+* **REQUIRES 3 HARDWARE MODS.** The M5 has only one natively free
+  pin (GPIO 18). To free GPIO 9, 10, 12 we have to:
+  1. Bypass the L76K load switch and sever the trace back to
+     GPIO 10 (the GPS "Always-On" hack).
+  2. Desolder the SMD buzzer (frees GPIO 9).
+  3. Sever the trace from the USB voltage divider to GPIO 12
+     (frees GPIO 12 for the WS line).
+  See `docs/HARDWARE-MODS.md` for the full execution plan.
+* `i2s_amp` also has `PlayTone(freq_hz, duration_ms)` for beep
+  tones (sine generator).
+* Both classes share a single set of `g_i2s_tx_handle` /
+  `g_i2s_rx_handle` globals (defined in `i2s_amp.cpp`).
+  Whichever `Init()` runs first creates them; the second is a
+  no-op.
 
 **Tests:**
 

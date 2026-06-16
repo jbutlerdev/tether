@@ -1,10 +1,17 @@
 // i2s_amp.cpp — Tether M5 I2S amplifier with tone generator.
 //
-// On real hardware this drives a MAX98357A class-D amp over I2S TX at
-// 8 kHz, 16-bit, mono. The PlayTone() method synthesizes a sine wave
-// into a DMA buffer; ReadSamples() drains it for the host build (so
-// tests can verify frequency and silence behavior). On real hardware,
-// the DMA-filled buffer is consumed by the I2S peripheral directly.
+// On real hardware this drives a MAX98357A class-D amp over I2S TX
+// at 8 kHz, 16-bit, mono. The amp shares the I2S0 bus with the mic
+// (i2s_mic) in full-duplex mode: the same BCLK and WS signals
+// drive both, with the mic on the DIN line and the amp on the DOUT
+// line. See board.h::kPinI2s* for the pin map and the three
+// hardware mods that are required to free GPIO 9 / 10 / 12.
+//
+// The I2S0 peripheral is initialized in shared full-duplex mode by
+// I2SAmp::Init() or I2SMic::Init() — whichever runs first. The
+// first Init() creates the channel handles (tx_handle, rx_handle)
+// and stashes them in g_i2s_tx_handle / g_i2s_rx_handle. The
+// second Init() is a no-op once those globals are set.
 
 #include "i2s_amp.h"
 
@@ -27,34 +34,34 @@ namespace tether::m5 {
 namespace {
 constexpr char kTag[] = "tether.amp";
 constexpr int kAmpVolume = 8000; // peak amplitude
-
-#ifdef TETHER_M5_HOST_TEST
-// No I2S handle in host tests; the amp is driven through ReadSamples()
-// which fills a buffer with synthetic sine data.
-#else
-// I2S channel handle. Real hardware stores this as a process-global
-// (the M5 has exactly one I2S TX port for the amp).
-i2s_chan_handle_t g_tx_handle = nullptr;
-#endif
 } // namespace
+
+#ifndef TETHER_M5_HOST_TEST
+// I2S0 channel handles for full-duplex audio. Owned by whichever
+// component's Init() runs first. External linkage so i2s_mic.cpp
+// can declare them extern. The first Init() to run creates them;
+// the second is a no-op once the globals are non-null.
+i2s_chan_handle_t g_i2s_tx_handle = nullptr;
+i2s_chan_handle_t g_i2s_rx_handle = nullptr;
+#endif
 
 bool I2SAmp::Init() {
 #ifdef TETHER_M5_HOST_TEST
   return true;
 #else
-  // The amp is driven by I2S1 in TX master mode. Pin map is in
-  // main/board.h; the system architect chose this split config
-  // because the M5 has no three free pins in a row for the amp on
-  // a single edge — LRC and BCLK are on the right (47/48) and DIN
-  // is on the left (18). See the comment block in board.h for
-  // why GPIO 47/48 are not the I2C1 SDA/SCL on Tether.
+  if (g_i2s_tx_handle) {
+    return true; // Already initialized.
+  }
+  // Full-duplex I2S0 init. See i2s_mic.cpp for the same call; the
+  // first Init() to run creates the handles, the second is a no-op.
   i2s_chan_config_t chan_cfg = {};
-  chan_cfg.id = I2S_NUM_1;
+  chan_cfg.id = I2S_NUM_0;
   chan_cfg.role = I2S_ROLE_MASTER;
   chan_cfg.dma_desc_num = 4;
   chan_cfg.dma_frame_num = 256;
   chan_cfg.auto_clear = true;
-  esp_err_t err = i2s_new_channel(&chan_cfg, &g_tx_handle, nullptr);
+  esp_err_t err =
+      i2s_new_channel(&chan_cfg, &g_i2s_tx_handle, &g_i2s_rx_handle);
   if (err != ESP_OK) {
     ESP_LOGE(kTag, "i2s_new_channel: %d", err);
     return false;
@@ -70,25 +77,32 @@ bool I2SAmp::Init() {
   std_cfg.slot_cfg.ws_width = 16;
   std_cfg.slot_cfg.ws_pol = false;
   std_cfg.slot_cfg.bit_shift = true;
-  // bit_shift=true gives left-align / MSB-first, which is what the
-  // MAX98357A wants. (ESP-IDF v5.2 removed the explicit
-  // left_align/big_endian members; bit_shift is the new API.)
-  std_cfg.gpio_cfg.bclk = board::kPinI2s1Bclk;
-  std_cfg.gpio_cfg.ws = board::kPinI2s1Ws;
-  std_cfg.gpio_cfg.dout = board::kPinI2s1Dout;
-  std_cfg.gpio_cfg.din = I2S_GPIO_UNUSED;
+  std_cfg.gpio_cfg.bclk = board::kPinI2sBclk;
+  std_cfg.gpio_cfg.ws = board::kPinI2sWs;
+  std_cfg.gpio_cfg.dout = board::kPinI2sDout; // amp DIN
+  std_cfg.gpio_cfg.din = board::kPinI2sDin;   // mic SD (shared bus)
   std_cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
   std_cfg.gpio_cfg.invert_flags.mclk_inv = false;
   std_cfg.gpio_cfg.invert_flags.bclk_inv = false;
   std_cfg.gpio_cfg.invert_flags.ws_inv = false;
-  err = i2s_channel_init_std_mode(g_tx_handle, &std_cfg);
+  err = i2s_channel_init_std_mode(g_i2s_tx_handle, &std_cfg);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_channel_init_std_mode: %d", err);
+    ESP_LOGE(kTag, "i2s_channel_init_std_mode(tx): %d", err);
     return false;
   }
-  err = i2s_channel_enable(g_tx_handle);
+  err = i2s_channel_init_std_mode(g_i2s_rx_handle, &std_cfg);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_channel_enable: %d", err);
+    ESP_LOGE(kTag, "i2s_channel_init_std_mode(rx): %d", err);
+    return false;
+  }
+  err = i2s_channel_enable(g_i2s_tx_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(kTag, "i2s_channel_enable(tx): %d", err);
+    return false;
+  }
+  err = i2s_channel_enable(g_i2s_rx_handle);
+  if (err != ESP_OK) {
+    ESP_LOGE(kTag, "i2s_channel_enable(rx): %d", err);
     return false;
   }
   return true;
@@ -129,11 +143,12 @@ size_t I2SAmp::ReadSamples(int16_t *out, size_t max_samples) {
   // No-op in host tests; the buffer is drained by the test.
 #else
   // On real hardware, push the synthesized samples into the I2S DMA
-  // buffer. We use a small non-blocking write; if the DMA is full
-  // (shouldn't happen at 8 kHz with 4×256-frame buffers) we drop.
-  if (g_tx_handle && i > 0) {
+  // buffer. Non-blocking write; if the DMA is full (shouldn't
+  // happen at 8 kHz with 4×256-frame buffers) we drop.
+  if (g_i2s_tx_handle && i > 0) {
     size_t bytes_written = 0;
-    i2s_channel_write(g_tx_handle, out, i * sizeof(int16_t), &bytes_written, 0);
+    i2s_channel_write(g_i2s_tx_handle, out, i * sizeof(int16_t), &bytes_written,
+                      0);
   }
 #endif
   return i;

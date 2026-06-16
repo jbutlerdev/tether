@@ -102,6 +102,7 @@ function(add_host_test name)
     ${CMAKE_CURRENT_SOURCE_DIR}/freertos_shim
     ${CMAKE_CURRENT_SOURCE_DIR}/unity
     ${CMAKE_CURRENT_SOURCE_DIR}/../components
+    ${CMAKE_CURRENT_SOURCE_DIR}/../components/board/include
   )
   target_compile_definitions(test_${name} PRIVATE
     TETHER_M5_HOST_TEST=1

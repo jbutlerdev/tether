@@ -415,6 +415,29 @@ event. Concretely:
    For production, follow the [Synapse install
    guide](https://element-hq.github.io/synapse/latest/setup/installation.html).
 
+## 4.0 Pre-flight: hardware modifications (REQUIRED)
+
+**The Tether firmware assumes the M5 has been physically
+modified to free 3 GPIOs for the shared I²S0 audio bus.** The
+stock M5 has only one natively free pin (GPIO 18). The three
+required mods are:
+
+1. **GPS "Always-On" hack** — bypass the L76K load switch,
+   sever the trace back to GPIO 10.
+2. **Buzzer removal** — desolder the SMD buzzer (frees GPIO 9).
+3. **Power-Detect trace cut** — sever the trace from the USB
+   voltage divider to GPIO 12.
+
+The full execution plan with tools, time, soldering tips, and
+verification steps is in
+[`docs/HARDWARE-MODS.md`](docs/HARDWARE-MODS.md). Plan for
+60–90 minutes for a first attempt.
+
+**Do not flash the firmware onto an unmodified M5.** The audio
+path will not work; the I²S0 peripheral cannot find its BCLK
+and WS lines because those GPIOs are still owned by the GPS
+switch, the buzzer, and the VBUS detect respectively.
+
 2. **Edit `/etc/tether/registration.yaml`.** Replace
    `yourserver.tld` with your actual homeserver's server name.
    Generate strong `as_token` and `hs_token`:

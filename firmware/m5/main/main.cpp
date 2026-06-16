@@ -29,6 +29,7 @@
 #include "i2s_mic.h"
 #include "lora_sx1262.h"
 #include "opus_enc.h"
+#include "pca9557.h"
 #include "power_mgmt.h"
 #include "psram_ring.h"
 #include "ptt.h"
@@ -67,10 +68,10 @@ extern "C" void app_main(void) {
   bus.AddDevice(/*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
 
   // 4. I2S mic / amp.
-  // Pin assignments are in board.h. I2S0 (mic) on GPIO 35/36/37,
-  // I2S1 (amp) on GPIO 47/48/18. These are init'd here so any
-  // component that needs to inject sine tones for tests or play
-  // feedback beeps can use the same peripheral handle.
+  // Pin assignments are in board.h. The mic and amp share a single
+  // I2S0 bus in full-duplex mode (same BCLK and WS, separate data
+  // lines). This requires the three hardware mods documented in
+  // docs/HARDWARE-MODS.md.
   static tether::m5::I2SMic mic;
   if (!mic.Init()) {
     ESP_LOGE(kTag, "i2s_mic init failed; PTT will record silence");
@@ -78,6 +79,16 @@ extern "C" void app_main(void) {
   static tether::m5::I2SAmp amp;
   if (!amp.Init()) {
     ESP_LOGE(kTag, "i2s_amp init failed; no audio feedback");
+  }
+
+  // 4b. PCA9557 I/O expander (Wire1 on GPIO 47/48). Drives the
+  // blue notification LED, the red power LED, the LED power rail,
+  // the e-ink backlight, and the master peripheral power rail.
+  // The master power rail MUST be on at boot, which is the
+  // default after Init().
+  static tether::m5::Pca9557 pca;
+  if (!pca.Init()) {
+    ESP_LOGE(kTag, "pca9557 init failed; LEDs/peripherals may be off");
   }
 
   // 5. PSRAM ring buffer (shared by audio_capture and storage_flush).

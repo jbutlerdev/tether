@@ -13,6 +13,8 @@
 
 #include <unity.h>
 
+#include "board.h"
+
 #include "spi_bus.h"
 
 namespace {

@@ -104,6 +104,10 @@ public:
   // shrink the timings so they run fast.
   void SetDebounceMsForTest(uint32_t ms) { debounce_ms_ = ms; }
   void SetLongPressPttMsForTest(uint32_t ms) { long_ptt_ms_ = ms; }
+  // SetLongPressNextMsForTest is a legacy alias for the Menu
+  // long-press threshold; kept so the v0.1.x test suite can run
+  // unchanged. Internally it writes the same long_next_ms_ field.
+  void SetLongPressNextMsForTest(uint32_t ms) { long_next_ms_ = ms; }
 
   // Internal state accessor used by the debounce task. Not part of
   // the public API; do not call from user code.

@@ -1,28 +1,109 @@
 // board.h — Tether M5 (ThinkNode M5 / ELECROW) board pin map.
 //
 // Source of truth: meshtastic/firmware variants/esp32s3/ELECROW-ThinkNode-M5/
-// variant.h (github.com/meshtastic/firmware, branch develop).
-// When this disagrees with meshtastic, meshtastic wins — they ship
-// on real hardware; we are porting their pin map onto a different
-// firmware.
+// variant.h (github.com/meshtastic/firmware, branch develop). When
+// this disagrees with the variant.h, the variant.h wins on the
+// ELECROW hardware side — the schematic is the schematic — but the
+// *allocation* (which pin drives which Tether function) is a
+// Tether design decision and is documented below.
 //
 // ESP-IDF version: v5.2.2 (CI is pinned to this exact tag in
 // .github/workflows/{ci.yml,firmware-build.yml}). GPIO 40–48 are
 // only defined in soc/esp32s3/include/soc/gpio_num.h starting in
 // v5.2.2; earlier v5.2.x patches (v5.2.0, v5.2.1) only define up to
-// GPIO_NUM_39. The M5 needs GPIO 40 (EPD DC), 41 (EPD RES), 42 (EPD
-// BUSY), 43 (UART1 TX), 44 (UART1 RX), 45 (EPD MOSI), 46 (LoRa
-// POWER_EN), 47 (I2S1 WS), and 48 (I2S1 BCLK) — all of which are
-// invalid on older patches.
+// GPIO_NUM_39.
+
+// ────────────────────────────────────────────────────────────────────
+// HARDWARE-MOD REQUIRED
+// ────────────────────────────────────────────────────────────────────
+// The Tether audio path requires 4 GPIOs for a single full-duplex
+// I2S0 bus. The stock M5 has only ONE natively free pin (GPIO 18).
+// To free 3 more, three hardware modifications are required before
+// the firmware is flashed. See docs/HARDWARE-MODS.md for the full
+// execution plan with photos. The summary:
 //
-// If you change a pin here, change it in the meshtastic file too (or
-// at least, verify against the M5 schematic — pins on the M5 PCB are
-// not all freely remappable: LoRa RESET, BUSY, and the EPD's DIO are
-// hard-wired).
+//   1. GPS "Always-On" hack — bypass the L76K load switch near the
+//      Quectel module. Solder a jumper across its input/output;
+//      sever the trace back to the ESP32's GPIO 10. GPS module is
+//      now permanently powered. GPIO 10 is freed for I2S0 BCLK.
+//
+//   2. Buzzer removal — desolder the physical buzzer from the M5
+//      board. GPIO 9 (the buzzer PWM pin) is freed for I2S0 DOUT
+//      (amp DIN).
+//
+//   3. Power-Detect trace cut — sever the PCB trace between the
+//      USB voltage divider and the ESP32's GPIO 12. The charging
+//      IC continues to function; the firmware loses the ability
+//      to read VBUS state via this pin (USB-OTG built-in VBUS
+//      detection is the v0.2.0 replacement). GPIO 12 is freed for
+//      I2S0 WS (LRC).
+//
+// GPIOs 33 and 34 are part of the OCTAL PSRAM bus and MUST NOT be
+// used. Touching them crashes the PSRAM controller. The mic/amp
+// pin map avoids them by design.
+//
+// After the three mods the I2S0 bus is wired full-duplex:
+//
+//   WS (LRC)  : GPIO 12  (shared between mic WS and amp LRC)
+//   BCLK (SCK): GPIO 10  (shared between mic SCK and amp BCLK)
+//   Mic SD    : GPIO 18  (I2S0 DIN — data from mic)
+//   Amp DIN   : GPIO 9   (I2S0 DOUT — data to amp)
+//
+// Both devices run on the same SCK/WS pair, so the mic and amp
+// share bit-clock and word-select timing exactly. This is the
+// standard full-duplex I2S topology used by codecs with separate
+// ADC and DAC channels.
 
 #pragma once
 
+#ifdef TETHER_M5_HOST_TEST
+// On the host build we don't have ESP-IDF's driver/gpio.h. Provide
+// a minimal shim that defines the GPIO_NUM_N constants used by
+// board.h so the host build can compile.
+#include <cstdint>
+using gpio_num_t = int; // host shim
+#define GPIO_NUM_NC (-1)
+#define GPIO_NUM_0 0
+#define GPIO_NUM_1 1
+#define GPIO_NUM_2 2
+#define GPIO_NUM_3 3
+#define GPIO_NUM_4 4
+#define GPIO_NUM_5 5
+#define GPIO_NUM_6 6
+#define GPIO_NUM_7 7
+#define GPIO_NUM_8 8
+#define GPIO_NUM_9 9
+#define GPIO_NUM_10 10
+#define GPIO_NUM_11 11
+#define GPIO_NUM_12 12
+#define GPIO_NUM_13 13
+#define GPIO_NUM_14 14
+#define GPIO_NUM_15 15
+#define GPIO_NUM_16 16
+#define GPIO_NUM_17 17
+#define GPIO_NUM_18 18
+#define GPIO_NUM_19 19
+#define GPIO_NUM_20 20
+#define GPIO_NUM_21 21
+#define GPIO_NUM_33 33
+#define GPIO_NUM_34 34
+#define GPIO_NUM_35 35
+#define GPIO_NUM_36 36
+#define GPIO_NUM_37 37
+#define GPIO_NUM_38 38
+#define GPIO_NUM_39 39
+#define GPIO_NUM_40 40
+#define GPIO_NUM_41 41
+#define GPIO_NUM_42 42
+#define GPIO_NUM_43 43
+#define GPIO_NUM_44 44
+#define GPIO_NUM_45 45
+#define GPIO_NUM_46 46
+#define GPIO_NUM_47 47
+#define GPIO_NUM_48 48
+#else
 #include "driver/gpio.h"
+#endif
 
 namespace tether::m5::board {
 
@@ -50,73 +131,74 @@ constexpr gpio_num_t kPinEpdDc = GPIO_NUM_40;
 constexpr gpio_num_t kPinEpdRes = GPIO_NUM_41;
 constexpr gpio_num_t kPinEpdSclk = GPIO_NUM_38;
 constexpr gpio_num_t kPinEpdMosi = GPIO_NUM_45;
+// The E-ink's backlight power is gated through the PCA9557
+// (PCA_PIN_EINK_EN, expander pin 5). See firmware/m5/components/
+// pca9557/include/pca9557.h.
 
 // ── SD card (over the shared SPI bus) ────────────────────────────────
-//
-// Meshtastic uses GPIO 10 for SD CS. We use the same — it's a free
-// pin on the M5 (the GPS switch is on a separate physical header,
-// even though the meshtastic variant.h also names it GPS_SWITH=10;
-// the M5 schematic differentiates the two by header).
 constexpr gpio_num_t kPinSdCs = GPIO_NUM_10;
 
-// ── I2S0 — INMP441 microphone (right-edge cluster) ──────────────────
+// ── I2S0 — shared full-duplex audio bus (mic + amp) ─────────────────
 //
-// All three pins are sequential on the right edge of the M5, free of
-// any other function per the M5 schematic. These were chosen by the
-// system architect specifically because the LoRa/EPD/SD pins above
-// don't reach the right edge and the L76K GPS module only uses the
-// left side.
-constexpr gpio_num_t kPinI2s0Ws = GPIO_NUM_35;   // Word Select
-constexpr gpio_num_t kPinI2s0Bclk = GPIO_NUM_36; // Bit Clock
-constexpr gpio_num_t kPinI2s0Din = GPIO_NUM_37;  // Data In (from mic)
-
-// ── I2S1 — MAX98357A amplifier (split configuration) ────────────────
+// REQUIRES THE 3 HARDWARE MODS DESCRIBED AT THE TOP OF THIS FILE.
+// Without them, GPIO 9 / 10 / 12 are not available to the ESP32
+// and this bus cannot be wired.
 //
-// LRC and BCLK are on the right edge (sequential with the mic
-// cluster), DIN is on the left edge. There is no contiguous run of
-// three free pins on the M5 for the amp because the LoRa/EPD/SD
-// cluster occupies the upper right.
-//
-// Note: GPIO 47 and 48 are NOT the I2C1 SDA/SCL pins on the M5
-// — those are GPIO 1 and 2 (I2C_SDA=2, I2C_SCL=1, see
-// meshtastic variant.h). GPIO 47/48 are the right-edge pads (Pin
-// 23 and 24 on the ELECROW connector pinout). The meshtastic
-// variant.cpp uses them as a *second I2C bus* (Wire1) for the
-// PCA9557 GPIO expander, but Tether does not need the PCA9557
-// (no Meshtastic-style LED notifications, no Meshtastic-style
-// power rail control), so we can reuse 47/48 for I2S1.
-constexpr gpio_num_t kPinI2s1Ws = GPIO_NUM_47;   // Word Select (= "LRC")
-constexpr gpio_num_t kPinI2s1Bclk = GPIO_NUM_48; // Bit Clock
-constexpr gpio_num_t kPinI2s1Dout = GPIO_NUM_18; // Data Out (to amp)
+// The mic (INMP441) and the amp (MAX98357A) share the BCLK and WS
+// signals; the mic drives its SD line into the ESP32's DIN, and the
+// amp reads the ESP32's DOUT. This is the standard full-duplex I2S
+// topology; the ESP32-S3's I2S0 peripheral can drive both
+// directions simultaneously.
+constexpr gpio_num_t kPinI2sWs = GPIO_NUM_12;   // Word Select (LRC)
+constexpr gpio_num_t kPinI2sBclk = GPIO_NUM_10; // Bit Clock (SCK)
+constexpr gpio_num_t kPinI2sDin = GPIO_NUM_18;  // Data In: from mic
+constexpr gpio_num_t kPinI2sDout = GPIO_NUM_9;  // Data Out: to amp
 
 // ── Buttons (the M5 has exactly two; see §buttons below) ─────────────
 constexpr gpio_num_t kPinButtonPtt = GPIO_NUM_21;  // PIN_BUTTON1
 constexpr gpio_num_t kPinButtonMenu = GPIO_NUM_14; // PIN_BUTTON2
 constexpr uint32_t kButtonActiveLow = 0;           // GPIO low = pressed
 
-// ── GPS switch (NOT a button; senses the GPS toggle's position) ──────
+// ── Power / battery / buzzer (mostly sacrificed) ─────────────────────
 //
-// The M5 has a physical *switch* (slider) on the case for turning
-// the GPS module on/off. The switch's state is read on GPIO 10
-// (GPS_SWITH in the meshtastic variant, note the typo). Tether does
-// not use the GPS, but we leave this constant defined so future
-// code can detect the switch's position.
-constexpr gpio_num_t kPinGpsSwitch = GPIO_NUM_10; // input, 1 = GPS on
-
-// ── Power / battery / buzzer ─────────────────────────────────────────
-constexpr gpio_num_t kPinBatteryAdc = GPIO_NUM_8;
-constexpr gpio_num_t kPinExtPwrDetect = GPIO_NUM_12;
-constexpr gpio_num_t kPinBuzzer = GPIO_NUM_9;
-constexpr gpio_num_t kPinLedBlue = GPIO_NUM_NC; // on PCA9557, not used
+// GPIO 9 (kPinI2sDout) was the buzzer. Desoldered for I2S0 DOUT.
+// GPIO 12 (kPinI2sWs)  was EXT_PWR_DETECT. Trace cut for I2S0 WS.
+constexpr gpio_num_t kPinBuzzer = GPIO_NUM_9;        // now = I2S DOUT
+constexpr gpio_num_t kPinExtPwrDetect = GPIO_NUM_12; // now = I2S WS
+// Battery ADC is still on GPIO 8 (no conflict).
+constexpr gpio_num_t kPinBatteryAdc = GPIO_NUM_8; // ADC channel 7
 
 // ── USB-Serial (RAK4631 bridge on the M5) ───────────────────────────
-//
-// GPIO 43/44 are the M5's UART1 (per the meshtastic variant).
-// They're the only pins in the variant.h that are explicitly
-// described as "UART". We use them to talk to the RAK4631 in
-// production; the ESP32-S3 USB-CDC is reserved for the serial
-// monitor and `idf.py flash`.
 constexpr gpio_num_t kPinUartTx = GPIO_NUM_43;
 constexpr gpio_num_t kPinUartRx = GPIO_NUM_44;
+
+// ── I2C buses ────────────────────────────────────────────────────────
+//
+// I2C0 (Wire) is the bus for the PCF8563 RTC. We don't use the RTC
+// in v0.1.0, so Wire is uninitialized; the pads are physically
+// available.
+//
+// I2C1 (Wire1) is the bus to the PCA9557 GPIO expander that drives
+// the LEDs, the E-ink backlight power, and the master peripheral
+// power rail. We use this in v0.1.0 — see firmware/m5/components/
+// pca9557/. GPIO 47/48 are NOT "free for I2S1" as the v0.1.2
+// comment said: they are claimed by Wire1.
+constexpr gpio_num_t kPinI2c0Scl = GPIO_NUM_1;
+constexpr gpio_num_t kPinI2c0Sda = GPIO_NUM_2;
+constexpr gpio_num_t kPinI2c1Scl = GPIO_NUM_48; // Wire1
+constexpr gpio_num_t kPinI2c1Sda = GPIO_NUM_47; // Wire1
+
+constexpr uint8_t kPca9557I2cAddr = 0x18; // 7-bit address (no R/W bit)
+
+// ── Pins explicitly reserved / do-not-touch ─────────────────────────
+//
+// GPIO 33 and GPIO 34 are part of the OCTAL PSRAM data bus. The
+// M5 uses an ESP32-S3-WROOM-1-N16R8 (or N8R8) module with octal
+// PSRAM; those pins are wired to the PSRAM chip. Driving them as
+// general-purpose GPIO will crash the PSRAM controller and
+// brick the firmware. The I2S / button / SPI / I2C pin map
+// avoids them by design.
+constexpr gpio_num_t kPinReservedPsramIo = GPIO_NUM_33;
+constexpr gpio_num_t kPinReservedPsramClk = GPIO_NUM_34;
 
 } // namespace tether::m5::board
