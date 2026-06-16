@@ -31,7 +31,7 @@ The system supports **multiple simultaneous conversations** (Matrix rooms + Forg
 | SD filesystem | **LittleFS** (power-loss resilient) |
 | Link-layer crypto | **AES-128-CTR** via SX1262 hardware engine, per-conversation key |
 | End-to-end crypto (Matrix leg) | **Megolm** via mautrix-go (matrix-native E2EE) |
-| PTT UX | Three physical buttons (PTT, Next, Prev); EPD displays current conversation + state |
+| PTT UX | **Two** physical buttons (A=PTT, B=Menu/cycle) + a GPS slider (not a button); EPD displays current conversation + state |
 | Max message length | **60 s** recorded audio, 30 s TTS playback chunk, 5000 chars TTS input |
 | Multi-conversation | Up to 16 active conversations on the M5, full history persisted |
 | PC GUI | Skip for v1; bubbletea TUI for operator control |
@@ -52,38 +52,60 @@ The system supports **multiple simultaneous conversations** (Matrix rooms + Forg
 
 See `hardware.md` for the BOM. Key facts that drive the design:
 
-* **ThinkNode M5** — ESP32-S3 (Xtensa LX7 dual-core @ 240 MHz, 512 KB SRAM, **8 MB PSRAM**), 1.54″ EPD, 1200 mAh Li-Po, GPS, **onboard SX1262**, **3 user-accessible buttons** (front: A=PTT, B=Next, C=Prev), **microphone via I2S header pin**, **speaker via I2S amp pin**, **microSD slot on the SPI bus**.
+* **ThinkNode M5** — ESP32-S3 (Xtensa LX7 dual-core @ 240 MHz, 512 KB SRAM, **8 MB PSRAM**), 1.54″ EPD, 1200 mAh Li-Po, GPS, **onboard SX1262**, **2 physical buttons** (A=PTT GPIO 21, B=Menu/cycle GPIO 14) + a **GPS slider** on GPIO 10 (digital input, not a button), **I2S0 mic on GPIO 35/36/37** (right edge), **I2S1 amp on GPIO 47/48 (right) and 18 (left)** in split config, **microSD slot on the SPI bus** (CS=GPIO 10, same GPIO number as the GPS slider but a different physical pad).
 * **SX1262** uses a **single BUSY pin + one multi-purpose IRQ line**, not the DIO0–DIO5 model of the older SX1276.
 * The M5's onboard LoRa chip and the SD card share one HSPI bus — arbitration pattern in §7.4.
 * **Bridge** = RAK4631 core (nRF52840 + SX1262). Re-flashed with custom firmware speaking our line-framed binary protocol over USB-Serial at 921 600 baud.
 * **Base station** = a PC (Linux preferred) running the Go daemon. Should have a real CPU and ideally a GPU; CPU-only is fine for v1 at the cost of higher STT latency.
 
-### 2.1 M5 physical controls
+### 2.1 M5 physical controls (2 buttons + 1 GPS slider)
 
-| Button | Function | Wiring |
+The ELECROW ThinkNode M5 has **two** physical buttons, not three.
+The third "control" on the case is a *switch* (slider) for the GPS
+module, not a button. This is fixed by the board's hardware — see
+the [Meshtastic variant.h](https://raw.githubusercontent.com/meshtastic/firmware/refs/heads/develop/variants/esp32s3/ELECROW-ThinkNode-M5/variant.h)
+which defines exactly `PIN_BUTTON1=21` and `PIN_BUTTON2=14`. The
+"3-button" model that earlier drafts of this document assumed is
+incorrect.
+
+| Control | Function | Wiring |
 |---|---|---|
-| **A** (front, large) | **PTT** — push to record, release to enqueue + transmit | GPIO IRQ, debounced |
-| **B** (side) | **Next conversation** (cycles through active conversations) | GPIO IRQ |
-| **C** (side) | **Prev conversation** (cycles backward) | GPIO IRQ |
-| **B held 2 s** | Enter "settings" mode (channel select, etc.) | Long-press detection |
-| **A held 3 s** | **Cancel** current TX / abort recording | Long-press detection |
+| **A** (front, large) | **PTT** — push to record, release to enqueue + transmit | GPIO 21, IRQ, debounced |
+| **B** (side) | **Menu / cycle** — short press advances to the next conversation; long-press (2 s) enters the settings menu. Inside the settings menu, kPtt acts as "decrease / go back" (the v0.1.0 design used a third "Prev" button that does not exist on this hardware). | GPIO 14, IRQ, debounced |
+| **GPS slider** (case) | Toggles the L76K GPS module on/off. **Not a button.** Wired to GPIO 10 (digital input); see §2.2 for the GPIO-10 collision with SD_CS. Tether does not use the GPS, but the slider is sensed at boot to log a "GPS off" line in `tether-m5` serial output. | GPIO 10, digital input |
 
-### 2.2 M5 I/O mapping (proposed; verify against schematic)
+### 2.2 M5 I/O mapping (verified against the ELECROW schematic)
+
+The pin numbers below are the **authoritative map for Tether v0.1.0**;
+they're encoded in `firmware/m5/components/board/include/board.h`
+and are cross-checked against the Meshtastic variant.h. Earlier
+drafts of this document had `(board-defined, free GPIO)` for the
+I2S and button lines; v0.1.0 fills in concrete numbers. The
+system architect chose the I2S pins after surveying the right-edge
+pads for free runs of three.
 
 | Peripheral | ESP32-S3 GPIO | Notes |
 |---|---|---|
-| SX1262 BUSY | (board-defined) | Do not use as GPIO |
-| SX1262 IRQ | (board-defined) | Edge-triggered ISR |
-| SX1262 CS | (board-defined) | SPI CS |
-| SD CS | (board-defined) | Separate SPI CS |
-| EPD CS / DC / RST | (board-defined) | SPI + GPIO |
-| I2S mic (INMP441) SCK / WS / SD | (board-defined, free GPIOs) | Standard I2S master RX |
-| I2S amp (MAX98357A) BCLK / LRC / DIN | (board-defined, free GPIOs) | Standard I2S master TX |
-| Button A (PTT) | (board-defined, free GPIO) | Pull-up, IRQ on press |
-| Button B (Next) | (board-defined, free GPIO) | Pull-up, IRQ on press |
-| Button C (Prev) | (board-defined, free GPIO) | Pull-up, IRQ on press |
-| GPS UART | (board-defined) | 9600 baud, not used in v1 |
-| Battery ADC | (board-defined) | For low-battery detection |
+| SX1262 BUSY | 5 | Do not use as GPIO |
+| SX1262 IRQ (DIO1) | 4 | Edge-triggered ISR, flag-setter only |
+| SX1262 CS | 17 | SPI CS |
+| SX1262 RESET | 6 | Pull high at boot |
+| SX1262 POWER_EN | 46 | High to enable |
+| SPI SCK / MOSI / MISO | 16 / 15 / 7 | Shared bus (LoRa, EPD, SD) |
+| SD CS | 10 | Separate SPI CS. **Same GPIO number as the GPS slider** but a *different physical pad* per the M5 schematic — see `board.h::kPinSdCs` and `kPinGpsSwitch` for the comment. |
+| EPD CS / DC / RST | 39 / 40 / 41 | SPI + GPIO |
+| EPD BUSY | 42 | Input, polled |
+| EPD SCLK / MOSI | 38 / 45 | Shared SPI bus |
+| I2S0 (INMP441) WS / BCLK / DIN | 35 / 36 / 37 | All on the right edge, sequential. Architect's choice. |
+| I2S1 (MAX98357A) WS / BCLK / DOUT | 47 / 48 / 18 | Split config: WS+BCLK on right edge (47, 48), DOUT on left (18). GPIO 47/48 are the meshtastic `Wire1` SDA/SCL pads but Tether does not use the PCA9557, so they are free. |
+| Button A (PTT) | 21 | Pull-up, IRQ on press |
+| Button B (Menu) | 14 | Pull-up, IRQ on press |
+| GPS slider | 10 | Digital input. See SD CS note. |
+| GPS L76K UART | 19 (RX) / 20 (TX) | 9600 baud, not used in v1 |
+| Battery ADC | 8 (channel 7) | For low-battery detection |
+| VBUS detect | 12 | High when USB-C is plugged |
+| Buzzer | 9 | PWM, active high |
+| UART1 (RAK4631 bridge) | 43 (TX) / 44 (RX) | 921 600 baud |
 
 ---
 

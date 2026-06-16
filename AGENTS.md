@@ -57,9 +57,35 @@ Don't write any code that depends on a section of `research.md` you've skipped. 
 * No filesystem, no SD — pure pass-through. The Go side owns state.
 * Test envs: `native` (runs on Linux without hardware) and `rak4631` (requires a physical RAK4631). CI runs `pio test -e native` only.
 
-### 3.4 Three buttons, no touchscreen
+### 3.4 Two buttons + a GPS switch, no touchscreen
 
-The M5 has exactly three physical buttons: **A = PTT**, **B = Next**, **C = Prev** (plus long-press combos for cancel and settings). The 1.54″ EPD is the only display. **Do not design any UX that requires more inputs** — there isn't room. The state machine is in `firmware/m5/components/ptt/` and the UI states are in `firmware/m5/components/ui_state/`.
+The M5 has exactly **two** physical buttons (not three — see the
+[Meshtastic ELECROW-ThinkNode-M5 variant.h](https://raw.githubusercontent.com/meshtastic/firmware/refs/heads/develop/variants/esp32s3/ELECROW-ThinkNode-M5/variant.h),
+which defines `PIN_BUTTON1=21` and `PIN_BUTTON2=14`). The third
+"control" on the case is a *switch* (slider) for the GPS module, not
+a button.
+
+* **A (front, large, GPIO 21) = PTT** — push to record, release to
+  enqueue + transmit.
+* **B (side, GPIO 14) = Menu / cycle** — short press cycles to the
+  next conversation; long-press enters the settings menu.
+* **GPS slider (GPIO 10, digital input)** — senses the GPS toggle
+  position; not a button.
+
+The 1.54″ EPD is the only display. **Do not design any UX that
+requires more inputs** — there isn't room. The state machine is in
+`firmware/m5/components/ptt/`, the UI states are in
+`firmware/m5/components/ui_state/`, and the GPIO map is in
+`firmware/m5/components/board/include/board.h`.
+
+### 3.4.1 Pin map is in one place
+
+All M5 GPIO assignments live in
+`firmware/m5/components/board/include/board.h` (a separate ESP-IDF
+component called `board`). Do not hard-code GPIO numbers in
+component code — `#include "board.h"` and reference the
+`kPin…` constants. The header is the single source of truth and is
+cross-checked against the Meshtastic variant.h.
 
 ### 3.5 The base station is Linux-preferred, but cross-platform
 
@@ -174,7 +200,9 @@ tether/
 | Component | Purpose |
 |---|---|
 | `protocol` | On-target C++ mirror of the wire format (CRC, header encode/decode). |
-| `spi_bus` | `SpiBus` singleton + `spi_bus_mutex`; per-CS `spi_device_handle_t`. |
+| `spi_bus` | `SpiBus` singleton + `spi_bus_mutex`; per-CS `spi_device_handle_t`. SCK=16, MOSI=15, MISO=7 (from `board.h`). |
+| `i2s_mic` | INMP441 I2S master RX, DMA 4×256 samples. I2S0: WS=35, BCLK=36, DIN=37. |
+| `i2s_amp` | MAX98357A I2S master TX + sine-wave beep generator. I2S1: WS=47, BCLK=48, DOUT=18. |
 | `lora_sx1262` | SX1262 driver wrapper (channel, preset, CAD, TX, RX). |
 | `sd_card` | LittleFS mount + POSIX file API. |
 | `i2s_mic` | INMP441 I2S master RX, DMA 4×256 samples. |
@@ -183,8 +211,9 @@ tether/
 | `psram_ring` | SPSC ring buffer (8 MB PSRAM, no mutex). |
 | `littlefs_vfs` | Typed file API over the LittleFS mount. |
 | `epd` | 1.54″ EPD controller + screen renderers (idle / recording / queued / TX / TTS / settings / low-battery). Golden-image tests. |
-| `buttons` | GPIO IRQ + debounce + long-press detection. |
-| `ptt` | PTT state machine (idle → recording → queued → transmitting → acked/failed). |
+| `board` | Pin map for the ThinkNode M5 (ELECROW). One header, one source of truth. See `include/board.h`. |
+| `buttons` | GPIO IRQ + debounce + long-press detection. The M5 has **2 physical buttons** (A=PTT, B=Menu); the third M5 control is a GPS *switch* on a different physical pad. |
+| `ptt` | PTT state machine (idle → recording → queued → transmitting → acked/failed).
 | `conv_db` | Conversation DB in LittleFS (up to 16 convs, 50-message history ring each). |
 | `conv_manager` | Task: handles incoming `UI_UPDATE` from base, syncs conv list. |
 | `ui_state` | UI state machine (current conv, scroll position, partial-refresh rate limiter). |

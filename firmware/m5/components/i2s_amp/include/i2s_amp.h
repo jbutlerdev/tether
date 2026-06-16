@@ -25,6 +25,10 @@ public:
   I2SAmp(const I2SAmp &) = delete;
   I2SAmp &operator=(const I2SAmp &) = delete;
 
+  // Initialize the I2S1 TX master. Pin assignments in main/board.h.
+  // Returns true on success. Safe to call once at app start.
+  bool Init();
+
   // Queue a sine tone at `freq_hz` for `duration_ms` milliseconds.
   // Calling PlayTone() while a tone is already playing replaces the
   // queued tone. The tone is written into the internal buffer on

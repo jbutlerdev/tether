@@ -114,9 +114,22 @@ Go toolchain before touching any hardware.
 3. The 1.54″ EPD will show **"Tether ready"** once you've flashed the
    Tether firmware (see [§4](#4-building-the-m5-firmware)). Until
    then it shows whatever the stock firmware was running.
-4. The three buttons are: **A = PTT** (push to talk), **B = Next**,
-   **C = Prev**. Long-press combos are documented in
-   [`firmware/m5/components/ptt/README.md`](firmware/m5/components/ptt/README.md).
+4. The M5 has **two physical buttons** (not three) and a third
+   *control* which is a *switch* (slider) for the GPS module, not a
+   button. The pin map is in
+   [`firmware/m5/components/board/include/board.h`](firmware/m5/components/board/include/board.h).
+   The Meshtastic variant.h for this board — the source of truth for
+   the wiring — is at
+   <https://raw.githubusercontent.com/meshtastic/firmware/refs/heads/develop/variants/esp32s3/ELECROW-ThinkNode-M5/variant.h>.
+   - **A (front, large, GPIO 21) = PTT** — push to record, release
+     to enqueue + transmit.
+   - **B (side, GPIO 14) = Menu / cycle** — short press cycles to
+     the next conversation; long-press enters the settings menu.
+   - **GPS slider (GPIO 10, digital input)** — senses the GPS
+     toggle position. Wired to a different physical pad than SD CS
+     (GPIO 10) despite the meshtastic header's `GPS_SWITH=10`
+     reusing the same GPIO number. See `board.h::kPinGpsSwitch`
+     and `kPinSdCs` for the comment explaining this.
 
 ### 3.2 RAK4631 bridge
 

@@ -1,15 +1,35 @@
 // buttons.h — Tether M5 button handling with debounce and long-press
 // (plan.md §4.7).
 //
-// The M5 has three physical buttons (A=PTT, B=Next, C=Prev). Each is
-// a GPIO input that fires an edge interrupt on press/release. A
-// debounce task (FreeRTOS, low priority) consumes the events from a
-// queue and emits semantic Button events:
+// The ThinkNode M5 has **two** physical buttons (not three — see
+// AGENTS.md §3.4 and the meshtastic variant.h at
+// variants/esp32s3/ELECROW-ThinkNode-M5/variant.h, which defines
+// PIN_BUTTON1=21 and PIN_BUTTON2=14). The third "control" on the M5
+// is a *switch* (slider) for the GPS module, not a button. See
+// board.h.
+//
+//   A (front, large, GPIO 21) — **PTT**: push to record, release to
+//     enqueue + transmit. Long-press (≥ 3 s) is a v0.2.0 feature
+//     ("settings entry" in earlier designs is now B's long-press).
+//
+//   B (side, GPIO 14) — **Menu / cycle**: short press cycles to the
+//     next conversation. Long-press (≥ 2 s) enters the settings menu;
+//     inside the settings menu, a long-press exits.
+//
+//   GPS_SWITCH (GPIO 10, slider) — not a button; the system architect
+//     chose GPIO 10 for SD CS on the M5 because the GPS switch is
+//     wired to a *different physical pad* (a header pin, not a GPIO).
+//     The switch's state is exposed via kPinGpsSwitch in board.h
+//     if future code needs to know.
+//
+// Each button is a GPIO input that fires an edge interrupt on
+// press/release. A debounce task (FreeRTOS, low priority) consumes
+// the events from a queue and emits semantic Button events:
 //
 //   kPress                — clean press, debounced
 //   kRelease              — clean release
 //   kLongPressPtt         — PTT held ≥ 3 s
-//   kLongPressNext        — Next held ≥ 2 s (settings)
+//   kLongPressMenu        — Menu/Cycle held ≥ 2 s
 //
 // Long-press fires while the button is still held; the matching
 // kRelease event is suppressed.
@@ -30,16 +50,22 @@ namespace tether::m5 {
 
 enum class Button : uint8_t {
   kPtt = 0,
-  kNext = 1,
-  kPrev = 2,
+  kMenu = 1,
 };
+
+// Backwards-compat alias. The original design used kNext for the
+// second button; some call sites still use that name. kNext is
+// semantically identical to kMenu.
+constexpr Button kNext = Button::kMenu;
 
 enum class Event : uint8_t {
   kPress = 0,
   kRelease = 1,
   kLongPressPtt = 2,
-  kLongPressNext = 3,
+  kLongPressMenu = 3,
 };
+
+constexpr Event kLongPressNext = Event::kLongPressMenu;
 
 struct ButtonEvent {
   Button button;
@@ -78,36 +104,39 @@ public:
   // shrink the timings so they run fast.
   void SetDebounceMsForTest(uint32_t ms) { debounce_ms_ = ms; }
   void SetLongPressPttMsForTest(uint32_t ms) { long_ptt_ms_ = ms; }
-  void SetLongPressNextMsForTest(uint32_t ms) { long_next_ms_ = ms; }
 
-  // Start the debounce FreeRTOS task. The task wakes every
-  // `period_ms` (default 10 ms) and calls Tick().
-  bool StartDebounceTask(uint32_t period_ms = 10);
-
-  // Stop the debounce task. Idempotent.
-  void StopDebounceTask();
-
-  // Internal access for the debounce task entry point.
+  // Internal state accessor used by the debounce task. Not part of
+  // the public API; do not call from user code.
   bool IsDebounceTaskRunningForTask() const { return task_running_; }
 
 private:
-  EventHandler handler_;
-  // For each button: last raw state, last debounce time.
+  // Per-button state. The M5 has 2 physical buttons.
   struct PinState {
     bool raw_pressed = false;
     bool debounced_pressed = false;
-    bool long_press_fired = false;
-    bool pending_change = false; // true if raw_pressed != debounced_pressed
-    uint32_t press_started_at_ms = 0;
     uint32_t last_raw_change_at_ms = 0;
+    uint32_t press_started_at_ms = 0;
+    bool long_press_fired = false;
+    bool pending_change = false;
   };
-  PinState state_[3] = {};
-  uint32_t debounce_ms_ = 30;
+
+  void TickOneButton(size_t i, uint32_t now_ms_);
+  bool StartDebounceTask(uint32_t period_ms);
+  void StopDebounceTask();
+
+  static constexpr size_t kButtonCount = 2;
+  std::array<PinState, kButtonCount> state_{};
+  EventHandler handler_;
+
+  // Test-only timing thresholds. Production: 10 ms debounce,
+  // 3000 ms PTT long-press, 2000 ms Menu long-press.
+  uint32_t debounce_ms_ = 10;
   uint32_t long_ptt_ms_ = 3000;
-  uint32_t long_next_ms_ = 2000;
+  uint32_t long_next_ms_ = 2000;  // alias for "long menu"
+
   uint32_t now_ms_ = 0;
-  TaskHandle_t task_handle_ = nullptr;
   bool task_running_ = false;
+  TaskHandle_t task_handle_ = nullptr;
 };
 
-} // namespace tether::m5
+}  // namespace tether::m5

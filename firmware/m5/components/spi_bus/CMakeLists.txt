@@ -13,12 +13,13 @@ if(DEFINED TETHER_M5_HOST_TEST)
   target_include_directories(spi_bus_host PUBLIC include)
   target_compile_definitions(spi_bus_host PUBLIC TETHER_M5_HOST_TEST=1)
   target_link_libraries(spi_bus_host PUBLIC freertos_shim)
+  target_include_directories(spi_bus_host PRIVATE ../board/include)
 elseif(COMMAND idf_component_register)
   # Real ESP-IDF build.
   idf_component_register(
     SRCS "src/spi_bus.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES driver esp_littlefs RadioLib
+    REQUIRES driver esp_littlefs RadioLib board
   )
 else()
   # We are being included by something other than ESP-IDF or the host

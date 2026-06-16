@@ -138,35 +138,37 @@ void UiState::OnButtonEvent(ButtonEvent ev) {
   }
 
   if (in_settings_) {
-    if (ev.button == Button::kNext) {
+    if (ev.button == Button::kMenu) {
       if (ev.event == Event::kPress) {
         if (settings_cursor_ == kSettingsVolume) {
+          // With 2 buttons, kPtt acts as the "decrease / go back"
+          // inside the volume sub-screen. We still advance the
+          // cursor on kMenu press.
           ChangeVolume(+static_cast<int>(kVolumeStep));
         } else {
           settings_cursor_ = (settings_cursor_ + 1) % kSettingsCount;
         }
         Render();
-      } else if (ev.event == Event::kLongPressNext) {
+      } else if (ev.event == Event::kLongPressMenu) {
         OnSettingsExit();
-        Render();
-      }
-    } else if (ev.button == Button::kPrev) {
-      if (ev.event == Event::kPress) {
-        if (settings_cursor_ == kSettingsVolume) {
-          ChangeVolume(-static_cast<int>(kVolumeStep));
-        } else if (settings_cursor_ == 0) {
-          // B is in the cursor==0 cell: pressing C exits.
-          OnSettingsExit();
-        } else {
-          settings_cursor_--;
-        }
         Render();
       }
     } else if (ev.button == Button::kPtt) {
       if (ev.event == Event::kPress || ev.event == Event::kRelease) {
-        // PTT inside settings: exit so the next press starts
-        // recording into the active conv.
-        OnSettingsExit();
+        // PTT inside settings: PTT short-press acts as the
+        // "previous" / "decrease" control on a 2-button M5
+        // (the 3rd "Prev" button that the v0.1.0 design assumed
+        // does not exist on the ELECROW hardware — see
+        // AGENTS.md §3.4 and buttons.h). For the volume cell it
+        // decreases; for other cells it moves the cursor back
+        // (or exits at the top).
+        if (settings_cursor_ == kSettingsVolume) {
+          ChangeVolume(-static_cast<int>(kVolumeStep));
+        } else if (settings_cursor_ == 0) {
+          OnSettingsExit();
+        } else {
+          settings_cursor_--;
+        }
         Render();
       }
     }
@@ -175,18 +177,12 @@ void UiState::OnButtonEvent(ButtonEvent ev) {
 
   // Outside settings.
   switch (ev.button) {
-  case Button::kNext:
+  case Button::kMenu:
     if (ev.event == Event::kPress) {
       AdvanceConv(+1);
       Render();
-    } else if (ev.event == Event::kLongPressNext) {
+    } else if (ev.event == Event::kLongPressMenu) {
       OnSettingsEntry();
-      Render();
-    }
-    break;
-  case Button::kPrev:
-    if (ev.event == Event::kPress) {
-      AdvanceConv(-1);
       Render();
     }
     break;

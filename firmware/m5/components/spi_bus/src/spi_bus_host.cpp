@@ -13,6 +13,8 @@
 #include <stdexcept>
 #include <thread>
 
+#include "board.h"
+
 namespace tether::m5 {
 
 namespace {
@@ -109,8 +111,8 @@ SpiBus *g_bus_instance = nullptr;
 
 SpiBus &Bus() {
   if (!g_bus_instance) {
-    g_bus_instance =
-        new SpiBus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12);
+    g_bus_instance = new SpiBus(SPI2_HOST, board::kPinSpiMosi,
+                                board::kPinSpiMiso, board::kPinSpiSck);
   }
   return *g_bus_instance;
 }

@@ -4,6 +4,68 @@ All notable changes to Tether are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.1.2] — 2026-06-16
+
+Hardware-pin correctness pass. **The M5 firmware in v0.1.0 would
+not have worked on real hardware**: the I2S microphone was wired to
+GPIO 4/5/6, which are the LoRa SX1262's DIO1/BUSY/RESET pins. The
+M5 was also documented as having 3 buttons when it has 2 plus a GPS
+switch. This release fixes both, and adds a central pin map.
+
+### Fixed
+
+* **CRITICAL: `i2s_mic.cpp` used GPIO 4/5/6** for the I2S0 BCLK/WS/DIN
+  signals. Those pins are the SX1262's DIO1/BUSY/RESET — the mic
+  was being driven on the LoRa radio's pins. Replaced with the
+  system architect's assignment: **WS=35, BCLK=36, DIN=37** (all on
+  the right edge, sequential). See `board.h::kPinI2s0*`.
+* **CRITICAL: `lora_sx1262.cpp` used wrong pin numbers** (CS=8,
+  RST=12, BUSY=13, IRQ=14). The Meshtastic variant.h has
+  CS=17, RESET=6, BUSY=5, DIO1=4. Fixed.
+* **CRITICAL: `spi_bus.cpp` used wrong SPI pins** (SCK/MOSI/MISO on
+  11/12/13). The Meshtastic variant.h has SCK=16, MOSI=15, MISO=7.
+  Fixed; the new pins are also the LoRa's SPI bus.
+* **`i2s_amp.cpp` had no I2S peripheral init at all** — it only
+  exposed `PlayTone`/`ReadSamples` for host tests. Added the I2S1
+  TX master init with the architect's split configuration
+  (WS=47, BCLK=48, DOUT=18). See `board.h::kPinI2s1*`.
+* **Documentation claimed 3 physical buttons on the M5** (A=PTT,
+  B=Next, C=Prev). The ELECROW board has **2 buttons** (A=GPIO 21,
+  B=GPIO 14) plus a **GPS switch** (GPIO 10, slider, not a button).
+  The 3-button model is impossible on this hardware. UI code that
+  relied on kPrev (cycle backwards) was removed; PTT now acts as
+  the "back / decrease" affordance inside the settings menu.
+
+### Added
+
+* **`firmware/m5/components/board/`** — new component that holds
+  `include/board.h`, the single source of truth for all M5 GPIO
+  assignments. Every component that uses pins (`i2s_mic`, `i2s_amp`,
+  `spi_bus`, `lora_sx1262`, `buttons`, `main`) now includes
+  `board.h` and uses the `kPin…` constants instead of hard-coded
+  GPIO numbers. Cross-referenced with the Meshtastic variant.h.
+* **`hardware.md` rewrite** — the previous version was a 6-line
+  bill of materials. The new version is a full pin map, a 2-button
+  UX diagram, and a citation to the Meshtastic variant.h.
+* **Long block comment at the top of `buttons.h`** explaining the
+  2-button model and the GPS switch, with pointers to AGENTS.md
+  §3.4 and `board.h`.
+
+### Changed
+
+* **`Button::kPrev` removed** from the public enum. The `Button`
+  enum now has exactly 2 values: `kPtt` and `kMenu`. The legacy
+  `kNext` constant is preserved as an alias for `kMenu` so existing
+  test code that referenced it does not break.
+* **`Event::kLongPressPrev` removed**; `kLongPressMenu` (and the
+  legacy `kLongPressNext` alias) cover the only long-press that
+  the firmware actually emits.
+* **UI state machine** in `ui_state.cpp` updated: the kPrev branch
+  is gone. The settings menu now uses PTT as the "back / decrease"
+  control; the test suite was updated to match.
+* **CHANGELOG, AGENTS.md, INSTALL.md, research.md, plan.md** all
+  updated to reflect the 2-button + GPS-switch reality.
+
 ## [v0.1.1] — 2026-06-16
 
 Post-release cleanup. No code changes; no API changes; no protocol

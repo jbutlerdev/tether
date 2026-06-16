@@ -21,16 +21,20 @@
 #include "esp_log.h"
 #include "spi_bus.h"
 
+#include "board.h"
+
 namespace tether::m5 {
 
 namespace {
 
-// Pin map for the ThinkNode M5 (hardware.md). RST, BUSY, IRQ, and CS
-// are hard-coded; the SPI bus is shared.
-constexpr int8_t kPinSx1262Cs = 8;
-constexpr int8_t kPinSx1262Reset = 12;
-constexpr int8_t kPinSx1262Busy = 13;
-constexpr int8_t kPinSx1262Irq = 14;
+// Pin map for the ThinkNode M5 (hardware.md + meshtastic variant.h).
+// RST, BUSY, IRQ/DIO1, and CS are hard-coded per the M5 schematic —
+// the SX1262 module is wired to a fixed set of pads. The SPI bus
+// (SCK/MOSI/MISO) is shared with the EPD and SD card.
+constexpr int8_t kPinSx1262Cs    = static_cast<int8_t>(board::kPinLoraCs);     // 17
+constexpr int8_t kPinSx1262Reset = static_cast<int8_t>(board::kPinLoraReset);  // 6
+constexpr int8_t kPinSx1262Busy  = static_cast<int8_t>(board::kPinLoraBusy);   // 5
+constexpr int8_t kPinSx1262Irq   = static_cast<int8_t>(board::kPinLoraDio1);   // 4 (DIO1)
 
 class RadioLibBackend : public RadioBackend {
 public:

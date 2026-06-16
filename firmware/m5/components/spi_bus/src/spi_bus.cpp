@@ -16,6 +16,7 @@
 #include <stdexcept>
 
 #include "esp_log.h"
+#include "board.h"
 
 namespace tether::m5 {
 
@@ -114,8 +115,12 @@ SpiBus *g_bus_instance = nullptr;
 
 SpiBus &Bus() {
   if (!g_bus_instance) {
-    g_bus_instance =
-        new SpiBus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13, GPIO_NUM_12);
+    // The M5's shared SPI bus uses GPIO 16/15/7 for SCK/MOSI/MISO
+    // (per the meshtastic variant.h — these are fixed on the
+    // ELECROW board; do not remap). The CS lines for individual
+    // devices (LoRa, EPD, SD) are added via AddDevice().
+    g_bus_instance = new SpiBus(SPI2_HOST, board::kPinSpiMosi,
+                                board::kPinSpiMiso, board::kPinSpiSck);
   }
   return *g_bus_instance;
 }

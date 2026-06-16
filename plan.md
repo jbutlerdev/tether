@@ -1066,9 +1066,22 @@ private:
 
 **Files:** `firmware/m5/components/i2s_mic/i2s_mic.h`, `i2s_mic.cpp`, `i2s_amp/i2s_amp.h`, `i2s_amp.cpp`, `test/test_i2s_amp.cpp`
 
-* `i2s_mic`: standard I2S RX master, INMP441 pin config, DMA buffers (4 × 256 samples)
-* `i2s_amp`: standard I2S TX master, MAX98357A pin config, DMA buffers (4 × 256 samples)
+* `i2s_mic`: standard I2S **RX master** on **I2S0**, INMP441, DMA
+  buffers (4 × 256 samples). Pin map: WS=35, BCLK=36, DIN=37 — all
+  on the right edge, free of any other function. See
+  `firmware/m5/components/board/include/board.h::kPinI2s0*`.
+* `i2s_amp`: standard I2S **TX master** on **I2S1**, MAX98357A, DMA
+  buffers (4 × 256 samples). Pin map: WS=47, BCLK=48, DOUT=18 — a
+  *split* configuration (WS+BCLK on right edge, DOUT on left).
+  There is no contiguous run of three free pins on the M5 for the
+  amp because the LoRa/EPD/SD cluster occupies the upper right.
+  See `firmware/m5/components/board/include/board.h::kPinI2s1*`.
 * `i2s_amp` also has `PlayTone(freq_hz, duration_ms)` for beep tones (sine generator)
+
+> **Note (v0.1.0):** Earlier drafts of this document did not specify
+> GPIO numbers for the I2S lines. v0.1.0 fills them in via the
+> `board` component, which is the single source of truth for all
+> M5 pin assignments.
 
 **Tests:**
 
@@ -1079,28 +1092,44 @@ private:
 
 **Commit:** `m5: I2S mic capture + amp playback with tone generator`
 
-### 4.7 Task 3.7 — Buttons (PTT, Next, Prev) with long-press
+### 4.7 Task 3.7 — Buttons (PTT, Menu) with long-press
 
 **Files:** `firmware/m5/components/buttons/buttons.h`, `buttons.cpp`, `test/test_buttons.cpp`
 
+> **Note (v0.1.0):** The ThinkNode M5 has **2 physical buttons** (not
+> 3). The third "control" on the case is a GPS *switch* (slider),
+> not a button — see the Meshtastic variant.h for this board which
+> defines `PIN_BUTTON1=21` and `PIN_BUTTON2=14` and no third
+> `PIN_BUTTON3`. The v0.1.0 button model:
+> - A (GPIO 21) = PTT.
+> - B (GPIO 14) = Menu / cycle (short = next conv, long = settings).
+> - The 3rd "Prev" button from earlier drafts does not exist. Inside
+>   the settings menu, kPtt acts as the "back / decrease" affordance.
+>   See AGENTS.md §3.4, hardware.md §1.1, and the comment block at
+>   the top of `buttons.h`.
+
 ```cpp
-enum class Button { kPtt, kNext, kPrev };
+enum class Button { kPtt, kMenu };                // 2 physical buttons
 enum class Event {
     kPress, kRelease,
     kLongPressPtt,    // 3 s hold
-    kLongPressNext,   // 2 s hold (settings)
+    kLongPressMenu,   // 2 s hold (settings entry / exit)
 };
+// Backwards-compat aliases: kNext == kMenu, kLongPressNext ==
+// kLongPressMenu. Pre-v0.1.0 code that referenced kPrev has been
+// updated; new code should use kMenu.
 class Buttons {
 public:
-    using Handler = std::function<void(Event)>;
-    void Init(Handler h);
+    using Handler = std::function<void(ButtonEvent)>;
+    bool Init(Handler h);
 private:
     static void IRAM_ATTR IsrPtt(void*);
-    static void IRAM_ATTR IsrNext(void*);
-    static void IRAM_ATTR IsrPrev(void*);
+    static void IRAM_ATTR IsrMenu(void*);
     void DebounceTask();
     Handler handler_;
     QueueHandle_t events_;
+    // Pin map in firmware/m5/components/board/include/board.h.
+    // kButtonCount = 2.
 };
 ```
 
@@ -1109,7 +1138,8 @@ private:
 * `test_buttons_press_release` — simulate press, debounce expires, event fires
 * `test_buttons_debounce` — 50 ms bouncing, only one event fires
 * `test_buttons_long_press_ptt` — 3 s hold → kLongPressPtt fires
-* `test_buttons_long_press_next` — 2 s hold → kLongPressNext fires
+* `test_buttons_long_press_next` — 2 s hold → kLongPressMenu fires (alias)
+* `test_buttons_menu_long_press` — exercises the kMenu alias
 * `test_buttons_release_after_long_press` — no kRelease event after long press
 
 Host-side tests inject virtual GPIO events.

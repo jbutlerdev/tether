@@ -4,11 +4,12 @@ if(DEFINED TETHER_M5_HOST_TEST)
   target_include_directories(buttons_host PUBLIC include)
   target_compile_definitions(buttons_host PUBLIC TETHER_M5_HOST_TEST=1)
   target_link_libraries(buttons_host PUBLIC freertos_shim)
+  target_include_directories(buttons_host PRIVATE ../board/include)
 elseif(COMMAND idf_component_register)
   idf_component_register(
     SRCS "src/buttons.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES driver
+    REQUIRES driver board
   )
 else()
   message(STATUS "buttons: skipped")

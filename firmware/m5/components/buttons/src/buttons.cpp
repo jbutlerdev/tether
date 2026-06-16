@@ -8,6 +8,11 @@
 // Long-press fires only once per press, while the button is still
 // held. The matching kRelease event is suppressed when a long-press
 // has fired.
+//
+// The M5 has 2 physical buttons (see buttons.h). The third M5
+// "control" is a GPS toggle switch and is exposed as a digital
+// input on a separate pin (board.h::kPinGpsSwitch), not as a
+// button.
 
 #include "buttons.h"
 
@@ -35,7 +40,7 @@ void DebounceTaskEntry(void *arg) {
   }
   vTaskDelete(nullptr);
 }
-} // namespace
+}  // namespace
 
 Buttons::~Buttons() { StopDebounceTask(); }
 
@@ -52,7 +57,7 @@ bool Buttons::Init(EventHandler handler) {
 
 void Buttons::SimulatePressForTest(Button b) {
   size_t i = static_cast<size_t>(b);
-  if (i >= 3)
+  if (i >= kButtonCount)
     return;
   if (state_[i].raw_pressed != true) {
     state_[i].raw_pressed = true;
@@ -63,7 +68,7 @@ void Buttons::SimulatePressForTest(Button b) {
 
 void Buttons::SimulateReleaseForTest(Button b) {
   size_t i = static_cast<size_t>(b);
-  if (i >= 3)
+  if (i >= kButtonCount)
     return;
   if (state_[i].raw_pressed != false) {
     state_[i].raw_pressed = false;
@@ -74,7 +79,7 @@ void Buttons::SimulateReleaseForTest(Button b) {
 
 void Buttons::Tick(uint32_t elapsed_ms) {
   now_ms_ += elapsed_ms;
-  for (size_t i = 0; i < 3; ++i) {
+  for (size_t i = 0; i < kButtonCount; ++i) {
     auto &s = state_[i];
     if (s.raw_pressed != s.debounced_pressed) {
       // Pending change; check if it's settled.
@@ -107,10 +112,10 @@ void Buttons::Tick(uint32_t elapsed_ms) {
       if (i == static_cast<size_t>(Button::kPtt) && held_ms >= long_ptt_ms_) {
         should_fire_long = true;
         long_event = Event::kLongPressPtt;
-      } else if (i == static_cast<size_t>(Button::kNext) &&
+      } else if (i == static_cast<size_t>(Button::kMenu) &&
                  held_ms >= long_next_ms_) {
         should_fire_long = true;
-        long_event = Event::kLongPressNext;
+        long_event = Event::kLongPressMenu;
       }
       if (should_fire_long) {
         s.long_press_fired = true;
@@ -145,4 +150,4 @@ void Buttons::StopDebounceTask() {
   task_handle_ = nullptr;
 }
 
-} // namespace tether::m5
+}  // namespace tether::m5

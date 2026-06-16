@@ -24,7 +24,10 @@
 #include "buttons.h"
 #include "conv_db.h"
 #include "conv_manager.h"
+#include "i2s_amp.h"
+#include "i2s_mic.h"
 #include "lora_sx1262.h"
+#include "board.h"
 #include "opus_enc.h"
 #include "power_mgmt.h"
 #include "psram_ring.h"
@@ -54,14 +57,28 @@ extern "C" void app_main(void) {
   }
 
   // 3. Initialize the SPI bus singleton.
-  static tether::m5::SpiBus bus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13,
-                                GPIO_NUM_12);
-  bus.AddDevice(/*SD_CS=*/10, 20'000'000);
-  bus.AddDevice(/*LORA_CS=*/8, 8'000'000);
+  // Pin map is in board.h; SCK/MOSI/MISO are 16/15/7 per the
+  // meshtastic variant.h. CS pins below match the M5's wiring:
+  // SD card on GPIO 10, SX1262 on GPIO 17.
+  static tether::m5::SpiBus bus(
+      SPI2_HOST, tether::m5::board::kPinSpiMosi,
+      tether::m5::board::kPinSpiMiso, tether::m5::board::kPinSpiSck);
+  bus.AddDevice(/*SD_CS=*/tether::m5::board::kPinSdCs, 20'000'000);
+  bus.AddDevice(/*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
 
   // 4. I2S mic / amp.
-  // (The mic and amp are owned by the audio_capture and ui_state
-  // tasks respectively; they init in their own task entry points.)
+  // Pin assignments are in board.h. I2S0 (mic) on GPIO 35/36/37,
+  // I2S1 (amp) on GPIO 47/48/18. These are init'd here so any
+  // component that needs to inject sine tones for tests or play
+  // feedback beeps can use the same peripheral handle.
+  static tether::m5::I2SMic mic;
+  if (!mic.Init()) {
+    ESP_LOGE(kTag, "i2s_mic init failed; PTT will record silence");
+  }
+  static tether::m5::I2SAmp amp;
+  if (!amp.Init()) {
+    ESP_LOGE(kTag, "i2s_amp init failed; no audio feedback");
+  }
 
   // 5. PSRAM ring buffer (shared by audio_capture and storage_flush).
   // We allocate a 32 KB ring in PSRAM. Two consumers, so we use the

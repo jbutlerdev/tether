@@ -16,6 +16,8 @@
 #include "freertos/FreeRTOS.h"
 #endif
 
+#include "board.h"
+
 namespace tether::m5 {
 
 namespace {
@@ -57,9 +59,13 @@ bool I2SMic::Init() {
   // left_align and big_endian are not present in ESP-IDF v5.2's
   // i2s_std_slot_config_t; bit_shift=true (above) gives us
   // left-align / MSB-first, which is what we need for the INMP441.
-  std_cfg.gpio_cfg.bclk = (gpio_num_t)4;
-  std_cfg.gpio_cfg.ws = (gpio_num_t)5;
-  std_cfg.gpio_cfg.din = (gpio_num_t)6;
+  // Pin map: see main/board.h. The I2S0 mic cluster (WS=35,
+  // BCLK=36, DIN=37) is on the right edge of the M5 and was chosen
+  // by the system architect because the upper-right pads (4/5/6)
+  // are already used by the SX1262 (DIO1=4, BUSY=5, RESET=6).
+  std_cfg.gpio_cfg.bclk = board::kPinI2s0Bclk;
+  std_cfg.gpio_cfg.ws = board::kPinI2s0Ws;
+  std_cfg.gpio_cfg.din = board::kPinI2s0Din;
   std_cfg.gpio_cfg.dout = I2S_GPIO_UNUSED;
   std_cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
   std_cfg.gpio_cfg.invert_flags.mclk_inv = false;

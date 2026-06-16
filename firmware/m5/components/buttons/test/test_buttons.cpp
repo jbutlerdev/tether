@@ -113,17 +113,27 @@ void test_buttons_long_press_next() {
   TEST_ASSERT_EQUAL_size_t(2, g_events.size());
 }
 
-// Test 5: Prev button does NOT emit a long-press event (no
-// kLongPressPrev in the spec).
-void test_buttons_prev_no_long_press() {
-  g_buttons->SimulatePressForTest(Button::kPrev);
+// Test 5: Menu (a.k.a. kNext) button long-press fires kLongPressMenu
+// after the configured threshold. The M5 has 2 physical buttons —
+// see buttons.h — and the second button is "Menu/Cycle" (the
+// legacy kNext alias). kLongPressMenu fires once and is followed
+// by no kRelease (the release is suppressed, see the header).
+void test_buttons_menu_long_press() {
+  g_buttons->SimulatePressForTest(Button::kMenu);
   g_buttons->Tick(25);
   TEST_ASSERT_EQUAL_size_t(1, g_events.size());
-  g_buttons->Tick(5000); // way past any threshold
-  // Only the kPress event should be present.
-  TEST_ASSERT_EQUAL_size_t(1, g_events.size());
-  TEST_ASSERT_EQUAL(static_cast<int>(Event::kPress),
-                    static_cast<int>(g_events[0].event));
+  // Hold past the long-press threshold (2 s default).
+  g_buttons->Tick(2500);
+  TEST_ASSERT_EQUAL_size_t(2, g_events.size());
+  TEST_ASSERT_EQUAL(static_cast<int>(Button::kMenu),
+                    static_cast<int>(g_events[1].button));
+  TEST_ASSERT_EQUAL(static_cast<int>(Event::kLongPressMenu),
+                    static_cast<int>(g_events[1].event));
+  // A long-press suppresses the matching kRelease, but a subsequent
+  // press/release should still be observed.
+  g_buttons->SimulateReleaseForTest(Button::kMenu);
+  g_buttons->Tick(25);
+  TEST_ASSERT_EQUAL_size_t(2, g_events.size());
 }
 
 int main(int argc, const char **argv) {
@@ -134,7 +144,7 @@ int main(int argc, const char **argv) {
   RUN_TEST(test_buttons_debounce);
   RUN_TEST(test_buttons_long_press_ptt);
   RUN_TEST(test_buttons_long_press_next);
-  RUN_TEST(test_buttons_prev_no_long_press);
+  RUN_TEST(test_buttons_menu_long_press);
   (void)0;
   UNITY_END();
 }

@@ -10,11 +10,12 @@ if(DEFINED TETHER_M5_HOST_TEST)
   target_include_directories(lora_sx1262_host PUBLIC include)
   target_compile_definitions(lora_sx1262_host PUBLIC TETHER_M5_HOST_TEST=1)
   target_link_libraries(lora_sx1262_host PUBLIC freertos_shim spi_bus_host)
+  target_include_directories(lora_sx1262_host PRIVATE ../board/include)
 elseif(COMMAND idf_component_register)
   idf_component_register(
     SRCS "src/lora_sx1262.cpp"
     INCLUDE_DIRS "include"
-    REQUIRES driver spi_bus RadioLib
+    REQUIRES driver spi_bus RadioLib board
   )
 else()
   message(STATUS

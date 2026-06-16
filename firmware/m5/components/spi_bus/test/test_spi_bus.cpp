@@ -23,8 +23,9 @@ constexpr int kCsLora = 8;
 constexpr int kCsEpd = 9;
 
 tether::m5::SpiBus *MakeBus() {
-  return new tether::m5::SpiBus(SPI2_HOST, GPIO_NUM_11, GPIO_NUM_13,
-                                GPIO_NUM_12);
+  return new tether::m5::SpiBus(
+      SPI2_HOST, tether::m5::board::kPinSpiMosi,
+      tether::m5::board::kPinSpiMiso, tether::m5::board::kPinSpiSck);
 }
 
 } // namespace

@@ -153,10 +153,15 @@ void test_ui_advance_conv_wraps() {
 }
 
 void test_ui_prev_conv_wraps() {
+  // 2-button M5: there is no "previous conversation" button. With
+  // a single conv, wrapping to "the previous one" is a no-op; with
+  // two convs, the previous conv (index 1) is only reachable by
+  // wrapping *forward* twice. This test documents that the
+  // backward-cycle feature is intentionally not implemented.
   g_convs = {MakeConv("A"), MakeConv("B")};
   g_ui->SetConversations(&g_convs);
-  g_ui->OnButtonEvent(Press(Button::kPrev));
-  TEST_ASSERT_EQUAL(1, g_ui->CurrentConvIndex()); // wrapped backwards
+  // (Deleted: kPrev no longer exists. The forward-wrap path is
+  //  covered by test_ui_advance_conv_wraps.)
 }
 
 void test_ui_conv_switch_no_convs() {
@@ -205,10 +210,14 @@ void test_ui_settings_exit_on_ppt_press() {
                     static_cast<int>(g_ui->Screen()));
 }
 
-void test_ui_settings_exit_on_prev_at_top() {
+void test_ui_settings_exit_on_ppt_at_top() {
+  // 2-button M5: at the top of the settings menu, PTT press acts
+  // as the "back / exit" affordance (the v0.1.0 design used a third
+  // "Prev" button that does not exist on the ELECROW hardware —
+  // see AGENTS.md §3.4 and buttons.h).
   g_ui->OnButtonEvent(LongPress(Button::kNext));
-  // Cursor is at 0 (Channel). Pressing C exits.
-  g_ui->OnButtonEvent(Press(Button::kPrev));
+  TEST_ASSERT_TRUE(g_ui->SettingsActive());
+  g_ui->OnButtonEvent(Press(Button::kPtt));
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
 }
 
@@ -225,21 +234,21 @@ void test_ui_settings_navigate_with_next() {
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
 }
 
-void test_ui_volume_change_via_b_c() {
+void test_ui_volume_change_via_b_ppt() {
   g_ui->OnButtonEvent(LongPress(Button::kNext));
   // Advance to the Volume row (3 B presses from cursor=0).
   g_ui->OnButtonEvent(Press(Button::kNext));
   g_ui->OnButtonEvent(Press(Button::kNext));
   g_ui->OnButtonEvent(Press(Button::kNext));
-  // Default volume is 60; B +10 → 70; C -10 → 60.
+  // Default volume is 60; B +10 → 70; PTT -10 → 60.
   uint8_t initial = g_ui->Volume();
   g_ui->OnButtonEvent(Press(Button::kNext));
   TEST_ASSERT_EQUAL(initial + 10, g_ui->Volume());
-  g_ui->OnButtonEvent(Press(Button::kPrev));
+  g_ui->OnButtonEvent(Press(Button::kPtt));
   TEST_ASSERT_EQUAL(initial, g_ui->Volume());
   // Volume clamps at 0 and 100.
   for (int i = 0; i < 20; ++i) {
-    g_ui->OnButtonEvent(Press(Button::kPrev));
+    g_ui->OnButtonEvent(Press(Button::kPtt));
   }
   TEST_ASSERT_EQUAL(0, g_ui->Volume());
   for (int i = 0; i < 20; ++i) {
@@ -253,9 +262,11 @@ void test_ui_volume_change_via_b_c() {
 void test_ui_partial_refresh_counter() {
   g_convs = {MakeConv("A")};
   g_ui->SetConversations(&g_convs);
-  // Force a render: the EPD rate-limiter counts partials.
+  // Force a render: the EPD rate-limiter counts partials. With
+  // 2 buttons we trigger renders via kNext (kPrev no longer
+  // exists on the M5).
   g_ui->OnButtonEvent(Press(Button::kNext));
-  g_ui->OnButtonEvent(Press(Button::kPrev));
+  g_ui->OnButtonEvent(Press(Button::kNext));
   // Two partials, counter should be 2.
   TEST_ASSERT_EQUAL(2, g_ui->PartialRefreshCount());
 }
@@ -269,7 +280,7 @@ void test_ui_full_refresh_after_50_partials() {
   // end (the 51st was a full refresh, not a partial).
   for (int i = 0; i < 25; ++i) {
     g_ui->OnButtonEvent(Press(Button::kNext));
-    g_ui->OnButtonEvent(Press(Button::kPrev));
+    g_ui->OnButtonEvent(Press(Button::kNext));
   }
   // 50 renders. Counter should be 50 after the 50th.
   TEST_ASSERT_EQUAL(50, g_ui->PartialRefreshCount());
@@ -286,7 +297,7 @@ void test_ui_watchdog_blocks_refresh() {
   // The watchdog blocks the render, so the counter stays 0.
   TEST_ASSERT_EQUAL(0, g_ui->PartialRefreshCount());
   g_epd->ClearControllerHangForTest();
-  g_ui->OnButtonEvent(Press(Button::kPrev));
+  g_ui->OnButtonEvent(Press(Button::kNext));
   TEST_ASSERT_EQUAL(1, g_ui->PartialRefreshCount());
 }
 
@@ -297,7 +308,7 @@ void test_ui_render_idle_called_on_idle_state() {
   g_ui->SetConversations(&g_convs);
   // Idle is the default; the render was already issued when
   // SetPtt was called. Verify the EPD captured a bitmap.
-  g_ui->OnButtonEvent(Press(Button::kPrev));
+  g_ui->OnButtonEvent(Press(Button::kNext));
   const uint8_t *last = g_epd->LastPartialBitmap();
   // At least one byte in the bitmap should be non-zero
   // (the border is drawn).
@@ -385,10 +396,12 @@ void test_ui_long_press_next_exits_settings() {
   TEST_ASSERT_FALSE(g_ui->SettingsActive());
 }
 
-void test_ui_settings_prev_navigates_back() {
+void test_ui_settings_ppt_navigates_back() {
+  // 2-button M5: PTT press navigates the settings cursor backwards
+  // (and exits at cursor=0). See AGENTS.md §3.4.
   g_ui->OnButtonEvent(LongPress(Button::kNext));
   g_ui->OnButtonEvent(Press(Button::kNext)); // cursor=1
-  g_ui->OnButtonEvent(Press(Button::kPrev)); // cursor=0
+  g_ui->OnButtonEvent(Press(Button::kPtt));  // cursor=0
   TEST_ASSERT_TRUE(g_ui->SettingsActive());
 }
 
