@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           # Match go/go.mod's required toolchain (go 1.25.0). Without
           # this, the auto-downloaded toolchain is missing the covdata
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
       - name: golangci-lint
@@ -90,7 +90,7 @@ jobs:
           curl -fLO https://github.com/protocolbuffers/protobuf/releases/download/v28.0/$PROTOC_ZIP
           sudo unzip -o $PROTOC_ZIP -d /usr/local
           rm $PROTOC_ZIP
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
       - name: Install pinned protoc-gen-go
