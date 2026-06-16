@@ -46,7 +46,7 @@ jobs:
         with:
           go-version: '1.25'
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           # Use a v2.x release built with Go 1.25. Earlier v2.0.x
           # releases were built with Go 1.24 and refuse to lint
