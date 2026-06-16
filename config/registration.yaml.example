@@ -1,0 +1,25 @@
+# registration.yaml.example — appservice registration for the Tether
+# puppet user. Copy to /etc/tether/registration.yaml and edit the
+# homeserver URL and the shared secret. Pass it to the homeserver
+# admin during the registration step (see docs/INSTALL.md §7).
+#
+# The format is the standard mautrix appservice-registration YAML
+# documented at https://docs.mau.fi/bridges/general/registering-appservices.html
+# Tether only consumes a subset of the fields.
+
+id: "tether"                                      # appservice ID (also the @localpart)
+url: "http://127.0.0.1:8448"                      # where the daemon listens for HS callbacks
+as_token: "<generate-with-a-password-manager>"    # 64+ char random; daemon → homeserver auth
+hs_token: "<generate-with-a-password-manager>"    # 64+ char random; homeserver → daemon auth
+sender_localpart: "tether"                        # puppet @tether:yourserver.tld
+namespaces:
+  users:
+    - exclusive: true
+      regex: "@tether_.*:yourserver\\.tld"        # dynamic puppet users for each Matrix user
+  rooms: []                                       # Tether does not namespace rooms
+  aliases:
+    - exclusive: true
+      regex: "#tether_.*:yourserver\\.tld"        # dynamic room aliases per conversation
+protocols:
+  - "m.inclusive_range_checks"                    # optional, but recommended
+rate_limited: false

@@ -30,6 +30,11 @@ Audio is captured on the M5, compressed with Opus @ 16 kbps, buffered in PSRAM, 
 
 The system supports up to **16 simultaneous conversations** (Matrix rooms and/or Forge sessions), each appearing as a discrete "channel" on the M5 with its own scrollable history. Range is prioritized over speed (custom SF11/BW125/CR 4/8 preset). 2–5 km line-of-sight with stock antennas.
 
+> **→ New here?** Read [`INSTALL.md`](INSTALL.md) for the full setup
+> walkthrough: flashing the M5, flashing the RAK4631, building
+> `tetherd`, configuring Matrix, configuring Forge, and running the
+> end-to-end tests.
+
 ## Operator TUI
 
 The base station runs a Bubbletea-powered TUI that surfaces the live

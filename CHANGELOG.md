@@ -4,6 +4,35 @@ All notable changes to Tether are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.1.1] — 2026-06-16
+
+Post-release cleanup. No code changes; no API changes; no protocol
+changes. Documentation, dependency, and housekeeping only.
+
+### Changed
+
+* **docs: AGENTS.md rewritten for v0.1.0.** The previous AGENTS.md
+  was written when the project had no source code; it described a
+  "planned" repo layout and pointed at a research document for
+  everything. Replaced with an operational guide that documents the
+  actual 16 Go packages, the 20+ M5 components, the real build
+  commands, the 8-job CI matrix, and the gotchas learned during the
+  v0.1.0 CI hardening pass.
+* **docs: new `INSTALL.md` and `config/` directory.** Step-by-step
+  walkthrough for flashing the M5 and RAK4631, building `tetherd`,
+  standing up a Matrix appservice, configuring Forge, and running
+  the three end-to-end test tools. `config/tetherd.toml.example`
+  and `config/registration.yaml.example` provide working templates.
+* **ci: bump `actions/checkout` from v4 to v6** (PR #2).
+* **ci: bump `golangci/golangci-lint-action` from v7 to v9** (PR #3).
+* **ci: bump `actions/setup-python` from v5 to v6** (PR #4).
+* **ci: bump `actions/setup-go` from v5 to v6** (PR #5).
+* housekeeping: deleted the 10 `phase/*` branches locally and on
+  origin now that `main` contains all of the work. Re-anchored the
+  `v0.1.0` tag onto the actual squashed v0.1.0 commit
+  (`459f1e0`); the original tag pointed to a `phase/9-polish` commit
+  that was not reachable from `main` after the squash-merge.
+
 ## [v0.1.0] — 2026-06-15
 
 The first public release. Closes the 9-phase implementation plan in

@@ -1,0 +1,140 @@
+# tetherd.toml.example — main configuration for the Tether base-station
+# daemon. Copy to /etc/tether/tetherd.toml (or wherever TETHER_CONFIG
+# points) and edit. All paths are absolute; relative paths are
+# resolved against the working directory at process start.
+#
+# See docs/INSTALL.md for the full setup walkthrough.
+
+# ── Paths ─────────────────────────────────────────────────────────────
+[paths]
+# Where the on-disk ML models and Piper voices live. Created by
+# scripts/fetch-models.sh.
+models_dir = "/var/lib/tether"
+
+# Per-conversation state. The directory is created at startup if it
+# does not exist. Mount this on persistent storage in production.
+state_dir = "/var/lib/tether/state"
+
+# Where crash logs dumped by the M5 are persisted until upload.
+crash_dir = "/var/lib/tether/crash"
+
+# ── USB serial (RAK4631 bridge) ───────────────────────────────────────
+[serial]
+# Path to the bridge's USB-Serial port. On Linux this is typically
+# /dev/ttyUSB0 or /dev/ttyACM0; on macOS /dev/tty.usbmodem*; on
+# Windows COM3. List devices with `ls /dev/tty*` (Linux/macOS) or
+# Device Manager (Windows).
+port = "/dev/ttyUSB0"
+
+# Baud rate. The bridge firmware is fixed at 921 600 — do not change.
+baud = 921600
+
+# ── Radio ─────────────────────────────────────────────────────────────
+[radio]
+# Frequency in Hz. US915 ISM band. Pick a channel your country
+# allows; the firmware-side default is 915_000_000. See
+# hardware.md for the channel plan.
+frequency_hz = 915_000_000
+
+# The LoRa preset is fixed at SF11 / BW125 / CR 4/8 in the firmware.
+# These values are read-only here as documentation; changing them
+# has no effect on the wire.
+spread_factor = 11
+bandwidth_khz = 125
+coding_rate = "4/8"
+
+# Master AES-128 key for the network. 32 hex chars = 16 bytes.
+# Rotate per-deployment. The M5 must have the same value burned
+# into its NVS at flash time (see docs/INSTALL.md §4.3).
+master_key_hex = "00000000000000000000000000000000"
+
+# ── STT (Parakeet-TDT 0.6B v2) ────────────────────────────────────────
+[stt]
+# Path to the unzipped sherpa-onnx Parakeet model directory. Set up
+# by scripts/fetch-models.sh.
+model_dir = "/var/lib/tether/parakeet-tdt/sherpa-onnx-nemo-transducer-parakeet-tdt-0.6b-v2-int8"
+
+# Decoding provider. "cpu" is the only working option in v0.1.0;
+# "cuda" and "coreml" are v2.
+provider = "cpu"
+
+# Number of CPU threads for decoding. 0 = auto.
+num_threads = 0
+
+# ── TTS (Piper) ───────────────────────────────────────────────────────
+[tts]
+# Absolute path to the piper binary. Do NOT invoke with `nix shell`
+# or `sudo` — piper needs a clean process tree to manage its
+# subprocess pipe.
+piper_binary = "/usr/local/bin/piper"
+
+# Default voice directory (Piper ONNX model + JSON config).
+voice_dir = "/var/lib/tether/piper-voices/en_US-lessac-medium"
+
+# Output sample rate Piper synthesizes at. The M5 hardware plays
+# back at 16 kHz; the audio.Sink resamples as needed.
+sample_rate_hz = 22050
+
+# Hard timeout in seconds for one synthesis request. If piper
+# doesn't respond within this window, the request is killed and
+# the audio frame is dropped (the M5 hears nothing for that reply).
+timeout_s = 30
+
+# ── Audio output ──────────────────────────────────────────────────────
+[audio]
+# Output sink. "pulse" (PulseAudio, Linux), "file" (writes WAV to
+# audio_output_dir, useful for testing), or "vb-cable" (Windows).
+sink = "pulse"
+
+# When sink = "file", write the synthesized audio here as 16-bit
+# PCM mono WAV. The daemon will append a new file per reply.
+audio_output_dir = "/var/lib/tether/audio-out"
+
+# PulseAudio sink name. The default "null" is the null sink (no
+# hardware output, useful for headless base stations). For real
+# playback, use the name of your hardware sink (e.g. "alsa_output"
+# or "default").
+pulse_sink_name = "null"
+
+# ── Matrix (mautrix-go appservice) ────────────────────────────────────
+[matrix]
+# The registration YAML file (see config/registration.yaml.example).
+# Tether acts as an appservice puppet; it cannot read other
+# clients' encrypted messages (E2EE is a v2 feature).
+registration_file = "/etc/tether/registration.yaml"
+
+# Display name for the puppet user.
+displayname = "Tether Bridge"
+
+# Avatar URL (mxc://). Optional.
+# avatar_url = "mxc://example.com/abc123"
+
+# ── Forge (jbutlerdev/forge) ──────────────────────────────────────────
+[forge]
+# Base URL of the forge server. Use http://localhost:8080 for a
+# local forge, or the public host if you have an account.
+base_url = "https://forge.example.com"
+
+# API token. Issue this with the forge admin CLI; paste here.
+api_token = ""
+
+# Optional: default forge profile to use for new sessions.
+# Profiles are forge-side templates (coder, writer, etc).
+default_profile = "coder"
+
+# ── Logging ───────────────────────────────────────────────────────────
+[logging]
+# log/slog level. One of: debug, info, warn, error.
+level = "info"
+
+# "stderr" or "file". If "file", writes to log_file.
+output = "stderr"
+
+# When output = "file":
+# log_file = "/var/log/tether/tetherd.log"
+
+# ── TUI ───────────────────────────────────────────────────────────────
+[tui]
+# Set to false to disable the interactive TUI. Useful in
+# headless/systemd deployments.
+enabled = true
