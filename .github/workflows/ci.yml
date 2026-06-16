@@ -119,6 +119,10 @@ jobs:
         working-directory: firmware/m5
         run: |
           . /opt/esp/idf/export.sh > /dev/null
+          # Set target on first run; the sdkconfig is .gitignored so
+          # a fresh checkout has no target. Subsequent runs are fast
+          # (set-target is a no-op if already configured).
+          idf.py set-target esp32s3
           idf.py build
 
   firmware-test-bridge:

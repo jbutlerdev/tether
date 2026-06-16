@@ -40,7 +40,7 @@ void DebounceTaskEntry(void *arg) {
   }
   vTaskDelete(nullptr);
 }
-}  // namespace
+} // namespace
 
 Buttons::~Buttons() { StopDebounceTask(); }
 
@@ -150,4 +150,4 @@ void Buttons::StopDebounceTask() {
   task_handle_ = nullptr;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

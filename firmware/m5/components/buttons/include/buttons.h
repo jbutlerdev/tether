@@ -132,11 +132,11 @@ private:
   // 3000 ms PTT long-press, 2000 ms Menu long-press.
   uint32_t debounce_ms_ = 10;
   uint32_t long_ptt_ms_ = 3000;
-  uint32_t long_next_ms_ = 2000;  // alias for "long menu"
+  uint32_t long_next_ms_ = 2000; // alias for "long menu"
 
   uint32_t now_ms_ = 0;
   bool task_running_ = false;
   TaskHandle_t task_handle_ = nullptr;
 };
 
-}  // namespace tether::m5
+} // namespace tether::m5

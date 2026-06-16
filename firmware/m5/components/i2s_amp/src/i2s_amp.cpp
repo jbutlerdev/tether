@@ -36,7 +36,7 @@ constexpr int kAmpVolume = 8000; // peak amplitude
 // (the M5 has exactly one I2S TX port for the amp).
 i2s_chan_handle_t g_tx_handle = nullptr;
 #endif
-}  // namespace
+} // namespace
 
 bool I2SAmp::Init() {
 #ifdef TETHER_M5_HOST_TEST
@@ -133,8 +133,7 @@ size_t I2SAmp::ReadSamples(int16_t *out, size_t max_samples) {
   // (shouldn't happen at 8 kHz with 4×256-frame buffers) we drop.
   if (g_tx_handle && i > 0) {
     size_t bytes_written = 0;
-    i2s_channel_write(g_tx_handle, out, i * sizeof(int16_t),
-                      &bytes_written, 0);
+    i2s_channel_write(g_tx_handle, out, i * sizeof(int16_t), &bytes_written, 0);
   }
 #endif
   return i;
@@ -145,4 +144,4 @@ void I2SAmp::ResetForTest() {
   total_samples_ = 0;
 }
 
-}  // namespace tether::m5
+} // namespace tether::m5

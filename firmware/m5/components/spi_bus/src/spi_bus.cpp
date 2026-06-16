@@ -15,8 +15,8 @@
 
 #include <stdexcept>
 
-#include "esp_log.h"
 #include "board.h"
+#include "esp_log.h"
 
 namespace tether::m5 {
 
