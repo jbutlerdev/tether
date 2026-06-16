@@ -12,7 +12,7 @@ jobs:
     container:
       image: espressif/idf:v5.2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Source ESP-IDF environment and build
@@ -25,7 +25,7 @@ jobs:
     name: bridge-platformio-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install PlatformIO
         run: |
           python3 -m pip install --upgrade pip
