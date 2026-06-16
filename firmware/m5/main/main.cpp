@@ -21,13 +21,13 @@
 #include "freertos/task.h"
 
 #include "audio_capture.h"
+#include "board.h"
 #include "buttons.h"
 #include "conv_db.h"
 #include "conv_manager.h"
 #include "i2s_amp.h"
 #include "i2s_mic.h"
 #include "lora_sx1262.h"
-#include "board.h"
 #include "opus_enc.h"
 #include "power_mgmt.h"
 #include "psram_ring.h"
@@ -60,9 +60,9 @@ extern "C" void app_main(void) {
   // Pin map is in board.h; SCK/MOSI/MISO are 16/15/7 per the
   // meshtastic variant.h. CS pins below match the M5's wiring:
   // SD card on GPIO 10, SX1262 on GPIO 17.
-  static tether::m5::SpiBus bus(
-      SPI2_HOST, tether::m5::board::kPinSpiMosi,
-      tether::m5::board::kPinSpiMiso, tether::m5::board::kPinSpiSck);
+  static tether::m5::SpiBus bus(SPI2_HOST, tether::m5::board::kPinSpiMosi,
+                                tether::m5::board::kPinSpiMiso,
+                                tether::m5::board::kPinSpiSck);
   bus.AddDevice(/*SD_CS=*/tether::m5::board::kPinSdCs, 20'000'000);
   bus.AddDevice(/*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
 

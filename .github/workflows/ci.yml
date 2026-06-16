@@ -105,7 +105,7 @@ jobs:
     name: firmware-build-m5
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v5.2
+      image: espressif/idf:v5.2.2
     steps:
       - uses: actions/checkout@v6
         with:

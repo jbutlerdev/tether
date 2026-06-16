@@ -6,6 +6,15 @@
 // on real hardware; we are porting their pin map onto a different
 // firmware.
 //
+// ESP-IDF version: v5.2.2 (CI is pinned to this exact tag in
+// .github/workflows/{ci.yml,firmware-build.yml}). GPIO 40–48 are
+// only defined in soc/esp32s3/include/soc/gpio_num.h starting in
+// v5.2.2; earlier v5.2.x patches (v5.2.0, v5.2.1) only define up to
+// GPIO_NUM_39. The M5 needs GPIO 40 (EPD DC), 41 (EPD RES), 42 (EPD
+// BUSY), 43 (UART1 TX), 44 (UART1 RX), 45 (EPD MOSI), 46 (LoRa
+// POWER_EN), 47 (I2S1 WS), and 48 (I2S1 BCLK) — all of which are
+// invalid on older patches.
+//
 // If you change a pin here, change it in the meshtastic file too (or
 // at least, verify against the M5 schematic — pins on the M5 PCB are
 // not all freely remappable: LoRa RESET, BUSY, and the EPD's DIO are
@@ -20,25 +29,25 @@ namespace tether::m5::board {
 // ── LoRa SX1262 ──────────────────────────────────────────────────────
 //
 // The M5's onboard SX1262 has fixed wiring. Don't move these.
-constexpr gpio_num_t kPinLoraCs      = GPIO_NUM_17;  // SPI CS
-constexpr gpio_num_t kPinLoraSck     = GPIO_NUM_16;  // SPI SCK (shared bus)
-constexpr gpio_num_t kPinLoraMosi    = GPIO_NUM_15;  // SPI MOSI (shared bus)
-constexpr gpio_num_t kPinLoraMiso    = GPIO_NUM_7;   // SPI MISO (shared bus)
-constexpr gpio_num_t kPinLoraReset   = GPIO_NUM_6;
-constexpr gpio_num_t kPinLoraBusy    = GPIO_NUM_5;
-constexpr gpio_num_t kPinLoraDio1    = GPIO_NUM_4;
+constexpr gpio_num_t kPinLoraCs = GPIO_NUM_17;   // SPI CS
+constexpr gpio_num_t kPinLoraSck = GPIO_NUM_16;  // SPI SCK (shared bus)
+constexpr gpio_num_t kPinLoraMosi = GPIO_NUM_15; // SPI MOSI (shared bus)
+constexpr gpio_num_t kPinLoraMiso = GPIO_NUM_7;  // SPI MISO (shared bus)
+constexpr gpio_num_t kPinLoraReset = GPIO_NUM_6;
+constexpr gpio_num_t kPinLoraBusy = GPIO_NUM_5;
+constexpr gpio_num_t kPinLoraDio1 = GPIO_NUM_4;
 constexpr gpio_num_t kPinLoraPowerEn = GPIO_NUM_46;
 
 // ── Shared SPI bus (LoRa + EPD + SD) ─────────────────────────────────
-constexpr gpio_num_t kPinSpiSck  = kPinLoraSck;   // GPIO 16
-constexpr gpio_num_t kPinSpiMosi = kPinLoraMosi;  // GPIO 15
-constexpr gpio_num_t kPinSpiMiso = kPinLoraMiso;  // GPIO 7
+constexpr gpio_num_t kPinSpiSck = kPinLoraSck;   // GPIO 16
+constexpr gpio_num_t kPinSpiMosi = kPinLoraMosi; // GPIO 15
+constexpr gpio_num_t kPinSpiMiso = kPinLoraMiso; // GPIO 7
 
 // ── EPD (1.54″) ──────────────────────────────────────────────────────
-constexpr gpio_num_t kPinEpdCs   = GPIO_NUM_39;
+constexpr gpio_num_t kPinEpdCs = GPIO_NUM_39;
 constexpr gpio_num_t kPinEpdBusy = GPIO_NUM_42;
-constexpr gpio_num_t kPinEpdDc   = GPIO_NUM_40;
-constexpr gpio_num_t kPinEpdRes  = GPIO_NUM_41;
+constexpr gpio_num_t kPinEpdDc = GPIO_NUM_40;
+constexpr gpio_num_t kPinEpdRes = GPIO_NUM_41;
 constexpr gpio_num_t kPinEpdSclk = GPIO_NUM_38;
 constexpr gpio_num_t kPinEpdMosi = GPIO_NUM_45;
 
@@ -57,9 +66,9 @@ constexpr gpio_num_t kPinSdCs = GPIO_NUM_10;
 // system architect specifically because the LoRa/EPD/SD pins above
 // don't reach the right edge and the L76K GPS module only uses the
 // left side.
-constexpr gpio_num_t kPinI2s0Ws   = GPIO_NUM_35;  // Word Select
-constexpr gpio_num_t kPinI2s0Bclk = GPIO_NUM_36;  // Bit Clock
-constexpr gpio_num_t kPinI2s0Din  = GPIO_NUM_37;  // Data In (from mic)
+constexpr gpio_num_t kPinI2s0Ws = GPIO_NUM_35;   // Word Select
+constexpr gpio_num_t kPinI2s0Bclk = GPIO_NUM_36; // Bit Clock
+constexpr gpio_num_t kPinI2s0Din = GPIO_NUM_37;  // Data In (from mic)
 
 // ── I2S1 — MAX98357A amplifier (split configuration) ────────────────
 //
@@ -76,14 +85,14 @@ constexpr gpio_num_t kPinI2s0Din  = GPIO_NUM_37;  // Data In (from mic)
 // PCA9557 GPIO expander, but Tether does not need the PCA9557
 // (no Meshtastic-style LED notifications, no Meshtastic-style
 // power rail control), so we can reuse 47/48 for I2S1.
-constexpr gpio_num_t kPinI2s1Ws   = GPIO_NUM_47;  // Word Select (= "LRC")
-constexpr gpio_num_t kPinI2s1Bclk = GPIO_NUM_48;  // Bit Clock
-constexpr gpio_num_t kPinI2s1Dout = GPIO_NUM_18;  // Data Out (to amp)
+constexpr gpio_num_t kPinI2s1Ws = GPIO_NUM_47;   // Word Select (= "LRC")
+constexpr gpio_num_t kPinI2s1Bclk = GPIO_NUM_48; // Bit Clock
+constexpr gpio_num_t kPinI2s1Dout = GPIO_NUM_18; // Data Out (to amp)
 
 // ── Buttons (the M5 has exactly two; see §buttons below) ─────────────
-constexpr gpio_num_t kPinButtonPtt  = GPIO_NUM_21;  // PIN_BUTTON1
-constexpr gpio_num_t kPinButtonMenu = GPIO_NUM_14;  // PIN_BUTTON2
-constexpr uint32_t  kButtonActiveLow = 0;          // GPIO low = pressed
+constexpr gpio_num_t kPinButtonPtt = GPIO_NUM_21;  // PIN_BUTTON1
+constexpr gpio_num_t kPinButtonMenu = GPIO_NUM_14; // PIN_BUTTON2
+constexpr uint32_t kButtonActiveLow = 0;           // GPIO low = pressed
 
 // ── GPS switch (NOT a button; senses the GPS toggle's position) ──────
 //
@@ -92,13 +101,13 @@ constexpr uint32_t  kButtonActiveLow = 0;          // GPIO low = pressed
 // (GPS_SWITH in the meshtastic variant, note the typo). Tether does
 // not use the GPS, but we leave this constant defined so future
 // code can detect the switch's position.
-constexpr gpio_num_t kPinGpsSwitch = GPIO_NUM_10;   // input, 1 = GPS on
+constexpr gpio_num_t kPinGpsSwitch = GPIO_NUM_10; // input, 1 = GPS on
 
 // ── Power / battery / buzzer ─────────────────────────────────────────
-constexpr gpio_num_t kPinBatteryAdc     = GPIO_NUM_8;
-constexpr gpio_num_t kPinExtPwrDetect   = GPIO_NUM_12;
-constexpr gpio_num_t kPinBuzzer         = GPIO_NUM_9;
-constexpr gpio_num_t kPinLedBlue        = GPIO_NUM_NC;  // on PCA9557, not used
+constexpr gpio_num_t kPinBatteryAdc = GPIO_NUM_8;
+constexpr gpio_num_t kPinExtPwrDetect = GPIO_NUM_12;
+constexpr gpio_num_t kPinBuzzer = GPIO_NUM_9;
+constexpr gpio_num_t kPinLedBlue = GPIO_NUM_NC; // on PCA9557, not used
 
 // ── USB-Serial (RAK4631 bridge on the M5) ───────────────────────────
 //
@@ -110,4 +119,4 @@ constexpr gpio_num_t kPinLedBlue        = GPIO_NUM_NC;  // on PCA9557, not used
 constexpr gpio_num_t kPinUartTx = GPIO_NUM_43;
 constexpr gpio_num_t kPinUartRx = GPIO_NUM_44;
 
-}  // namespace tether::m5::board
+} // namespace tether::m5::board
