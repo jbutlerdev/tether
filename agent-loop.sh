@@ -74,9 +74,9 @@ declare -A PHASE_TEST_CMDS=(
 declare -A PHASE_REVIEW_CMDS=(
     [0]="(cd go && gofmt -l . && go vet ./... 2>&1) || true"
     [1]="(cd go && gofmt -l . && go vet ./... && test ! -s cov.out && bash scripts/cover.sh cov.out 80 2>&1) || true"
-    [2]="(cd firmware/bridge && find . -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror 2>&1) || true"
-    [3]="(cd firmware/m5 && find . -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror 2>&1) || true"
-    [4]="(cd firmware/m5 && find . -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror 2>&1) || true"
+    [2]="(cd firmware/bridge && find . -type d -name '.pio' -prune -o \( -name '*.cpp' -o -name '*.h' \) -print | xargs clang-format --dry-run --Werror 2>&1) || true"
+    [3]="(cd firmware/m5 && find . -type d -name 'build' -prune -o -type d -name '.pio' -prune -o \( -name '*.cpp' -o -name '*.h' \) -print | xargs clang-format --dry-run --Werror 2>&1) || true"
+    [4]="(cd firmware/m5 && find . -type d -name 'build' -prune -o -type d -name '.pio' -prune -o \( -name '*.cpp' -o -name '*.h' \) -print | xargs clang-format --dry-run --Werror 2>&1) || true"
     [5]="(cd go && gofmt -l . && go vet ./... && bash scripts/cover.sh cov.out 80 2>&1) || true"
     [6]="(cd go && gofmt -l . && go vet ./... && bash scripts/cover.sh cov.out 80 2>&1) || true"
     [7]="(cd go && gofmt -l . && go vet ./... && bash scripts/cover.sh cov.out 80 2>&1) || true"
@@ -572,6 +572,22 @@ run_phase() {
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
+
+# Activate ESP-IDF if it is installed but not already on PATH. The Docker
+# dev image adds it to PATH at build time, but the local agent host (and
+# any non-Docker CI runner) must source the IDF export script. We try the
+# standard locations in order; first match wins. No-op if idf.py is
+# already callable or no IDF is installed.
+if ! command -v idf.py >/dev/null 2>&1; then
+    for _idf_dir in /tmp/esp-idf /opt/esp-idf "$HOME/esp/esp-idf"; do
+        if [ -f "$_idf_dir/export.sh" ]; then
+            # shellcheck disable=SC1090
+            . "$_idf_dir/export.sh" >/dev/null 2>&1 || true
+            break
+        fi
+    done
+    unset _idf_dir
+fi
 
 acquire_lock
 ensure_state_file

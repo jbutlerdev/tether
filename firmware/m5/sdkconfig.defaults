@@ -1,0 +1,18 @@
+# ESP32-S3 defaults for the Tether M5 firmware.
+# See plan.md §1.1.
+CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240=y
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP_TASK_WDT_EN=y
+
+# C++ exceptions are required by spi_bus and psram_ring components
+# (std::runtime_error / std::invalid_argument). ESP-IDF disables
+# them by default; we re-enable here.
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+
+# I2S legacy driver (driver/i2s.h) is deprecated in IDF 5.2+. The
+# new APIs (driver/i2s_std.h) are preferred. Components migrated
+# in this commit; the suppression is here as a safety net for
+# downstream code.
+CONFIG_I2S_SUPPRESS_DEPRECATE_WARN=y

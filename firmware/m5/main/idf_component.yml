@@ -1,0 +1,13 @@
+## Component manifest for the Tether M5 firmware.
+## See plan.md §1.1.
+##
+## Phase 3 build host (this dev container) does not have internet
+## access to the Espressif component registry, so we vendor minimal
+## stubs of micro-opus, jgromes/RadioLib, and esp_littlefs in
+## components/3rdparty/ and point the build at those.
+##
+## For production builds on a connected host, restore the public
+## registry URLs:
+##   esphome/micro-opus: "^1.0.0"
+##   jgromes/RadioLib: "^6.0.0"
+##   espressif/littlefs: "^1.0.0"

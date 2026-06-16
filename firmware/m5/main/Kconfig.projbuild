@@ -1,0 +1,9 @@
+menu "Tether"
+    # Suppress the I2S legacy driver deprecation warning. The new
+    # driver (driver/i2s_std.h) is preferred for new code, but the
+    # legacy APIs are still supported and adequate for the M5
+    # (which uses a single INMP441 / MAX98357A pair).
+    config I2S_SUPPRESS_DEPRECATE_WARN
+        bool "Suppress I2S legacy driver deprecation warning"
+        default y
+endmenu

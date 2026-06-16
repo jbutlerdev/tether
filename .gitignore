@@ -1,3 +1,37 @@
+# Tether repository .gitignore. See plan.md §1.1.
+
+# ── Build artefacts ──────────────────────────────────────────────────────
+build/
+node_modules/
+*.bin
+*.elf
+*.map
+.pio/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+# ── Coverage ─────────────────────────────────────────────────────────────
+coverage/
+cover.out
+*.cover.out
+*.coverprofile
+
+# ── Generated proto code (intentionally committed; do not ignore) ───────
+# go/pkg/protocol/protocolpb/*.pb.go is committed on purpose so that
+# builds do not require protoc locally.
+
+# ── Agent loop state ────────────────────────────────────────────────────
 .phase-state
 logs/
 .agent-loop.lock
+
+# ── OS / editor noise ───────────────────────────────────────────────────
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+cov.out
+go/forge.cov
+go/cli.cov
