@@ -29,7 +29,6 @@
 #include "i2s_mic.h"
 #include "lora_sx1262.h"
 #include "opus_enc.h"
-#include "pca9557.h"
 #include "power_mgmt.h"
 #include "psram_ring.h"
 #include "ptt.h"
@@ -39,6 +38,18 @@
 #include "storage_flush.h"
 #include "ui_state.h"
 #include "watchdog.h"
+
+// Variant-specific display + I/O-expander components. The M5 has a
+// 1.54" EPD (epd component) + a PCA9557 I/O expander; the MVSR has a
+// 0.96" SSD1306 OLED (ssd1306 component) and no expander. Each is
+// only compiled into the matching variant's build (see main/
+// CMakeLists.txt), so the include is gated on the Kconfig choice.
+#if defined(CONFIG_TETHER_BOARD_T3S3_MVSR)
+#include "ssd1306.h"
+#else
+#include "epd.h"
+#include "pca9557.h"
+#endif
 
 namespace {
 constexpr char kTag[] = "tether.main";
@@ -57,21 +68,20 @@ extern "C" void app_main(void) {
     ESP_LOGE(kTag, "SD mount failed; continuing without storage");
   }
 
-  // 3. Initialize the SPI bus singleton.
-  // Pin map is in board.h; SCK/MOSI/MISO are 16/15/7 per the
-  // meshtastic variant.h. CS pins below match the M5's wiring:
-  // SD card on GPIO 10, SX1262 on GPIO 17.
-  static tether::m5::SpiBus bus(SPI2_HOST, tether::m5::board::kPinSpiMosi,
-                                tether::m5::board::kPinSpiMiso,
-                                tether::m5::board::kPinSpiSck);
-  bus.AddDevice(/*SD_CS=*/tether::m5::board::kPinSdCs, 20'000'000);
-  bus.AddDevice(/*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
+  // 3. Initialize the SPI bus(es) via the singletons. Bus() is the
+  //    LoRa bus (SPI2 on both variants); SdBus() is the SD bus — the
+  //    same instance as Bus() on the M5 (shared bus), a separate
+  //    SPI3 instance on the MVSR. Components (lora_sx1262, sd_card)
+  //    use the same singletons, so the bus + mutex are consistent.
+  Bus().AddDevice(/*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
+  SdBus().AddDevice(/*SD_CS=*/tether::m5::board::kPinSdCs, 20'000'000);
 
-  // 4. I2S mic / amp.
-  // Pin assignments are in board.h. The mic and amp share a single
-  // I2S0 bus in full-duplex mode (same BCLK and WS, separate data
-  // lines). This requires the two hardware mods documented in
-  // docs/HARDWARE-MODS.md (GPS removal + buzzer removal).
+  // 4. I2S mic / amp. The mic and amp share a single I2S0 bus on
+  //    the M5 (full-duplex, same BCLK/WS) and are on separate
+  //    peripherals on the MVSR (I2S0 mic, I2S1 amp). The M5 path
+  //    requires the two hardware mods (docs/HARDWARE-MODS.md); the
+  //    MVSR path needs no mod. The port + interface come from
+  //    board.h, so this code is identical across variants.
   static tether::m5::I2SMic mic;
   if (!mic.Init()) {
     ESP_LOGE(kTag, "i2s_mic init failed; PTT will record silence");
@@ -81,15 +91,30 @@ extern "C" void app_main(void) {
     ESP_LOGE(kTag, "i2s_amp init failed; no audio feedback");
   }
 
-  // 4b. PCA9557 I/O expander (Wire1 on GPIO 47/48). Drives the
-  // blue notification LED, the red power LED, the LED power rail,
-  // the e-ink backlight, and the master peripheral power rail.
-  // The master power rail MUST be on at boot, which is the
-  // default after Init().
-  static tether::m5::Pca9557 pca;
-  if (!pca.Init()) {
-    ESP_LOGE(kTag, "pca9557 init failed; LEDs/peripherals may be off");
+  // 4b. Display + I/O expander (variant-specific). The M5 has a
+  //     PCA9557 I/O expander (LEDs, e-ink backlight, master power
+  //     rail) and a 1.54" EPD; the MVSR has a direct-GPIO LED and a
+  //     0.96" SSD1306 OLED, no expander. Gated on kHasPca9557 /
+  //     kDisplayKind so the dead branch is eliminated per variant.
+  if constexpr (tether::m5::board::kHasPca9557) {
+    static tether::m5::Pca9557 pca;
+    if (!pca.Init()) {
+      ESP_LOGE(kTag, "pca9557 init failed; LEDs/peripherals may be off");
+    }
   }
+#if defined(CONFIG_TETHER_BOARD_T3S3_MVSR)
+  static tether::m5::Ssd1306 display;
+  if (display.Init()) {
+    display.RenderBootScreen();
+    display.Flush();
+  } else {
+    ESP_LOGE(kTag, "ssd1306 init failed; no display");
+  }
+#else
+  // EPD init is wired in Phase 4 (the epd component's controller).
+  // The M5 build links the epd component; placeholder here.
+  (void)0;
+#endif
 
   // 5. PSRAM ring buffer (shared by audio_capture and storage_flush).
   // We allocate a 32 KB ring in PSRAM. Two consumers, so we use the

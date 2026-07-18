@@ -1,18 +1,19 @@
-// i2s_amp.cpp — Tether M5 I2S amplifier with tone generator.
+// i2s_amp.cpp — Tether I2S amplifier with tone generator.
 //
 // On real hardware this drives a MAX98357A class-D amp over I2S TX
-// at 8 kHz, 16-bit, mono. The amp shares the I2S0 bus with the mic
-// (i2s_mic) in full-duplex mode: the same BCLK and WS signals
-// drive both, with the mic on the DIN line and the amp on the DOUT
-// line. See board.h::kPinI2s* for the pin map and the two
-// hardware mods that are required to free GPIO 9 (buzzer) and
-// GPIO 19/20 (GPS module).
+// at 8 kHz, 16-bit, mono. Two topologies are supported, selected by
+// board.h::kI2sAmpPort:
 //
-// The I2S0 peripheral is initialized in shared full-duplex mode by
-// I2SAmp::Init() or I2SMic::Init() — whichever runs first. The
-// first Init() creates the channel handles (tx_handle, rx_handle)
-// and stashes them in g_i2s_tx_handle / g_i2s_rx_handle. The
-// second Init() is a no-op once those globals are set.
+//   - SHARED bus (M5, kI2sAmpPort == kI2sMicPort == I2S_NUM_0): the
+//     amp shares I2S0 with the mic in full-duplex mode. Whichever
+//     Init() runs first creates the tx+rx channel pair (stored in
+//     g_i2s_tx_handle / g_i2s_rx_handle); the second is a no-op.
+//
+//   - SEPARATE bus (MVSR, kI2sAmpPort == I2S_NUM_1): the amp owns its
+//     own TX-only channel on I2S1 using the dedicated amp pins
+//     (kPinAmpBclk/Ws/Dout). The mic owns I2S0 independently.
+//
+// See board.h and docs/VARIANTS.md.
 
 #include "i2s_amp.h"
 
@@ -38,33 +39,93 @@ constexpr int kAmpVolume = 8000; // peak amplitude
 } // namespace
 
 #ifndef TETHER_M5_HOST_TEST
-// I2S0 channel handles for full-duplex audio. Owned by whichever
-// component's Init() runs first. External linkage so i2s_mic.cpp
-// can declare them extern. The first Init() to run creates them;
-// the second is a no-op once the globals are non-null.
+// Shared I2S channel handles for the M5's full-duplex bus. Owned by
+// whichever component's Init() runs first; declared extern in
+// i2s_mic.cpp. On the MVSR (separate buses) g_i2s_tx_handle is unused
+// — the amp owns s_amp_tx_handle on I2S1 instead.
 i2s_chan_handle_t g_i2s_tx_handle = nullptr;
 i2s_chan_handle_t g_i2s_rx_handle = nullptr;
+// Standalone TX handle for the non-shared variants (MVSR).
+static i2s_chan_handle_t s_amp_tx_handle = nullptr;
 #endif
 
 bool I2SAmp::Init() {
 #ifdef TETHER_M5_HOST_TEST
   return true;
 #else
-  if (g_i2s_tx_handle) {
-    return true; // Already initialized.
+  // ── Shared full-duplex bus (M5): reuse the shared handle pair. ──
+  if constexpr (board::kI2sAmpPort == board::kI2sMicPort) {
+    if (g_i2s_tx_handle) {
+      return true; // Already initialized.
+    }
+    i2s_chan_config_t chan_cfg = {};
+    chan_cfg.id = static_cast<i2s_port_t>(board::kI2sAmpPort);
+    chan_cfg.role = I2S_ROLE_MASTER;
+    chan_cfg.dma_desc_num = 4;
+    chan_cfg.dma_frame_num = 256;
+    chan_cfg.auto_clear = true;
+    esp_err_t err =
+        i2s_new_channel(&chan_cfg, &g_i2s_tx_handle, &g_i2s_rx_handle);
+    if (err != ESP_OK) {
+      ESP_LOGE(kTag, "i2s_new_channel: %d", err);
+      return false;
+    }
+    i2s_std_config_t std_cfg = {};
+    std_cfg.clk_cfg.sample_rate_hz = 8000;
+    std_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
+    std_cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
+    std_cfg.slot_cfg.data_bit_width = I2S_DATA_BIT_WIDTH_16BIT;
+    std_cfg.slot_cfg.slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO;
+    std_cfg.slot_cfg.slot_mode = I2S_SLOT_MODE_MONO;
+    std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;
+    std_cfg.slot_cfg.ws_width = 16;
+    std_cfg.slot_cfg.ws_pol = false;
+    std_cfg.slot_cfg.bit_shift = true;
+    std_cfg.gpio_cfg.bclk = board::kPinI2sBclk;
+    std_cfg.gpio_cfg.ws = board::kPinI2sWs;
+    std_cfg.gpio_cfg.dout = board::kPinI2sDout;
+    std_cfg.gpio_cfg.din = board::kPinI2sDin;
+    std_cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
+    std_cfg.gpio_cfg.invert_flags.mclk_inv = false;
+    std_cfg.gpio_cfg.invert_flags.bclk_inv = false;
+    std_cfg.gpio_cfg.invert_flags.ws_inv = false;
+    err = i2s_channel_init_std_mode(g_i2s_tx_handle, &std_cfg);
+    if (err != ESP_OK) {
+      ESP_LOGE(kTag, "i2s_channel_init_std_mode(tx): %d", err);
+      return false;
+    }
+    err = i2s_channel_init_std_mode(g_i2s_rx_handle, &std_cfg);
+    if (err != ESP_OK) {
+      ESP_LOGE(kTag, "i2s_channel_init_std_mode(rx): %d", err);
+      return false;
+    }
+    err = i2s_channel_enable(g_i2s_tx_handle);
+    if (err != ESP_OK) {
+      ESP_LOGE(kTag, "i2s_channel_enable(tx): %d", err);
+      return false;
+    }
+    err = i2s_channel_enable(g_i2s_rx_handle);
+    if (err != ESP_OK) {
+      ESP_LOGE(kTag, "i2s_channel_enable(rx): %d", err);
+      return false;
+    }
+    return true;
   }
-  // Full-duplex I2S0 init. See i2s_mic.cpp for the same call; the
-  // first Init() to run creates the handles, the second is a no-op.
+
+  // ── Separate bus (MVSR): own the TX handle on kI2sAmpPort. ──────
+  if (s_amp_tx_handle) {
+    return true;
+  }
   i2s_chan_config_t chan_cfg = {};
-  chan_cfg.id = I2S_NUM_0;
+  chan_cfg.id = static_cast<i2s_port_t>(board::kI2sAmpPort);
   chan_cfg.role = I2S_ROLE_MASTER;
   chan_cfg.dma_desc_num = 4;
   chan_cfg.dma_frame_num = 256;
   chan_cfg.auto_clear = true;
-  esp_err_t err =
-      i2s_new_channel(&chan_cfg, &g_i2s_tx_handle, &g_i2s_rx_handle);
+  // TX-only channel (the mic owns its own RX channel on kI2sMicPort).
+  esp_err_t err = i2s_new_channel(&chan_cfg, &s_amp_tx_handle, nullptr);
   if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_new_channel: %d", err);
+    ESP_LOGE(kTag, "i2s_new_channel(tx-only): %d", err);
     return false;
   }
   i2s_std_config_t std_cfg = {};
@@ -78,32 +139,23 @@ bool I2SAmp::Init() {
   std_cfg.slot_cfg.ws_width = 16;
   std_cfg.slot_cfg.ws_pol = false;
   std_cfg.slot_cfg.bit_shift = true;
-  std_cfg.gpio_cfg.bclk = board::kPinI2sBclk;
-  std_cfg.gpio_cfg.ws = board::kPinI2sWs;
-  std_cfg.gpio_cfg.dout = board::kPinI2sDout; // amp DIN
-  std_cfg.gpio_cfg.din = board::kPinI2sDin;   // mic SD (shared bus)
+  // MVSR amp pins (MAX98357A on I2S1).
+  std_cfg.gpio_cfg.bclk = board::kPinAmpBclk;
+  std_cfg.gpio_cfg.ws = board::kPinAmpWs;
+  std_cfg.gpio_cfg.dout = board::kPinAmpDout;
+  std_cfg.gpio_cfg.din = I2S_GPIO_UNUSED; // TX-only
   std_cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
   std_cfg.gpio_cfg.invert_flags.mclk_inv = false;
   std_cfg.gpio_cfg.invert_flags.bclk_inv = false;
   std_cfg.gpio_cfg.invert_flags.ws_inv = false;
-  err = i2s_channel_init_std_mode(g_i2s_tx_handle, &std_cfg);
+  err = i2s_channel_init_std_mode(s_amp_tx_handle, &std_cfg);
   if (err != ESP_OK) {
     ESP_LOGE(kTag, "i2s_channel_init_std_mode(tx): %d", err);
     return false;
   }
-  err = i2s_channel_init_std_mode(g_i2s_rx_handle, &std_cfg);
-  if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_channel_init_std_mode(rx): %d", err);
-    return false;
-  }
-  err = i2s_channel_enable(g_i2s_tx_handle);
+  err = i2s_channel_enable(s_amp_tx_handle);
   if (err != ESP_OK) {
     ESP_LOGE(kTag, "i2s_channel_enable(tx): %d", err);
-    return false;
-  }
-  err = i2s_channel_enable(g_i2s_rx_handle);
-  if (err != ESP_OK) {
-    ESP_LOGE(kTag, "i2s_channel_enable(rx): %d", err);
     return false;
   }
   return true;
@@ -146,10 +198,12 @@ size_t I2SAmp::ReadSamples(int16_t *out, size_t max_samples) {
   // On real hardware, push the synthesized samples into the I2S DMA
   // buffer. Non-blocking write; if the DMA is full (shouldn't
   // happen at 8 kHz with 4×256-frame buffers) we drop.
-  if (g_i2s_tx_handle && i > 0) {
+  i2s_chan_handle_t tx = (board::kI2sAmpPort == board::kI2sMicPort)
+                             ? g_i2s_tx_handle
+                             : s_amp_tx_handle;
+  if (tx && i > 0) {
     size_t bytes_written = 0;
-    i2s_channel_write(g_i2s_tx_handle, out, i * sizeof(int16_t), &bytes_written,
-                      0);
+    i2s_channel_write(tx, out, i * sizeof(int16_t), &bytes_written, 0);
   }
 #endif
   return i;

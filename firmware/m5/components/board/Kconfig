@@ -1,0 +1,31 @@
+# board/Kconfig — Tether board variant selection.
+#
+# ESP-IDF auto-discovers this Kconfig and merges it into menuconfig.
+# The choice selects exactly one hardware variant; the selected
+# CONFIG_TETHER_BOARD_* define is consumed by board/include/board.h
+# to include the right pin map. See docs/VARIANTS.md.
+
+menu "Tether board variant"
+    choice TETHER_BOARD
+        prompt "Target board"
+        default TETHER_BOARD_M5
+        help
+            Select the hardware variant the firmware is built for.
+            Each variant has its own pin map in board/include/board_<name>.h.
+            See docs/VARIANTS.md for the wiring and hardware-mod requirements.
+
+        config TETHER_BOARD_M5
+            bool "ThinkNode M5 (ELECROW)"
+            help
+                The ELECROW ThinkNode M5 (ESP32-S3 + SX1262 + 1.54" EPD).
+                Requires the GPS-removal + buzzer-removal hardware mods
+                (see docs/HARDWARE-MODS.md) before the audio path works.
+
+        config TETHER_BOARD_T3S3_MVSR
+            bool "LilyGO T3-S3 MVSR"
+            help
+                The LilyGO T3-S3 V1.2 + MVSR backplate (ESP32-S3 + SX1262
+                + 0.96" SSD1306 OLED). No hardware mod required. Needs an
+                external PTT button wired to GPIO 4 (see docs/VARIANTS.md).
+    endchoice
+endmenu

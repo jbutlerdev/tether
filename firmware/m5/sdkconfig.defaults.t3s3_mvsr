@@ -1,0 +1,24 @@
+# sdkconfig.defaults.t3s3_mvsr — overrides for the LilyGO T3-S3 MVSR.
+#
+# Build with: idf.py set-target esp32s3 && idf.py \
+#   -DSDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.t3s3_mvsr \
+#   build
+#
+# (CI passes SDKCONFIG_DEFAULTS to select this file; see
+# .github/workflows/firmware-build.yml's m5-esp-idf-build job.)
+#
+# The T3-S3 module uses QUAD (QSPI) flash + PSRAM, not octal. The
+# M5's sdkconfig.defaults sets CONFIG_SPIRAM_MODE_OCT=y; the MVSR
+# must use QUAD or GPIO 33–37 (used for LoRa DIO1/BUSY, mic EN, LED)
+# crash the flash/PSRAM controller. See board_t3s3_mvsr.h.
+
+# Select the MVSR board variant (consumed by board/include/board.h).
+CONFIG_TETHER_BOARD_T3S3_MVSR=y
+
+# Quad (QSPI) PSRAM — the T3-S3 module is QSPI, not OPI.
+CONFIG_SPIRAM_MODE_QUAD=y
+# CONFIG_SPIRAM_MODE_OCT is not set
+
+# The T3-S3 module is ESP32-S3-WROOM-1 with 8 MB flash + 8 MB PSRAM
+# (matches the M5's N16R8, but QSPI variant). Keep the rest of the
+# M5 defaults (CPU 240, SPIRAM, C++ exceptions, I2S legacy warn).

@@ -75,9 +75,18 @@ private:
   std::map<int, spi_device_handle_t> handles_;
 };
 
-// Global singleton accessor. The first call lazily constructs the bus
-// with the pin map from hardware.md. Subsequent calls return the same
-// instance.
+// Global singleton accessor for the LoRa SPI bus. The first call
+// lazily constructs the bus on board::kLoraSpiHost with the LoRa pin
+// map. Subsequent calls return the same instance. lora_sx1262 and the
+// epd component use this.
 SpiBus &Bus();
+
+// Global singleton accessor for the SD-card SPI bus. On the M5 (shared
+// bus, board::kSdSpiHost == board::kLoraSpiHost) this returns the SAME
+// instance as Bus(). On the MVSR (separate buses, kSdSpiHost !=
+// kLoraSpiHost) this lazily constructs a second bus on kSdSpiHost with
+// the SD pin map. sd_card uses this so its mutex is the right bus's
+// mutex on both variants.
+SpiBus &SdBus();
 
 } // namespace tether::m5

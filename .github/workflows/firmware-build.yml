@@ -26,6 +26,29 @@ jobs:
           idf.py set-target esp32s3
           idf.py build
 
+  m5-t3s3-mvsr:
+    name: m5-t3s3-mvsr-build
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.2.2
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Source ESP-IDF environment and build the LilyGO T3-S3 MVSR variant
+        run: |
+          . /opt/esp/idf/export.sh > /dev/null
+          cd firmware/m5
+          # Select the MVSR variant via its sdkconfig defaults overlay.
+          # The overlay sets CONFIG_TETHER_BOARD_T3S3_MVSR=y and switches
+          # SPIRAM to QUAD (the T3-S3 module is QSPI, not OPI — see
+          # sdkconfig.defaults.t3s3_mvsr). A separate build dir keeps the
+          # M5 and MVSR sdkconfigs from colliding.
+          idf.py set-target esp32s3
+          idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.t3s3_mvsr" reconfigure
+          idf.py build
+
+
   bridge:
     name: bridge-platformio-test
     runs-on: ubuntu-latest

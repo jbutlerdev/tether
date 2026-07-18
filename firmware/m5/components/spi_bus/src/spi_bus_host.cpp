@@ -107,14 +107,28 @@ bool SpiBus::Unlock() {
 
 namespace {
 SpiBus *g_bus_instance = nullptr;
+SpiBus *g_sd_bus_instance = nullptr;
 } // namespace
 
 SpiBus &Bus() {
   if (!g_bus_instance) {
-    g_bus_instance = new SpiBus(SPI2_HOST, board::kPinSpiMosi,
-                                board::kPinSpiMiso, board::kPinSpiSck);
+    g_bus_instance = new SpiBus(
+        static_cast<spi_host_device_t>(board::kLoraSpiHost),
+        board::kPinLoraMosi, board::kPinLoraMiso, board::kPinLoraSck);
   }
   return *g_bus_instance;
+}
+
+SpiBus &SdBus() {
+  if constexpr (board::kSdSpiHost == board::kLoraSpiHost) {
+    return Bus();
+  }
+  if (!g_sd_bus_instance) {
+    g_sd_bus_instance =
+        new SpiBus(static_cast<spi_host_device_t>(board::kSdSpiHost),
+                   board::kPinSdMosi, board::kPinSdMiso, board::kPinSdSck);
+  }
+  return *g_sd_bus_instance;
 }
 
 } // namespace tether::m5

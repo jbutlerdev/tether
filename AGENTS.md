@@ -307,6 +307,9 @@ cd firmware/m5
 . /opt/esp/idf/export.sh                   # ESP-IDF v5.2 env
 idf.py set-target esp32s3
 idf.py build
+# LilyGO T3-S3 MVSR variant (see docs/VARIANTS.md):
+idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.t3s3_mvsr" reconfigure
+idf.py build
 idf.py -p /dev/ttyUSB0 flash monitor
 
 # ── Bridge firmware (PlatformIO) ─────────────────────────────────────

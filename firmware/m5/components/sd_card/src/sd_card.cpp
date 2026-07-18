@@ -3,7 +3,7 @@
 // On real hardware this wraps esp_littlefs and registers a VFS that
 // makes /sdcard point at the SD card SPI device. The SD card shares
 // the SPI bus with the SX1262 and EPD, so every LittleFS operation
-// takes the bus mutex via Bus().Lock() / Bus().Unlock() (research.md
+// takes the bus mutex via SdBus().Lock() / SdBus().Unlock() (research.md
 // §7.4).
 //
 // The class is intentionally minimal in Phase 3 — it exposes the POSIX
@@ -62,9 +62,9 @@ esp_err_t SdCard::Mount(const char * /*root*/) {
 esp_err_t SdCard::Unmount() {
   if (!mounted_)
     return ESP_OK;
-  Bus().Lock(portMAX_DELAY);
+  SdBus().Lock(portMAX_DELAY);
   esp_err_t err = esp_vfs_littlefs_unregister(kPartitionLabel);
-  Bus().Unlock();
+  SdBus().Unlock();
   mount_root_[0] = '\0';
   mounted_ = false;
   return err;
@@ -73,27 +73,27 @@ esp_err_t SdCard::Unmount() {
 FILE *SdCard::Open(const char *path, const char *mode) {
   if (!mounted_ || !path || !mode)
     return nullptr;
-  Bus().Lock(portMAX_DELAY);
+  SdBus().Lock(portMAX_DELAY);
   FILE *fp = fopen(path, mode);
-  Bus().Unlock();
+  SdBus().Unlock();
   return fp;
 }
 
 int SdCard::Remove(const char *path) {
   if (!mounted_ || !path)
     return -1;
-  Bus().Lock(portMAX_DELAY);
+  SdBus().Lock(portMAX_DELAY);
   int rc = unlink(path);
-  Bus().Unlock();
+  SdBus().Unlock();
   return rc;
 }
 
 int SdCard::Rename(const char *from, const char *to) {
   if (!mounted_ || !from || !to)
     return -1;
-  Bus().Lock(portMAX_DELAY);
+  SdBus().Lock(portMAX_DELAY);
   int rc = rename(from, to);
-  Bus().Unlock();
+  SdBus().Unlock();
   return rc;
 }
 

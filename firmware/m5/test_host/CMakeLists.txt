@@ -162,9 +162,37 @@ add_host_test(epd)
 add_host_test(conv_manager)
 add_host_test(aes_link)
 add_host_test(protocol)
+add_host_test(ssd1306)
 add_host_test(crash_log)
 add_host_test(ota)
 add_host_test(nvs)
+
+# test_board_t3s3_mvsr — validates the LilyGO T3-S3 MVSR pin map.
+# Compiled with -DTETHER_BOARD_T3S3_MVSR so board.h selects the MVSR
+# variant header. The board component is header-only (no _host
+# library), so this is a standalone test binary that just needs the
+# board include dir + the variant define. It pins the no-conflict /
+# no-do-not-touch / capability-flag invariants of the MVSR pin map.
+add_executable(test_board_t3s3_mvsr
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_board_t3s3_mvsr.cpp
+)
+target_include_directories(test_board_t3s3_mvsr PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../components/board/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/unity
+)
+target_compile_definitions(test_board_t3s3_mvsr PRIVATE
+  TETHER_M5_HOST_TEST=1
+  TETHER_BOARD_T3S3_MVSR=1
+)
+target_compile_options(test_board_t3s3_mvsr PRIVATE
+  --coverage -fprofile-arcs -ftest-coverage
+)
+target_link_libraries(test_board_t3s3_mvsr PRIVATE
+  tether_m5_host_iface
+  unity_host
+  gcov
+)
+add_test(NAME board_t3s3_mvsr COMMAND test_board_t3s3_mvsr)
 
 # gen_epd_goldens — auxiliary tool that writes the EPD golden
 # fixtures. Not a test; not registered with ctest. Run by hand

@@ -111,18 +111,33 @@ bool SpiBus::Unlock() {
 
 namespace {
 SpiBus *g_bus_instance = nullptr;
+SpiBus *g_sd_bus_instance = nullptr;
 } // namespace
 
 SpiBus &Bus() {
   if (!g_bus_instance) {
-    // The M5's shared SPI bus uses GPIO 16/15/7 for SCK/MOSI/MISO
-    // (per the meshtastic variant.h — these are fixed on the
-    // ELECROW board; do not remap). The CS lines for individual
-    // devices (LoRa, EPD, SD) are added via AddDevice().
-    g_bus_instance = new SpiBus(SPI2_HOST, board::kPinSpiMosi,
-                                board::kPinSpiMiso, board::kPinSpiSck);
+    // The LoRa SPI bus. Host + pins come from board.h (kLoraSpiHost
+    // + kPinLoraSck/Mosi/Miso) so the same accessor serves both the
+    // M5 (SPI2, shared with SD/EPD) and the MVSR (SPI2, LoRa-only).
+    g_bus_instance = new SpiBus(
+        static_cast<spi_host_device_t>(board::kLoraSpiHost),
+        board::kPinLoraMosi, board::kPinLoraMiso, board::kPinLoraSck);
   }
   return *g_bus_instance;
+}
+
+SpiBus &SdBus() {
+  // M5: SD shares the LoRa bus (kSdSpiHost == kLoraSpiHost).
+  if constexpr (board::kSdSpiHost == board::kLoraSpiHost) {
+    return Bus();
+  }
+  // MVSR: SD is on its own bus (kSdSpiHost, separate pins + mutex).
+  if (!g_sd_bus_instance) {
+    g_sd_bus_instance =
+        new SpiBus(static_cast<spi_host_device_t>(board::kSdSpiHost),
+                   board::kPinSdMosi, board::kPinSdMiso, board::kPinSdSck);
+  }
+  return *g_sd_bus_instance;
 }
 
 } // namespace tether::m5
