@@ -419,24 +419,30 @@ event. Concretely:
 
 **The Tether firmware assumes the M5 has been physically
 modified to free 3 GPIOs for the shared I²S0 audio bus.** The
-stock M5 has only one natively free pin (GPIO 18). The three
+stock M5 has only one natively free pin (GPIO 18). The two
 required mods are:
 
-1. **GPS "Always-On" hack** — bypass the L76K load switch,
-   sever the trace back to GPIO 10.
-2. **Buzzer removal** — desolder the SMD buzzer (frees GPIO 9).
-3. **Power-Detect trace cut** — sever the trace from the USB
-   voltage divider to GPIO 12.
+1. **GPS module removal** — desolder the Quectel L76K GPS
+   module from the M5 board (frees GPIO 19 / 20 for I²S0 WS /
+   BCLK, plus GPIO 10 / 11 / 13 as a side-effect).
+2. **Buzzer removal** — desolder the SMD buzzer (frees GPIO 9
+   for I²S0 DOUT).
 
 The full execution plan with tools, time, soldering tips, and
 verification steps is in
 [`docs/HARDWARE-MODS.md`](docs/HARDWARE-MODS.md). Plan for
-60–90 minutes for a first attempt.
+30–60 minutes for a first attempt.
+
+> **v0.1.4 simplification.** Earlier docs described three
+> mods including a VBUS-detect trace cut. That mod is no
+> longer needed: GPS removal frees GPIO 19 / GPIO 20, which
+> take over the I²S0 WS / BCLK roles, so the USB power-detect
+> GPIO (GPIO 12) stays connected and functional. See the
+> [`CHANGELOG.md`](CHANGELOG.md) for the v0.1.4 entry.
 
 **Do not flash the firmware onto an unmodified M5.** The audio
-path will not work; the I²S0 peripheral cannot find its BCLK
-and WS lines because those GPIOs are still owned by the GPS
-switch, the buzzer, and the VBUS detect respectively.
+path will not work; GPIO 9 is still owned by the buzzer and
+GPIO 19 / 20 are still wired to the GPS module's UART.
 
 2. **Edit `/etc/tether/registration.yaml`.** Replace
    `yourserver.tld` with your actual homeserver's server name.

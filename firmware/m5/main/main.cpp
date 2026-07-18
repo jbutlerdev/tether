@@ -70,8 +70,8 @@ extern "C" void app_main(void) {
   // 4. I2S mic / amp.
   // Pin assignments are in board.h. The mic and amp share a single
   // I2S0 bus in full-duplex mode (same BCLK and WS, separate data
-  // lines). This requires the three hardware mods documented in
-  // docs/HARDWARE-MODS.md.
+  // lines). This requires the two hardware mods documented in
+  // docs/HARDWARE-MODS.md (GPS removal + buzzer removal).
   static tether::m5::I2SMic mic;
   if (!mic.Init()) {
     ESP_LOGE(kTag, "i2s_mic init failed; PTT will record silence");

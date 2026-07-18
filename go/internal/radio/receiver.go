@@ -140,7 +140,7 @@ func (r *Receiver) Run(ctx context.Context) error {
 		}
 		select {
 		case <-sweepTicker.C:
-			r.sweep(ctx, states)
+			r.sweep(states)
 		default:
 			rctx, cancel := context.WithTimeout(ctx, 20*time.Millisecond)
 			env, err := r.radio.Receive(rctx)
@@ -163,8 +163,10 @@ func (r *Receiver) Run(ctx context.Context) error {
 	}
 }
 
-// sweep removes abandoned messages from the states map.
-func (r *Receiver) sweep(ctx context.Context, states map[string]*reassemblyState) {
+// sweep removes abandoned messages from the states map. It does
+// not need a context: it iterates the in-memory states map by
+// deadline and is bounded by the number of in-flight messages.
+func (r *Receiver) sweep(states map[string]*reassemblyState) {
 	now := time.Now()
 	for k, st := range states {
 		if now.Sub(st.firstSeen) > r.messageTimeout {
@@ -173,7 +175,6 @@ func (r *Receiver) sweep(ctx context.Context, states map[string]*reassemblyState
 			delete(states, k)
 		}
 	}
-	_ = ctx
 }
 
 // handleDataEnvelope processes a single DATA/START/END envelope.
@@ -238,8 +239,21 @@ func (r *Receiver) handleDataEnvelope(ctx context.Context, states map[string]*re
 		copy(newChunks, st.chunks)
 		st.chunks = newChunks
 	}
-	// Ignore duplicate seq (already filled).
+	// Duplicate seq: the chunk is already in. The sender most likely
+	// lost our previous ACK, so re-emit the current cumulative ACK
+	// (idempotent — the bitmap already reflects this seq). Without
+	// this, a lost ACK makes the sender retransmit forever until its
+	// retry budget is exhausted, even though the receiver has the
+	// chunk.
 	if st.chunks[env.SeqNum] != nil {
+		if r.onAck != nil {
+			r.onAck(&OutgoingAck{
+				ConversationID: st.convID,
+				MessageID:      st.messageID,
+				NextExpected:   st.bitmap.NextExpectedSeq,
+				Bitmap:         st.bitmap.Bitmap,
+			})
+		}
 		return
 	}
 	st.chunks[env.SeqNum] = env

@@ -14,7 +14,7 @@ namespace tether::m5 {
 
 namespace {
 constexpr char kTag[] = "tether.radio";
-constexpr size_t kChunkSize = 64;
+constexpr size_t kChunkSize = 100;
 constexpr int kMaxRetransmits = 5;
 constexpr int kStartRepeats = 3;
 } // namespace
@@ -47,10 +47,24 @@ void RadioTask::StartSending() {
   acked_bitmap_ = 0;
   retransmits_left_ = kMaxRetransmits;
   start_repeats_remaining_ = kStartRepeats;
+  last_sent_chunk_ = -1;
   state_ = RadioState::kSendingStart;
 }
 
-bool RadioTask::SendOneDataChunk() {
+// SendStartPacket emits one redundant START packet and advances the
+// state machine to kSendingData once all kStartRepeats STARTs have
+// been sent (research.md §8.3: START is sent 3x with no ACK).
+void RadioTask::SendStartPacket() {
+  std::vector<uint8_t> start_pkt{0x01, 0x02, 0x03}; // placeholder
+  radio_.Transmit(start_pkt);
+  pkts_sent_++;
+  if (--start_repeats_remaining_ <= 0) {
+    state_ = RadioState::kSendingData;
+    last_sent_chunk_ = -1;
+  }
+}
+
+int RadioTask::SendOneDataChunk() {
   // Find the lowest unacked chunk.
   for (uint32_t i = 0; i < current_chunks_total_; ++i) {
     if (!(acked_bitmap_ & (1u << i))) {
@@ -63,10 +77,10 @@ bool RadioTask::SendOneDataChunk() {
                                  current_payload_.begin() + offset + len);
       radio_.Transmit(chunk);
       pkts_sent_++;
-      return true;
+      return static_cast<int>(i);
     }
   }
-  return false; // all chunks acked
+  return -1; // all chunks acked
 }
 
 void RadioTask::HandleRxPacket(const RadioMessage & /*m*/) {
@@ -76,9 +90,21 @@ void RadioTask::HandleRxPacket(const RadioMessage & /*m*/) {
 }
 
 void RadioTask::HandleAck(uint32_t msg_id, uint32_t bitmap) {
-  if (msg_id != current_msg_id_)
+  // Accept an ACK for the currently-sending message, or — when idle —
+  // for the message at the front of the outbox (tests inject ACKs
+  // before the first Step()). research.md §8.5: ACKs are scoped to a
+  // specific conversation_id + msg_id.
+  const bool is_current = state_ == RadioState::kSendingData ||
+                          state_ == RadioState::kSendingStart;
+  uint32_t target = current_msg_id_;
+  if (!is_current && !outbox_.empty()) {
+    target = outbox_.front().msg_id;
+  }
+  if (msg_id != target)
     return;
   acks_received_++;
+  if (!is_current)
+    return; // nothing to advance yet
   acked_bitmap_ |= bitmap;
   current_chunks_acked_ = __builtin_popcount(acked_bitmap_);
   if (current_chunks_acked_ >= current_chunks_total_) {
@@ -99,41 +125,39 @@ bool RadioTask::Step() {
   }
   switch (state_) {
   case RadioState::kIdle:
-    if (!outbox_.empty()) {
-      StartSending();
-    }
+    if (outbox_.empty())
+      break;
+    StartSending();
+    // Send the first START immediately so a single Step() makes
+    // progress (tests expect Enqueue + 1 Step -> PktsSent > 0).
+    SendStartPacket();
     break;
   case RadioState::kSendingStart:
-    // Emit one START packet.
-    {
-      std::vector<uint8_t> start_pkt{0x01, 0x02, 0x03}; // placeholder
-      radio_.Transmit(start_pkt);
-      pkts_sent_++;
-    }
-    if (--start_repeats_remaining_ <= 0) {
-      state_ = RadioState::kSendingData;
-    }
+    SendStartPacket();
     break;
-  case RadioState::kSendingData:
-    if (!SendOneDataChunk()) {
-      // All chunks acked; we're done.
-      if (current_chunks_acked_ >= current_chunks_total_) {
+  case RadioState::kSendingData: {
+    int chunk = SendOneDataChunk();
+    if (chunk < 0) {
+      // All chunks acked; message complete.
+      state_ = RadioState::kIdle;
+      last_acked_ = true;
+      last_failed_ = false;
+      break;
+    }
+    if (chunk == last_sent_chunk_) {
+      // Same chunk as last step -> no ACK arrived -> retransmit.
+      retransmits_++;
+      retransmits_left_--;
+      if (retransmits_left_ < 0) {
         state_ = RadioState::kIdle;
-        last_acked_ = true;
-      } else {
-        // Retransmit budget check.
-        if (retransmits_left_ > 0) {
-          retransmits_left_--;
-          retransmits_++;
-          // Loop; SendOneDataChunk() will find an unacked chunk.
-        } else {
-          state_ = RadioState::kIdle;
-          last_failed_ = true;
-          last_acked_ = false;
-        }
+        last_failed_ = true;
+        last_acked_ = false;
+        break;
       }
     }
+    last_sent_chunk_ = chunk;
     break;
+  }
   case RadioState::kWaitingAck:
   case RadioState::kRxListening:
     // Phase 4 handles the full state machine; for Phase 3 these

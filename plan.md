@@ -1075,13 +1075,16 @@ private:
   * **BCLK (SCK)**: GPIO 10 (shared)
   * **Mic SD (DIN)**: GPIO 18
   * **Amp DIN (DOUT)**: GPIO 9
-* **REQUIRES 3 HARDWARE MODS.** The M5 has only one natively free
-  pin (GPIO 18). To free GPIO 9, 10, 12 we have to:
-  1. Bypass the L76K load switch and sever the trace back to
-     GPIO 10 (the GPS "Always-On" hack).
-  2. Desolder the SMD buzzer (frees GPIO 9).
-  3. Sever the trace from the USB voltage divider to GPIO 12
-     (frees GPIO 12 for the WS line).
+* **REQUIRES 2 HARDWARE MODS.** The M5 has only one natively free
+  pin (GPIO 18). To free GPIO 9, 19, 20 we have to:
+  1. Desolder the L76K GPS module (frees GPIO 19 and GPIO 20
+     for I²S0 WS / BCLK; also frees GPIO 10, 11, 13 as a
+     side-effect). This replaces the older v0.1.3 "GPS
+     Always-On" hack and removes the ~25 mA drain.
+  2. Desolder the SMD buzzer (frees GPIO 9 for I²S0 DOUT).
+  No VBUS-detect trace cut is needed: GPIO 19/20 take over
+  the WS/BCLK roles, so GPIO 12 (USB VBUS detect) stays
+  intact.
   See `docs/HARDWARE-MODS.md` for the full execution plan.
 * `i2s_amp` also has `PlayTone(freq_hz, duration_ms)` for beep
   tones (sine generator).

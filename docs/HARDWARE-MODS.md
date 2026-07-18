@@ -1,4 +1,4 @@
-# Hardware Modifications — ThinkNode M5 for Tether v0.1.3
+# Hardware Modifications — ThinkNode M5 for Tether v0.1.4
 
 This document describes the **physical modifications** that must be
 performed on the Elecrow ThinkNode M5 board before flashing the
@@ -10,112 +10,182 @@ remap without desoldering.
 
 The Tether firmware assumes the mods below have been performed. If
 you flash the firmware onto an unmodified M5, the I²S0 audio bus
-will not work (GPIOs 9/10/12 are still owned by the buzzer, GPS
-switch, and VBUS detect respectively) and the audio path will
+will not work (GPIO 9 is still owned by the buzzer, GPIO 19/20 are
+still wired to the GPS module's UART) and the audio path will
 record silence / output nothing.
+
+> **v0.1.4 simplification.** Earlier drafts of this document
+> described **three** mods: a "GPS Always-On hack" (bypass the GPS
+> load switch and sever the gate trace), buzzer removal, and a
+> VBUS-detect trace cut. The v0.1.4 design replaces the Always-On
+> hack with **complete GPS module removal** — desoldering the L76K
+> module entirely. This has two benefits:
+> 1. **No more ~25 mA continuous drain** from the GPS being
+>    permanently powered.
+> 2. **Five GPIOs are freed** by the GPS removal (10, 11, 13, 19,
+>    20 — the slider sense, standby, reinit, RX, and TX lines).
+>    Two of those (GPIO 19 / GPIO 20, the GPS UART) absorb the
+>    I²S0 WS / BCLK requirement, which means we **no longer need
+>    to cut the VBUS-detect trace**. GPIO 12 stays wired to the
+>    USB voltage divider and the firmware can read VBUS state
+>    normally.
+>
+> The buzzer is still removed (it's still tied to GPIO 9, which we
+> need for I²S0 DOUT).
 
 ---
 
 ## TL;DR — what you need to do
 
-Three mods, in this order:
+**Two mods, in this order:**
 
-1. **GPS "Always-On" hack** — bypass the L76K load switch, sever
-   the trace back to GPIO 10. *Frees GPIO 10 for I²S0 BCLK.*
+1. **GPS module removal** — desolder the Quectel L76K GPS module
+   from the M5 board. *Frees GPIO 19 and GPIO 20 for I²S0 WS /
+   BCLK (and GPIO 10, 11, 13 as a side effect).*
 2. **Buzzer removal** — desolder the SMD buzzer. *Frees GPIO 9
    for I²S0 DOUT (amp DIN).*
-3. **Power-Detect trace cut** — sever the trace from the USB
-   voltage divider to GPIO 12. *Frees GPIO 12 for I²S0 WS (LRC).*
 
-The shared I²S0 bus is then wired full-duplex:
+After both mods, the shared I²S0 bus is wired full-duplex:
 
 | Signal | GPIO | Source |
 |---|---|---|
-| WS (LRC) | 12 | shared by mic and amp |
-| BCLK | 10 | shared by mic and amp |
-| Mic SD (DIN) | 18 | mic → ESP32 |
-| Amp DIN (DOUT) | 9 | ESP32 → amp |
+| WS (LRC) | 19 | freed by GPS removal (was GPS L76K RX) |
+| BCLK | 20 | freed by GPS removal (was GPS L76K TX) |
+| Mic SD (DIN) | 18 | mic → ESP32 (natively free) |
+| Amp DIN (DOUT) | 9 | ESP32 → amp (freed by buzzer removal) |
 
-Do the mods in the order above. Each one frees a pin that the next
-step needs to use as a soldering pad.
+GPIO 12 (USB VBUS detect) is **untouched**. The firmware can read
+USB plug events normally.
+
+Do the mods in the order above. The GPS removal is the easiest
+single step (the L76K is a small LCC module designed for reflow);
+the buzzer removal is the hardest (it's a heavier component with
+larger thermal mass).
 
 **Tools required:** temperature-controlled soldering iron (350 °C
 with a fine tip), fine-gauge wire (30 AWG silicone-jacketed is
-good), flux pen, hot-air station or hot plate (for the buzzer
-removal), fine-tip tweezers, loupe or USB microscope, multimeter
-for continuity checks.
+good), flux pen, hot-air station (required for the GPS removal,
+recommended for the buzzer), fine-tip tweezers, loupe or USB
+microscope, multimeter for continuity checks.
 
-**Time required:** 60–90 minutes for a first attempt. The buzzer
-removal is the hardest step; the GPS hack is the easiest.
+**Time required:** 30–60 minutes for a first attempt. The hot-air
+GPS removal is faster than the buzzer removal.
 
-**Skill level:** experienced SMD rework. If you have only done
-through-hole soldering before, practice on a scrap board first.
+**Skill level:** experienced SMD rework. The GPS removal in
+particular requires comfort with hot-air on a multi-layer board
+with nearby plastic parts — the GPS antenna and case are
+adjacent to the module. If you have only done through-hole
+soldering before, practice on a scrap board first.
 
 ---
 
-## 1. The GPS "Always-On" hack
+## 1. GPS module removal
 
-**Goal:** bypass the load switch that powers the Quectel L76K GPS
-module, and sever the trace from that switch's control pin back to
-the ESP32-S3's GPIO 10. After this, the GPS module is permanently
-powered (3.3 V) regardless of the case slider's position, and
-GPIO 10 is electrically isolated and safe to use for I²S.
+**Goal:** desolder the Quectel L76K GPS module from the M5 board.
+After this, the GPS is gone (not just powered down), and five
+GPIOs that were dedicated to it (10, 11, 13, 19, 20) are
+electrically floating on the ESP32 side. We will reuse two of
+them (19 and 20) for the I²S0 audio bus.
 
 ### Why this works
 
-The M5 schematic shows a small MOSFET (Q-something) between the
-3.3 V rail and the GPS module's VCC. The MOSFET's gate is driven
-by the ESP32 through a GPIO; the case slider is a separate
-mechanical switch wired to a different GPIO. The slider *only*
-reports position to the ESP32; the actual power-gating is done by
-the MOSFET. By shorting across the MOSFET (drain ↔ source) and
-severing the gate trace, we hard-wire the GPS to 3.3 V and
-isolate the slider GPIO.
+The M5 schematic (per the Meshtastic variant.h at
+<https://raw.githubusercontent.com/meshtastic/firmware/refs/heads/develop/variants/esp32s3/ELECROW-ThinkNode-M5/variant.h>)
+shows the L76K module tied to the ESP32-S3 over five GPIOs:
 
-> **Tether does not use the GPS.** This mod is purely to free
-> GPIO 10. After the mod, the GPS is always on, drawing ~25 mA
-> continuously. This is acceptable for a tethered bench setup; if
-> you need longer battery life, use a hardware switch on the
-> GPS's VCC trace instead.
+| ESP32-S3 GPIO | Variant.h name | L76K signal |
+|---|---|---|
+| 10 | `GPS_SWITH` | Slider switch (mechanical sense; not the GPS itself) |
+| 11 | `PIN_GPS_STANDBY` | Standby control (low = sleep, high = wake) |
+| 13 | `PIN_GPS_REINIT` | Reset (low ≥ 100 ms = reset) |
+| 19 | `GPS_RX_PIN` | UART RX (data from GPS into CPU) |
+| 20 | `GPS_TX_PIN` | UART TX (data from CPU to GPS) |
+
+The L76K is a 9.7 × 10.1 × 2.4 mm LCC package with 18
+land-grid-array pins on its underside (per the Quectel L76K
+Hardware Design datasheet, V1.0). It is intended for reflow
+soldering but desolders cleanly with hot air at the right
+temperature.
+
+> **Tether does not use the GPS.** The slider on the M5 case
+> becomes a vestigial mechanical control; it no longer has any
+> effect on the firmware, because the GPS module it would have
+> switched is gone. The slider's physical pad is on GPIO 10,
+> which is also the SD card's CS line via a different physical
+> pad (see AGENTS.md §3.4 and `board.h::kPinSdCs`). After this
+> mod, toggling the slider will mechanically toggle the SD_CS
+> pad, but the SD card is in SPI mode and ignores the slider
+> state.
 
 ### Steps
 
-1. **Discharge yourself.** Touch a grounded metal surface.
-   ESP32-S3 and the GPS module are both ESD-sensitive.
-2. **Locate the load switch.** It is a small SOT-23 (3-pin)
-   MOSFET immediately adjacent to the Quectel GPS module's VCC
-   pad, on the underside of the PCB. Reference: see the M5
-   schematic in the Elecrow GitHub repo, page 4 (power tree).
-3. **Apply flux to the MOSFET's drain and source pins.** A flux
-   pen works well.
-4. **Solder a jumper** (a short piece of 30 AWG wire) from the
-   drain pad to the source pad. This bypasses the MOSFET.
-5. **Verify continuity** with a multimeter. You should see ~0 Ω
-   between the GPS VCC and the 3.3 V rail. If you do, the
-   bypass is good.
-6. **Power the board on USB** (without the firmware flashed —
-   just USB power). The GPS module's LED should illuminate within
-   a few seconds, indicating it has power. (The original
-   firmware is still on the ESP32 at this point; we're only
-   checking the power rail.)
-7. **Locate the trace** from the MOSFET's gate pad back to the
-   ESP32. This is a thin trace, ~0.2 mm wide, on the top side of
-   the PCB near the GPS module.
-8. **Sever the trace** with a sharp X-Acto knife or a fine
-   scalpel. Cut twice (about 1 mm apart) and lift the
-   intervening trace segment off the board. Verify with a
-   multimeter that there is now infinite resistance between
-   the MOSFET gate and GPIO 10 (the ESP32-S3's GPIO 10 pad is
-   on the top side, near the edge of the castellated module
-   outline).
-9. **Re-test.** Power the board. The GPS LED should still be on
-   (bypass still works) and the case slider should have no
-   effect on the GPS power (because we've severed the gate
-   trace).
+1. **Discharge yourself.** Touch a grounded metal surface. The
+   ESP32-S3 and the L76K module are both ESD-sensitive.
+2. **Remove the back cover of the M5.** Four Phillips #00 screws
+   on the back. Set the cover and screws aside in a magnetic
+   tray. **Be careful with the GPS antenna cable** — it's a
+   small U.FL / IPEX connector on the GPS module's PCB edge,
+   and yanking it will tear the connector off.
+3. **Disconnect the GPS antenna.** Gently lift the U.FL
+   connector's retaining tab with tweezers (it pops straight
+   up, ~1 mm of travel) and slide the antenna cable out. Set
+   the antenna aside — you will not reuse it. If you want to
+   be tidy, tape the loose antenna cable to the inside of the
+   case so it doesn't rattle.
+4. **Locate the L76K module.** It is the small (~10 × 10 mm)
+   shielded module on the underside of the main PCB, near
+   one of the short edges. Reference: see the M5 schematic
+   page 4 (RF / GPS section) and the Elecrow product photo in
+   the user manual.
+5. **Apply flux** around all four edges of the L76K module.
+   A flux pen works well; cover the LCC pads on the PCB
+   underneath as thoroughly as you can without flooding the
+   surrounding area.
+6. **Preheat the board.** Set your hot-air station to 150 °C
+   with low airflow and warm the whole board for 60–90
+   seconds. This drives off moisture and reduces thermal
+   shock to the L76K (which has an internal ceramic patch
+   antenna that can crack if heated too quickly).
+7. **Reflow the L76K module.** Increase the hot-air station
+   to **320 °C** with **medium airflow**, keep the nozzle
+   ~2–3 cm above the module, and move in a slow circular
+   pattern. After 45–60 seconds the solder under the LCC pads
+   will be fully molten (you can tell when the module shifts
+   slightly under the airflow or when a gentle nudge with
+   tweezers slides it).
+8. **Lift the module off.** Use fine-tip tweezers to lift the
+   module straight up off the board. Do **not** pry — the LCC
+   pads on the PCB are robust, but prying can lift them. If
+   the module doesn't release easily, keep heating; do not
+   force it.
+9. **Clean the pads.** Use solder wick and a clean soldering
+   iron tip (350 °C) to remove residual solder from the 18
+   LCC pads. Apply fresh flux, lay the wick over the pads,
+   and press the iron gently. The pads should end up flat and
+   shiny.
+10. **Verify.** With a multimeter in continuity mode, confirm
+    that **none** of the freed GPIOs (10, 11, 13, 19, 20) is
+    shorted to any other GPIO or to GND / 3V3. They should
+    all read infinite resistance to each other and to the
+    power rails.
+11. **Optional: protect the freed pads.** If you intend to
+    wire GPIO 19 / GPIO 20 to the I²S bus as documented in
+    §4, tin the castellated edge pads near GPIO 19 / GPIO 20
+    (the right edge of the ESP32-S3 module) with a small
+    amount of fresh solder. The castellated edges are easy to
+    solder to — they're just exposed metal.
+12. **Re-test.** Power the board on USB. The EPD will show
+    the stock Meshtastic firmware (we haven't flashed
+    Tether yet). The red power LED should illuminate
+    (hardware-OR'd with VBUS). The blue notification LED
+    should not illuminate (the GPS module is no longer
+    present to drive it).
 
-**After this mod, GPIO 10 is yours.** It will read as a digital
-input with a floating value; pull-up or pull-down externally
-when you wire it to I²S BCLK.
+**After this mod, GPIO 19 and GPIO 20 are yours.** They will
+read as digital inputs with floating values; pull-up or
+pull-down externally when you wire them to the I²S bus in §4.
+GPIOs 10, 11, and 13 are also freed but we don't need them
+for Tether.
 
 ---
 
@@ -131,9 +201,9 @@ on the top side of the PCB. Its PWM drive pin is GPIO 9. Once
 the buzzer is gone, GPIO 9 is electrically isolated except for
 the ESP32's pad.
 
-> **Tether does not use the buzzer in v0.1.3.** The blue
-> notification LED (driven by the PCA9557) provides user feedback.
-> If you want a buzzer, see the v0.2.0 hook (a future
+> **Tether does not use the buzzer in v0.1.4.** The blue
+> notification LED (driven by the PCA9557) provides user
+> feedback. If you want a buzzer, see the v0.2.0 hook (a future
 > revision will add an external piezo on a different GPIO).
 
 ### Steps
@@ -160,66 +230,36 @@ input with a floating value.
 
 ---
 
-## 3. Power-Detect trace cut
+## 3. (Removed in v0.1.4) VBUS-detect trace cut
 
-**Goal:** sever the trace from the USB voltage divider (the
-VBUS-sensing resistor ladder) to the ESP32-S3's GPIO 12. This
-frees GPIO 12 for I²S0 WS.
+This mod was required by the v0.1.3 design (which used GPIO 12
+for I²S0 WS) but is **no longer necessary**. With the GPS
+module removed in §1, GPIO 19 and GPIO 20 are free to take
+over the I²S0 WS and BCLK roles, and GPIO 12 stays wired to
+the USB voltage divider. The firmware reads VBUS state through
+GPIO 12 normally — there is no "USB plugged in" UI gap.
 
-### Why this works
-
-The M5's USB-C VBUS line is divided down to ~3.3 V logic level
-by a resistor pair and fed to GPIO 12 so the firmware can
-detect when the user has plugged in USB. The charging IC works
-independently — it just monitors VBUS directly and doesn't need
-the ESP32 to know. Severing the trace cuts the firmware's
-knowledge of USB state but leaves the charger fully functional.
-
-> **Tether does not have a "USB plugged in" UI in v0.1.3.** The
-> red power LED (driven by the PCA9557) is OR'd with VBUS by
-> hardware, so it will still illuminate when USB is connected.
-> The firmware just won't be able to programmatically detect
-> USB state through GPIO 12. v0.2.0 will use the ESP32-S3's
-> built-in USB-OTG VBUS detection instead.
-
-### Steps
-
-1. **Locate the trace.** It runs from the VBUS resistor ladder
-   (a pair of 100 kΩ resistors near the USB-C connector) to
-   the GPIO 12 pad on the ESP32. The trace is on the top side
-   of the PCB and is ~0.2 mm wide.
-2. **Apply flux** to a 2 mm section of the trace, near the
-   midpoint (away from the resistor and away from the ESP32
-   pad).
-3. **Sever the trace** with a scalpel. Cut twice about 1 mm
-   apart and lift the segment. Alternatively, use a fine
-   soldering iron tip to scrape away the trace between the two
-   cuts.
-4. **Verify** with a multimeter. You should see infinite
-   resistance between the resistor-ladder output and the GPIO
-   12 pad on the ESP32.
-5. **Verify the charger still works.** Plug in USB. The red
-   LED on the M5 should illuminate (it's OR'd with VBUS
-   hardware-side, so it's lit by the charger regardless of
-   firmware). The battery should charge normally.
-
-**After this mod, GPIO 12 is yours.** It will read as a digital
-input with a floating value; pull-up externally when wiring.
+If you have already performed this mod on a v0.1.3 build, you
+can leave the trace cut in place; GPIO 12 will simply read as
+floating-low when USB is unplugged (the resistor divider's
+default state). The only practical effect is that the
+firmware's USB-detect logic will misreport. Re-soldering a
+jumper across the cut (see §8) restores stock behaviour.
 
 ---
 
 ## 4. Wiring the shared I²S0 bus
 
 **Goal:** connect the INMP441 microphone and the MAX98357A
-amplifier to the ESP32-S3's I²S0 peripheral in full-duplex mode,
-sharing BCLK and WS.
+amplifier to the ESP32-S3's I²S0 peripheral in full-duplex
+mode, sharing BCLK and WS.
 
 ### Pin map (recap)
 
 | Signal | GPIO | Wires from |
 |---|---|---|
-| BCLK | 10 | ESP32 GPIO 10 (castellated) → splice to mic SCK and amp BCLK |
-| WS | 12 | ESP32 GPIO 12 (castellated) → splice to mic WS and amp LRC |
+| BCLK | 20 | ESP32 GPIO 20 (castellated) → splice to mic SCK and amp BCLK |
+| WS | 19 | ESP32 GPIO 19 (castellated) → splice to mic WS and amp LRC |
 | Mic SD (DIN) | 18 | mic SD pad → ESP32 GPIO 18 (castellated) |
 | Amp DIN (DOUT) | 9 | amp DIN pad → ESP32 GPIO 9 (castellated) |
 
@@ -234,30 +274,30 @@ sharing BCLK and WS.
 
 1. **Identify the four ESP32-S3 castellated edge pads** you need:
    - GPIO 9 (top side, near the corner where the buzzer was)
-   - GPIO 10 (top side, near the GPS switch's severed trace)
-   - GPIO 12 (top side, near the VBUS resistor ladder)
    - GPIO 18 (top side, near the right edge)
+   - GPIO 19 (top side, near the right edge)
+   - GPIO 20 (top side, near the right edge)
 2. **Tin each pad** with a small amount of fresh solder. The
    castellated edges are easy to solder to — they're just
    exposed metal.
 3. **Cut four 5 cm pieces of 30 AWG silicone-jacketed wire.**
    Strip 1 mm on each end.
 4. **Solder the mic-side wires** first:
-   - Mic SCK → join to BCLK (GPIO 10) wire
-   - Mic WS → join to WS (GPIO 12) wire
+   - Mic SCK → join to BCLK (GPIO 20) wire
+   - Mic WS → join to WS (GPIO 19) wire
    - Mic SD → GPIO 18 wire
 5. **Solder the amp-side wires:**
-   - Amp BCLK → join to BCLK (GPIO 10) wire (same junction as
+   - Amp BCLK → join to BCLK (GPIO 20) wire (same junction as
      mic SCK)
-   - Amp LRC → join to WS (GPIO 12) wire (same junction as mic
-     WS)
+   - Amp LRC → join to WS (GPIO 19) wire (same junction as
+     mic WS)
    - Amp DIN → GPIO 9 wire
 6. **Power and ground.** The mic and amp each need 3.3 V and
    GND. Tap into the M5's existing 3.3 V rail (the same one
    that powers the PCA9557 and the LoRa). Use a GPIO from the
-   right edge that you haven't used yet (e.g., GPIO 13 / 14,
-   if free) as a 3.3 V tap; or solder directly to a nearby
-   3.3 V test point.
+   right edge that you haven't used yet (e.g., GPIO 11 / 13,
+   now free thanks to the GPS removal) as a 3.3 V tap; or
+   solder directly to a nearby 3.3 V test point.
 7. **Verify continuity** with a multimeter. Each of the four
    signal wires should show < 1 Ω from the ESP32 pad to the
    device pad.
@@ -277,16 +317,16 @@ on Wire1 (GPIO 47 SDA, GPIO 48 SCL) — the I²C1 bus.
 The M5 already has the PCA9557 chip on the board (it's how
 Meshtastic drives the LEDs). No additional mods are needed to
 use it from Tether. Just make sure the I²C1 bus on GPIOs 47/48
-isn't being used by anything else — and after the buzzer
-removal, GPIO 9 is free (was the buzzer PWM) and after the
-trace cut, GPIO 12 is free (was VBUS detect), so the I²C1
-pads are uncontested.
+isn't being used by anything else — and after the GPS removal,
+GPIO 19 / GPIO 20 are free (the I²S0 WS / BCLK lines that
+previously conflicted are now safely on GPIO 19 / 20), so the
+I²C1 pads are uncontested.
 
 ---
 
 ## 6. Verification
 
-After all three mods and the I²S wiring, do a final check
+After both mods and the I²S wiring, do a final check
 **before** flashing the firmware:
 
 1. **Power the board on USB.** The red LED should illuminate
@@ -309,6 +349,12 @@ After all three mods and the I²S wiring, do a final check
    output. Listen on the amp side — you should hear the
    audio loopback at low volume (a software-side check is
    available in `tether-loopback`).
+7. **Test USB-detect.** With GPIO 12 still connected to the
+   VBUS divider (because we did not cut its trace), plug and
+   unplug USB and confirm the firmware reports the change.
+   On the serial monitor you should see a `usb: plugged` /
+   `usb: unplugged` line within ~100 ms of the physical
+   event.
 
 If any of the steps fail, double-check the wiring against the
 schematic. Common pitfalls:
@@ -323,6 +369,10 @@ schematic. Common pitfalls:
 - **Amp SD pin left floating** — the MAX98357A's SD pin
   selects the I²S format. If it's floating, the amp may
   default to a non-I²S mode and produce no output.
+- **GPS module not fully removed** — if any of the LCC pads
+  are still shorted, GPIO 19 / GPIO 20 will read as
+  driven-by-GPS rather than floating. Re-touch the pads with
+  solder wick.
 
 ---
 
@@ -330,13 +380,21 @@ schematic. Common pitfalls:
 
 | Hardware feature | Sacrificed for | Notes |
 |---|---|---|
-| GPS switch (slider) | GPIO 10 | GPS module is now always on. ~25 mA continuous drain. |
-| Buzzer (PWM audio) | GPIO 9 | No beep tones. Replaced by the blue LED. |
-| VBUS detect (USB sense) | GPIO 12 | No "USB plugged in" UI. v0.2.0 will use the ESP32-S3's built-in VBUS detection. |
+| GPS module (Quectel L76K) | GPIO 19 (WS), GPIO 20 (BCLK), and GPIO 10/11/13 as side-effects | GPS module is completely removed. No more ~25 mA drain. No position data (Tether never used it). |
+| Buzzer (PWM audio) | GPIO 9 (DOUT) | No beep tones. Replaced by the blue LED. |
 
 The M5's other features — SX1262 LoRa, EPD, SD, battery, USB-C
-charging, buttons, GPS module (still functional, just always
-powered) — are untouched.
+charging, buttons, USB VBUS detect (GPIO 12) — are **untouched**.
+
+Compared to the v0.1.3 design, v0.1.4 has these trade-offs:
+
+| | v0.1.3 (3 mods) | v0.1.4 (2 mods) |
+|---|---|---|
+| Sacrificed hardware | GPS, buzzer, VBUS detect | GPS, buzzer |
+| GPS power drain | ~25 mA continuous (always-on hack) | 0 mA (module removed) |
+| USB plug detection in firmware | no | **yes** (GPIO 12 intact) |
+| Slider state observable | no (trace cut) | no (slider is vestigial with GPS gone) |
+| Rollback difficulty | medium | harder (GPS module must be replaced to restore) |
 
 ---
 
@@ -344,18 +402,17 @@ powered) — are untouched.
 
 If you need to revert the M5 to stock:
 
-1. **Restore the trace cuts** with 30 AWG wire jumpers:
-   - GPS gate trace: solder a jumper across the cut to
-     re-connect the gate to GPIO 10.
-   - VBUS detect trace: solder a jumper across the cut to
-     re-connect the resistor ladder to GPIO 12.
-2. **Remove the GPS bypass jumper** (the drain-source wire
-   you soldered in step 1.4 of the GPS hack). The MOSFET will
-   resume its power-gating function.
-3. **Solder a new buzzer** to the two pads (or a compatible
+1. **Solder a new buzzer** to the two pads (or a compatible
    SMD buzzer, e.g., Murata PKLCS1212E40A1-B0).
-4. **Remove the I²S wiring** — desolder the four wires from
+2. **Solder a replacement GPS module** to the 18 LCC pads.
+   You will need a fresh Quectel L76K (or pin-compatible AT6558R
+   module). Reflow at 320 °C with hot air, exactly as in
+   reverse of step 1.7–1.8. **Reattach the U.FL antenna
+   cable** before powering on, otherwise the GPS will not
+   acquire a fix.
+3. **Remove the I²S wiring** — desolder the four wires from
    the ESP32 castellated pads.
 
 After rollback, flash the stock Meshtastic firmware and the
-M5 will function as before.
+M5 will function as before, modulo any pad damage from the
+desoldering (which is rare with a clean hot-air technique).

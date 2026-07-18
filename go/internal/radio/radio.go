@@ -53,3 +53,13 @@ type Channel struct {
 	Index uint8  // 0..63
 	Hz    uint64 // computed from index
 }
+
+// PacketSender is the send-only subset of Radio: it can queue a
+// packet for transmission but cannot receive or reconfigure.
+// Components that only push envelopes (e.g. conv.Sync) depend on
+// this narrow interface so their tests can plug in a minimal fake
+// without implementing Init/Receive/SetChannel/Close. radio.Radio
+// satisfies PacketSender implicitly.
+type PacketSender interface {
+	Send(ctx context.Context, env *protocolpb.Envelope) error
+}

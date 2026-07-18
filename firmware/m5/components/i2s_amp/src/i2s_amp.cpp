@@ -4,8 +4,9 @@
 // at 8 kHz, 16-bit, mono. The amp shares the I2S0 bus with the mic
 // (i2s_mic) in full-duplex mode: the same BCLK and WS signals
 // drive both, with the mic on the DIN line and the amp on the DOUT
-// line. See board.h::kPinI2s* for the pin map and the three
-// hardware mods that are required to free GPIO 9 / 10 / 12.
+// line. See board.h::kPinI2s* for the pin map and the two
+// hardware mods that are required to free GPIO 9 (buzzer) and
+// GPIO 19/20 (GPS module).
 //
 // The I2S0 peripheral is initialized in shared full-duplex mode by
 // I2SAmp::Init() or I2SMic::Init() — whichever runs first. The

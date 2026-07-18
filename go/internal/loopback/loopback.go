@@ -15,12 +15,12 @@ package loopback
 
 import (
 	"context"
-	"encoding/binary"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/jbutlerdev/tether/go/internal/radio"
+	"github.com/jbutlerdev/tether/go/pkg/protocol"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
 
@@ -102,12 +102,17 @@ func RunOnce(opts RunOnceOptions) Stats {
 				continue
 			}
 			atomic.AddInt64(&receivedCount, 1)
-			// Build a minimal ACK payload. The Sender's protocol
-			// uses a 12-byte bitmap-encoded payload.
+			// Build the 28-byte ACK payload (research.md §8.6):
+			// conv_id + msg_id + next_expected_seq + bitmap + crc16.
+			// The payload is self-describing so the Sender can
+			// validate the ACK belongs to this message even without
+			// the envelope header.
 			next := env.SeqNum + 1
 			ack := &protocolpb.Envelope{
-				MsgType: protocolpb.MsgType_MSG_TYPE_ACK,
-				Payload: encodeAckPayload(next),
+				MsgType:        protocolpb.MsgType_MSG_TYPE_ACK,
+				ConversationId: append([]byte(nil), env.ConversationId...),
+				MessageId:      env.MessageId,
+				Payload:        protocol.EncodeAckPayload(env.ConversationId, env.MessageId, next, 0, 0),
 			}
 			_ = opts.RemoteRadio.Send(ackCtx, ack)
 		}
@@ -132,13 +137,4 @@ func RunOnce(opts RunOnceOptions) Stats {
 		Failed:   failed,
 		Duration: time.Since(start),
 	}
-}
-
-// encodeAckPayload produces the 12-byte wire format the Sender
-// expects: little-endian uint32 next, lo, hi.
-func encodeAckPayload(next uint32) []byte {
-	out := make([]byte, 12)
-	binary.LittleEndian.PutUint32(out[0:4], next)
-	// lo and hi are zero (no bitmap).
-	return out
 }

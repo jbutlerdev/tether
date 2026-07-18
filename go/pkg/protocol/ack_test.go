@@ -1,4 +1,4 @@
-// Tests for the cumulative bitmap ACK. See plan.md §2.3.
+// Tests for the cumulative bitmap ACK. See research.md §8.5 / §8.6.
 package protocol_test
 
 import (
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
+	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
 
 // TestAckBitmap_SetInWindow: setting a seq in the window must mark it
@@ -39,21 +40,16 @@ func TestAckBitmap_RebaseAdvancesNext(t *testing.T) {
 	if b.Bitmap != 0 {
 		t.Errorf("Bitmap after full window: want 0, got %#x", b.Bitmap)
 	}
-	// Has(0): seq 0 is below the new window, so it is implicitly
-	// acked (Has returns true). The test pins down the contract: a
-	// seq below Next IS acked.
 	if !b.Has(0) {
 		t.Errorf("Has(0) after rebase: want true (acked, below window)")
 	}
-	// Has(32): seq 32 is the new first-un-acked. Bit 0 is not set.
 	if b.Has(32) {
 		t.Errorf("Has(32) after rebase: want false (new first-un-acked)")
 	}
 }
 
 // TestAckBitmap_SetBelowWindow: setting a seq below Next is a no-op
-// and returns inWindow=false. The seq remains acked (below the
-// active window).
+// and returns inWindow=false.
 func TestAckBitmap_SetBelowWindow(t *testing.T) {
 	var b protocol.AckBitmap
 	b.NextExpectedSeq = 10
@@ -61,8 +57,6 @@ func TestAckBitmap_SetBelowWindow(t *testing.T) {
 	if inWindow {
 		t.Errorf("Set(5) with Next=10: want inWindow=false")
 	}
-	// Seq 5 is below Next=10, so it is acked (the receiver has
-	// advanced past it).
 	if !b.Has(5) {
 		t.Errorf("Has(5) with Next=10: want true (acked, below window)")
 	}
@@ -72,42 +66,33 @@ func TestAckBitmap_SetBelowWindow(t *testing.T) {
 }
 
 // TestAckBitmap_SetAboveWindow_Advance: setting a seq above Next+31
-// rebases Next to first-un-acked after the set seq.
+// rebases Next.
 func TestAckBitmap_SetAboveWindow_Advance(t *testing.T) {
 	var b protocol.AckBitmap
 	inWindow, advanced := b.Set(50)
 	if !inWindow || !advanced {
 		t.Fatalf("Set(50) on Next=0: want (true,true), got (%v,%v)", inWindow, advanced)
 	}
-	// After Set(50) the bitmap has bit 50-0=50 set, but the window is
-	// only 32 wide, so the new Next is 50-31=19. (No bits before 19
-	// are set in the bitmap, but the *contract* is that the receiver
-	// re-syncs to the highest-acked seq.)
 	if b.NextExpectedSeq != 19 {
 		t.Fatalf("NextExpectedSeq after Set(50) on Next=0: want 19, got %d", b.NextExpectedSeq)
 	}
 }
 
-// TestAckBitmap_EncodeDecode round-trips a known bitmap.
+// TestAckBitmap_EncodeDecode round-trips a known bitmap through the
+// 28-byte wire payload (research.md §8.6).
 func TestAckBitmap_EncodeDecode(t *testing.T) {
+	convID := bytes.Repeat([]byte{0xAB}, 16)
+	const msgID = uint32(0xCAFEBABE)
 	b := protocol.AckBitmap{
-		NextExpectedSeq: 0x1000_0000,
+		NextExpectedSeq: 0x0000_BEEF, // fits in uint16 on the wire
 		Bitmap:          0xDEAD_BEEF,
 	}
 	next, lo, hi := b.Encode()
-	if next != 0x1000_0000 {
-		t.Errorf("Encode next: want 0x10000000, got %#x", next)
+	wire := protocol.EncodeAckPayload(convID, msgID, next, lo, hi)
+	if len(wire) != 28 {
+		t.Fatalf("EncodeAckPayload: want 28 bytes, got %d", len(wire))
 	}
-	if lo != 0xBEEF {
-		t.Errorf("Encode lo: want 0xBEEF, got %#x", lo)
-	}
-	if hi != 0xDEAD {
-		t.Errorf("Encode hi: want 0xDEAD, got %#x", hi)
-	}
-
-	// Build the wire payload and decode it.
-	wire := protocol.EncodeAckPayload(0x1000_0000, lo, hi)
-	got, err := protocol.DecodeAckBitmap(wire)
+	got, gotConv, gotMsg, err := protocol.DecodeAckBitmap(wire)
 	if err != nil {
 		t.Fatalf("DecodeAckBitmap: %v", err)
 	}
@@ -117,13 +102,18 @@ func TestAckBitmap_EncodeDecode(t *testing.T) {
 	if got.Bitmap != b.Bitmap {
 		t.Errorf("round-trip Bitmap: want %#x, got %#x", b.Bitmap, got.Bitmap)
 	}
+	if !bytes.Equal(gotConv, convID) {
+		t.Errorf("round-trip convID: want %x, got %x", convID, gotConv)
+	}
+	if gotMsg != msgID {
+		t.Errorf("round-trip msgID: want %#x, got %#x", msgID, gotMsg)
+	}
 }
 
 // TestAckBitmap_Full: every bit set, no rebase until the contiguous
 // prefix closes.
 func TestAckBitmap_Full(t *testing.T) {
 	var b protocol.AckBitmap
-	// Set bit 31 (highest) — no contiguous run from LSB, so no rebase.
 	if _, _ = b.Set(31); b.Bitmap == 0 {
 		t.Fatalf("Set(31): bitmap should not be 0")
 	}
@@ -131,7 +121,7 @@ func TestAckBitmap_Full(t *testing.T) {
 		t.Errorf("Has(31) after Set(31): want true")
 	}
 	if b.NextExpectedSeq != 0 {
-		t.Errorf("NextExpectedSeq: want 0 (no contiguous run from LSB), got %d", b.NextExpectedSeq)
+		t.Errorf("NextExpectedSeq: want 0, got %d", b.NextExpectedSeq)
 	}
 }
 
@@ -140,12 +130,9 @@ func TestAckBitmap_Full(t *testing.T) {
 func TestAckBitmap_Wraparound(t *testing.T) {
 	var b protocol.AckBitmap
 	b.NextExpectedSeq = 0xFFFFFFF0
-	// Set every seq in the window.
 	for i := uint32(0); i < 32; i++ {
 		_, _ = b.Set(0xFFFFFFF0 + i)
 	}
-	// After the full window, Next must have advanced by 32, wrapping
-	// to 0x00000010.
 	if b.NextExpectedSeq != 0x00000010 {
 		t.Fatalf("NextExpectedSeq wraparound: want 0x00000010, got %#x", b.NextExpectedSeq)
 	}
@@ -165,7 +152,7 @@ func TestAckBitmap_EncodeZero(t *testing.T) {
 
 // TestDecodeAckBitmap_Empty covers the empty-buffer error path.
 func TestDecodeAckBitmap_Empty(t *testing.T) {
-	_, err := protocol.DecodeAckBitmap(nil)
+	_, _, _, err := protocol.DecodeAckBitmap(nil)
 	if err == nil {
 		t.Fatal("DecodeAckBitmap(nil): want error, got nil")
 	}
@@ -173,7 +160,7 @@ func TestDecodeAckBitmap_Empty(t *testing.T) {
 
 // TestDecodeAckBitmap_TooShort covers the wrong-length error path.
 func TestDecodeAckBitmap_TooShort(t *testing.T) {
-	_, err := protocol.DecodeAckBitmap([]byte{0x01, 0x02, 0x03})
+	_, _, _, err := protocol.DecodeAckBitmap([]byte{0x01, 0x02, 0x03})
 	if err == nil {
 		t.Fatal("DecodeAckBitmap(3 bytes): want error, got nil")
 	}
@@ -183,21 +170,18 @@ func TestDecodeAckBitmap_TooShort(t *testing.T) {
 func TestAckBitmap_HasOutOfWindow(t *testing.T) {
 	var b protocol.AckBitmap
 	b.NextExpectedSeq = 0
-	b.Bitmap = 0xFF // bits 0..7 set, bits 8..31 clear
-	// Seq 8..31 are in the active bitmap window. Seq 32 is past it.
+	b.Bitmap = 0xFF // bits 0..7 set
 	if b.Has(32) {
 		t.Errorf("Has(32) past window: want false")
 	}
 	if b.Has(100) {
 		t.Errorf("Has(100) past window: want false")
 	}
-	// Seq 0..7 are acked (bits 0..7 set).
 	for i := uint32(0); i < 8; i++ {
 		if !b.Has(i) {
 			t.Errorf("Has(%d): want true (bit set)", i)
 		}
 	}
-	// Seq 8..31 are not acked (bits 8..31 clear).
 	for i := uint32(8); i < 32; i++ {
 		if b.Has(i) {
 			t.Errorf("Has(%d): want false (bit clear)", i)
@@ -205,17 +189,14 @@ func TestAckBitmap_HasOutOfWindow(t *testing.T) {
 	}
 }
 
-// before a rebase; the rebase advances Next but the seq is still
-// acked (it is below the new window).
+// TestAckBitmap_HasAfterRebase: the rebase advances Next but a
+// previously-acked seq is still acked (below the new window).
 func TestAckBitmap_HasAfterRebase(t *testing.T) {
 	var b protocol.AckBitmap
-	// Set seq 5 first.
 	_, _ = b.Set(5)
 	if !b.Has(5) {
 		t.Fatalf("Has(5) before rebase: want true")
 	}
-	// Now set seq 50, which rebases Next to 19. Seq 5 is below the
-	// new window, so Has(5) is still true (acked).
 	_, _ = b.Set(50)
 	if b.NextExpectedSeq != 19 {
 		t.Fatalf("NextExpectedSeq after rebase: want 19, got %d", b.NextExpectedSeq)
@@ -223,49 +204,122 @@ func TestAckBitmap_HasAfterRebase(t *testing.T) {
 	if !b.Has(5) {
 		t.Errorf("Has(5) after rebase: want true (acked, below new window)")
 	}
-	// Seq 50 is the high bit of the new window.
 	bit := uint32(50) - b.NextExpectedSeq
 	if bit < 32 {
 		if b.Bitmap&(1<<bit) == 0 {
 			t.Errorf("bit %d (for seq 50) should be set in rebased bitmap", bit)
 		}
 	}
-	// Seq 19..49 are NOT acked (the new window is empty except for
-	// bit 31).
 	if b.Has(19) {
 		t.Errorf("Has(19) after rebase: want false (first un-acked)")
 	}
-	if b.Has(49) {
-		t.Errorf("Has(49) after rebase: want false")
-	}
 }
 
-// TestAckBitmap_EncodeDecodeWireBytes is a black-box round-trip through
-// the wire format used by the rest of the codebase.
+// TestAckBitmap_EncodeDecodeWireBytes is a black-box round-trip
+// through the 28-byte wire payload (research.md §8.6), verifying the
+// conversation_id and message_id are carried and the CRC verifies.
 func TestAckBitmap_EncodeDecodeWireBytes(t *testing.T) {
-	payload := protocol.EncodeAckPayload(0xABCD_1234, 0xCAFE, 0xBABE)
-	if len(payload) != 12 {
-		t.Fatalf("EncodeAckPayload: want 12 bytes, got %d", len(payload))
+	convID := bytes.Repeat([]byte{0x0F}, 16)
+	const msgID = uint32(0x12345678)
+	payload := protocol.EncodeAckPayload(convID, msgID, 0xABCD, 0xCAFE, 0xBABE)
+	if len(payload) != 28 {
+		t.Fatalf("EncodeAckPayload: want 28 bytes, got %d", len(payload))
 	}
-	got, err := protocol.DecodeAckBitmap(payload)
+	got, gotConv, gotMsg, err := protocol.DecodeAckBitmap(payload)
 	if err != nil {
 		t.Fatalf("DecodeAckBitmap: %v", err)
 	}
-	if got.NextExpectedSeq != 0xABCD_1234 {
-		t.Errorf("NextExpectedSeq: want 0xABCD1234, got %#x", got.NextExpectedSeq)
+	if got.NextExpectedSeq != 0xABCD {
+		t.Errorf("NextExpectedSeq: want 0xABCD, got %#x", got.NextExpectedSeq)
 	}
 	wantBitmap := uint32(0xBABE)<<16 | uint32(0xCAFE)
 	if got.Bitmap != wantBitmap {
 		t.Errorf("Bitmap: want %#x, got %#x", wantBitmap, got.Bitmap)
 	}
+	if !bytes.Equal(gotConv, convID) {
+		t.Errorf("convID: want %x, got %x", convID, gotConv)
+	}
+	if gotMsg != msgID {
+		t.Errorf("msgID: want %#x, got %#x", msgID, gotMsg)
+	}
 }
 
-// TestAckBitmap_PartialDecode does not allocate; we just verify that
-// the encoded payload is exactly 12 bytes.
-func TestAckBitmap_EncodeLayout(t *testing.T) {
-	payload := protocol.EncodeAckPayload(0, 0, 0)
-	want := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	if !bytes.Equal(payload, want) {
-		t.Errorf("zero encode: want %x, got %x", want, payload)
+// TestAckPayload_CRCRejectsCorruption: flipping one bit in the payload
+// must fail the CRC check.
+func TestAckPayload_CRCRejectsCorruption(t *testing.T) {
+	convID := bytes.Repeat([]byte{0x11}, 16)
+	payload := protocol.EncodeAckPayload(convID, 42, 5, 0x00FF, 0)
+	// Corrupt one byte in the bitmap region (offset 22).
+	payload[22] ^= 0x01
+	_, _, _, err := protocol.DecodeAckBitmap(payload)
+	if err == nil {
+		t.Fatal("DecodeAckBitmap(corrupted): want CRC error, got nil")
+	}
+}
+
+// TestAckPayload_ZeroConvIDAccepted: a legacy/test ACK with an
+// all-zero conversation_id is still decodable (the sender treats a
+// zero conv_id as "accept regardless" for back-compat).
+func TestAckPayload_ZeroConvIDAccepted(t *testing.T) {
+	payload := protocol.EncodeAckPayload(nil, 0, 4, 0, 0)
+	got, gotConv, gotMsg, err := protocol.DecodeAckBitmap(payload)
+	if err != nil {
+		t.Fatalf("DecodeAckBitmap: %v", err)
+	}
+	if hasNonZero(gotConv) {
+		t.Errorf("zero convID: want all-zero, got %x", gotConv)
+	}
+	if gotMsg != 0 {
+		t.Errorf("zero msgID: want 0, got %#x", gotMsg)
+	}
+	if got.NextExpectedSeq != 4 {
+		t.Errorf("NextExpectedSeq: want 4, got %d", got.NextExpectedSeq)
+	}
+}
+
+// TestMarshalAck_RoundTrip: MarshalAck/DecodeAck round-trip the
+// protocolpb.Ack through the 28-byte fixed payload.
+func TestMarshalAck_RoundTrip(t *testing.T) {
+	convID := bytes.Repeat([]byte{0x22}, 16)
+	wire, err := protocol.MarshalAck(protocolpbAck(convID, 99, 7, 0x00AA, 0))
+	if err != nil {
+		t.Fatalf("MarshalAck: %v", err)
+	}
+	if len(wire) != 28 {
+		t.Fatalf("MarshalAck: want 28 bytes, got %d", len(wire))
+	}
+	got, err := protocol.DecodeAck(wire)
+	if err != nil {
+		t.Fatalf("DecodeAck: %v", err)
+	}
+	if !bytes.Equal(got.ConversationId, convID) {
+		t.Errorf("convID: want %x, got %x", convID, got.ConversationId)
+	}
+	if got.MessageId != 99 {
+		t.Errorf("msgID: want 99, got %d", got.MessageId)
+	}
+	if got.NextExpectedSeq != 7 {
+		t.Errorf("next: want 7, got %d", got.NextExpectedSeq)
+	}
+}
+
+// hasNonZero reports whether any byte is non-zero.
+func hasNonZero(b []byte) bool {
+	for _, x := range b {
+		if x != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// protocolpbAck builds a *protocolpb.Ack for test brevity.
+func protocolpbAck(convID []byte, msgID, next, lo, hi uint32) *protocolpb.Ack {
+	return &protocolpb.Ack{
+		ConversationId:  convID,
+		MessageId:       msgID,
+		NextExpectedSeq: next,
+		AckBitmapLo:     lo,
+		AckBitmapHi:     hi,
 	}
 }

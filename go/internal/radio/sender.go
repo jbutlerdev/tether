@@ -19,6 +19,7 @@
 package radio
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -30,6 +31,18 @@ import (
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
+
+// hasNonZero reports whether any byte in b is non-zero. Used to
+// distinguish a legacy all-zero ACK conversation_id (accept) from a
+// real foreign conversation_id (reject).
+func hasNonZero(b []byte) bool {
+	for _, x := range b {
+		if x != 0 {
+			return true
+		}
+	}
+	return false
+}
 
 // Sentinel errors returned by Sender.Run.
 var (
@@ -100,9 +113,12 @@ func SenderOptionOnSuccess(fn func()) SenderOption {
 // NewSender builds a Sender for a pre-fragmented sequence.
 func NewSender(r Radio, envs []*protocolpb.Envelope, opts ...SenderOption) *Sender {
 	s := &Sender{
-		radio:    r,
-		envs:     envs,
-		timeout:  200 * time.Millisecond,
+		radio: r,
+		envs:  envs,
+		// research.md §8.5: "ACK timer: 2 s." This is the
+		// production default; tests and the loopback tool
+		// override it with SenderOptionTimeout for speed.
+		timeout:  2 * time.Second,
 		maxRetry: 5,
 		logger:   slog.Default(),
 	}
@@ -202,10 +218,36 @@ func (s *Sender) Run(ctx context.Context) (int, *protocolpb.Envelope, int, error
 				// Not an ACK: ignore and continue.
 				continue
 			}
-			// Decode the ACK payload and update our local state.
-			bmp, err := protocol.DecodeAckBitmap(env.Payload)
+			// Decode the 28-byte ACK payload (research.md §8.6). The
+			// payload is self-describing: it carries its own
+			// conversation_id + message_id + CRC-16, so we validate
+			// the ACK belongs to this message from the PAYLOAD, not
+			// just the envelope header (REVIEW.md F3).
+			bmp, ackConvID, ackMsgID, err := protocol.DecodeAckBitmap(env.Payload)
 			if err != nil {
 				s.logger.Warn("sender: failed to decode ack", "err", err)
+				continue
+			}
+			// Reject ACKs that do not belong to this message. The
+			// ACK payload carries conversation_id + message_id
+			// (research.md §8.6); an ACK for conversation A must
+			// never ack envelopes in conversation B. A zero
+			// conversation_id in the payload is the legacy/test
+			// shape (accepted for back-compat); production wiring
+			// always populates both fields.
+			if !bytes.Equal(ackConvID, s.envs[0].ConversationId) {
+				// Only skip if the payload actually carried a conv id
+				// (a non-zero one). An all-zero payload conv id means
+				// a legacy ACK — fall back to the envelope header.
+				if hasNonZero(ackConvID) || (len(env.ConversationId) > 0 && !bytes.Equal(env.ConversationId, s.envs[0].ConversationId)) {
+					s.logger.Warn("sender: ack for different conversation; ignoring",
+						"want", s.envs[0].ConversationId, "got", ackConvID)
+					continue
+				}
+			}
+			if ackMsgID != 0 && ackMsgID != s.envs[0].MessageId {
+				s.logger.Warn("sender: ack for different message; ignoring",
+					"want", s.envs[0].MessageId, "got", ackMsgID)
 				continue
 			}
 			// Merge the incoming bitmap into ours. Each seq that

@@ -32,6 +32,7 @@ import (
 	"github.com/jbutlerdev/tether/go/internal/forge"
 	"github.com/jbutlerdev/tether/go/internal/stt"
 	"github.com/jbutlerdev/tether/go/internal/tts"
+	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
 
 // pipelineHarness wires the mocks and the pipeline under test
@@ -61,11 +62,11 @@ type captureRadio struct {
 }
 
 // Send records the envelope. Implements forge.Radio.
-func (c *captureRadio) Send(_ context.Context, env *forge.RadioEnv, _ string) error {
+func (c *captureRadio) Send(_ context.Context, env *protocolpb.Envelope) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.payload = append(c.payload, append([]byte(nil), env.Payload...))
-	c.typ = append(c.typ, env.MsgType)
+	c.typ = append(c.typ, uint32(env.MsgType))
 	c.count.Add(1)
 	return nil
 }
@@ -324,6 +325,66 @@ func TestPipeline_SessionExpired_Resume(t *testing.T) {
 	h.forge.InjectEvent(id, forge.Event{Type: forge.EventAgentEnd, Content: `{}`, Seq: 2, At: time.Now()})
 
 	waitForRadioCount(t, h.radios, 1, 3*time.Second)
+}
+
+// TestPipeline_SessionExpired_ConvIDStable: on session resume the
+// conversation id MUST stay stable (derived from the original
+// session id) so the M5's UI is undisturbed, and the store must
+// NOT gain a duplicate conversation. Only the row's Target (the
+// forge session id) is repointed at the new session. This is the
+// regression for the bug where HandleSSESessionExpired re-derived
+// the convID from the new session id, creating a second conversation.
+func TestPipeline_SessionExpired_ConvIDStable(t *testing.T) {
+	t.Parallel()
+	h := newPipelineHarness(t, "")
+	defer h.forge.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	id := h.sessionID
+	oldConvID := forge.SessionToConvID16(id)
+	if err := h.pipeline.HandleSSESubscribe(ctx, id); err != nil {
+		t.Fatalf("HandleSSESubscribe: %v", err)
+	}
+
+	// Drive the resume synchronously (the event-dispatch path calls
+	// the same method).
+	if err := h.pipeline.HandleSSESessionExpired(ctx, id); err != nil {
+		t.Fatalf("HandleSSESessionExpired: %v", err)
+	}
+
+	list, err := h.store.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("store conversations: want exactly 1 (no duplicate), got %d", len(list))
+	}
+	if list[0].ID != oldConvID {
+		t.Errorf("conv id changed on resume: want %x, got %x", oldConvID, list[0].ID)
+	}
+	if list[0].Info.Target == id {
+		t.Errorf("store Target not repointed: still %q", id)
+	}
+	if list[0].Info.Target == "" {
+		t.Error("store Target is empty after resume")
+	}
+
+	// The new Target must be a real session the mock created.
+	sessions, err := h.forge.ListSessions(ctx)
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	found := false
+	for _, s := range sessions {
+		if s.ID == list[0].Info.Target {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("resumed Target %q is not a known forge session", list[0].Info.Target)
+	}
 }
 
 // TestPipeline_ConcurrentIncoming: two simultaneous voice

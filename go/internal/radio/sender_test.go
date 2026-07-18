@@ -32,10 +32,18 @@ func senderEnv() []*protocolpb.Envelope {
 	return envs
 }
 
-// ackPayloadFor builds an ACK payload that acks up to and including
-// seq. The bitmap is computed from nextExpectedSeq=seq+1.
+// senderConvID is the conversation id used by senderEnv (0xCD×16).
+// Hoisted so the ACK helpers can stamp it onto test ACK payloads.
+var senderConvID = bytes.Repeat([]byte{0xCD}, 16)
+
+// senderMsgID is the message id used by senderEnv (Fragment msgID=1).
+const senderMsgID = uint32(1)
+
+// ackPayloadFor builds a 28-byte ACK payload (research.md §8.6) that
+// acks up to and including seq, stamped with the sender's conv_id +
+// msg_id so the Sender's payload-level validation accepts it.
 func ackPayloadFor(seq uint32) []byte {
-	return protocol.EncodeAckPayload(seq+1, 0, 0)
+	return protocol.EncodeAckPayload(senderConvID, senderMsgID, seq+1, 0, 0)
 }
 
 // ackEnvelopeFor wraps an ack payload in a proto envelope of type ACK.
@@ -43,6 +51,8 @@ func ackEnvelopeFor(seq uint32) *protocolpb.Envelope {
 	return &protocolpb.Envelope{
 		ProtocolVersion: 1,
 		MsgType:         protocolpb.MsgType_MSG_TYPE_ACK,
+		ConversationId:  append([]byte(nil), senderConvID...),
+		MessageId:       senderMsgID,
 		Payload:         ackPayloadFor(seq),
 	}
 }
@@ -601,7 +611,93 @@ func autoAckRecord(t *testing.T, side, sendSide radio.Radio, onSeen func(seq uin
 			if onSeen != nil {
 				onSeen(env.SeqNum)
 			}
-			_ = sendSide.Send(context.Background(), ackEnvelopeFor(env.SeqNum))
+			// ACK with the env's own conv_id + msg_id so the sender's
+			// payload-level validation (research.md §8.6) accepts it
+			// regardless of which conversation the test uses.
+			ack := &protocolpb.Envelope{
+				ProtocolVersion: 1,
+				MsgType:         protocolpb.MsgType_MSG_TYPE_ACK,
+				ConversationId:  append([]byte(nil), env.ConversationId...),
+				MessageId:       env.MessageId,
+				Payload:         protocol.EncodeAckPayload(env.ConversationId, env.MessageId, env.SeqNum+1, 0, 0),
+			}
+			_ = sendSide.Send(context.Background(), ack)
 		}
 	}()
+}
+
+// TestSender_IgnoresAckForOtherConversation: an ACK envelope that
+// carries a conversation_id / message_id NOT matching the sender's
+// message must be ignored (REVIEW.md F3). Without this check an ACK
+// for conversation A would falsely ack envelopes in conversation B.
+//
+// Deterministic proof: send the sender one ACK that claims EVERY seq
+// is acked but carries a foreign conversation_id. If the sender
+// honoured it, the run would succeed immediately. Because the sender
+// must ignore it, the sender exhausts its retry budget and fails.
+func TestSender_IgnoresAckForOtherConversation(t *testing.T) {
+	t.Parallel()
+	loop := newLoopback(t)
+	envs := senderEnv() // conv_id = 0xCD*16, msg_id = 1
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	s := radio.NewSender(loop.aSide, envs,
+		radio.SenderOptionTimeout(80*time.Millisecond),
+		radio.SenderOptionMaxRetry(3),
+	)
+
+	done := make(chan struct{})
+	var acked int
+	var failed *protocolpb.Envelope
+	go func() {
+		defer close(done)
+		acked, failed, _, _ = s.Run(ctx)
+	}()
+
+	// Drain the first DATA fragment off the b side and reply with an
+	// ACK that claims the whole message is acked — but stamped with a
+	// FOREIGN conversation id and message id.
+	rxEnv, err := loop.bSide.Receive(ctx)
+	if err != nil {
+		t.Fatalf("receive first fragment: %v", err)
+	}
+	otherConv := bytes.Repeat([]byte{0xEE}, 16)
+	spurious := &protocolpb.Envelope{
+		ProtocolVersion: 1,
+		MsgType:         protocolpb.MsgType_MSG_TYPE_ACK,
+		ConversationId:  otherConv,
+		MessageId:       rxEnv.MessageId + 999, // foreign message id too
+		Payload:         protocol.EncodeAckPayload(otherConv, rxEnv.MessageId+999, uint32(len(envs)), 0xFFFF, 0xFFFF),
+	}
+	if err := loop.bSide.Send(ctx, spurious); err != nil {
+		t.Fatalf("send spurious: %v", err)
+	}
+
+	// Keep draining retransmits and re-sending the foreign ACK so the
+	// sender sees it on every retry. If the validation were absent the
+	// sender would ack everything and succeed.
+	go func() {
+		for {
+			e, err := loop.bSide.Receive(ctx)
+			if err != nil {
+				return
+			}
+			_ = loop.bSide.Send(ctx, spurious)
+			_ = e
+		}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("sender did not terminate")
+	}
+	if failed == nil {
+		t.Fatal("sender succeeded on a foreign-conversation ACK; the ACK was not validated")
+	}
+	if acked != 0 {
+		t.Errorf("acked: want 0 (foreign ACK must be ignored), got %d", acked)
+	}
 }

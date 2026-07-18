@@ -52,7 +52,7 @@ The system supports **multiple simultaneous conversations** (Matrix rooms + Forg
 
 See `hardware.md` for the BOM. Key facts that drive the design:
 
-* **ThinkNode M5** — ESP32-S3 (Xtensa LX7 dual-core @ 240 MHz, 512 KB SRAM, **8 MB PSRAM**), 1.54″ EPD, 1200 mAh Li-Po, GPS, **onboard SX1262**, **2 physical buttons** (A=PTT GPIO 21, B=Menu/cycle GPIO 14) + a **GPS slider** on GPIO 10 (digital input, not a button), **I2S0 mic on GPIO 35/36/37** (right edge), **I2S1 amp on GPIO 47/48 (right) and 18 (left)** in split config, **microSD slot on the SPI bus** (CS=GPIO 10, same GPIO number as the GPS slider but a different physical pad).
+* **ThinkNode M5** — ESP32-S3 (Xtensa LX7 dual-core @ 240 MHz, 512 KB SRAM, **8 MB PSRAM**), 1.54″ EPD, 1200 mAh Li-Po, **onboard SX1262**, **2 physical buttons** (A=PTT GPIO 21, B=Menu/cycle GPIO 14) + a **GPS slider** on GPIO 10 (digital input, not a button; in v0.1.4 the L76K GPS module is desoldered, so the slider is vestigial). The shared full-duplex **I2S0** audio bus uses WS=GPIO 19, BCLK=GPIO 20, mic DIN=GPIO 18, amp DOUT=GPIO 9 (requires GPS removal + buzzer removal — see `docs/HARDWARE-MODS.md`). **microSD slot on the SPI bus** (CS=GPIO 10, same GPIO number as the GPS slider but a different physical pad).
 * **SX1262** uses a **single BUSY pin + one multi-purpose IRQ line**, not the DIO0–DIO5 model of the older SX1276.
 * The M5's onboard LoRa chip and the SD card share one HSPI bus — arbitration pattern in §7.4.
 * **Bridge** = RAK4631 core (nRF52840 + SX1262). Re-flashed with custom firmware speaking our line-framed binary protocol over USB-Serial at 921 600 baud.
@@ -72,7 +72,7 @@ incorrect.
 |---|---|---|
 | **A** (front, large) | **PTT** — push to record, release to enqueue + transmit | GPIO 21, IRQ, debounced |
 | **B** (side) | **Menu / cycle** — short press advances to the next conversation; long-press (2 s) enters the settings menu. Inside the settings menu, kPtt acts as "decrease / go back" (the v0.1.0 design used a third "Prev" button that does not exist on this hardware). | GPIO 14, IRQ, debounced |
-| **GPS slider** (case) | Toggles the L76K GPS module on/off. **Not a button.** Wired to GPIO 10 (digital input); see §2.2 for the GPIO-10 collision with SD_CS. Tether does not use the GPS, but the slider is sensed at boot to log a "GPS off" line in `tether-m5` serial output. | GPIO 10, digital input |
+| **GPS slider** (case) | Toggles the L76K GPS module on/off. **Not a button.** Wired to GPIO 10 (digital input); see §2.2 for the GPIO-10 collision with SD_CS. In v0.1.4 the GPS module is removed entirely, so the slider is vestigial — Tether does not sense it. | GPIO 10, digital input |
 
 ### 2.2 M5 I/O mapping (verified against the ELECROW schematic)
 
@@ -96,14 +96,14 @@ pads for free runs of three.
 | EPD CS / DC / RST | 39 / 40 / 41 | SPI + GPIO |
 | EPD BUSY | 42 | Input, polled |
 | EPD SCLK / MOSI | 38 / 45 | Shared SPI bus |
-| I2S0 (shared, full-duplex) WS / BCLK / DIN / DOUT | 12 / 10 / 18 / 9 | **REQUIRES HARDWARE MODS.** Shared WS and BCLK (mic and amp); mic SD on 18, amp DIN on 9. The three required mods free 9/10/12 — see docs/HARDWARE-MODS.md. |
-| I2S1 (unused in v0.1.3) | — | Tether uses a single I²S0 bus, not two separate buses. |
+| I2S0 (shared, full-duplex) WS / BCLK / DIN / DOUT | 19 / 20 / 18 / 9 | **REQUIRES HARDWARE MODS.** Shared WS and BCLK (mic and amp); mic SD on 18, amp DIN on 9. The two required mods (GPS removal frees 19/20; buzzer removal frees 9) — see docs/HARDWARE-MODS.md. |
+| I2S1 (unused in v0.1.4) | — | Tether uses a single I²S0 bus, not two separate buses. |
 | Button A (PTT) | 21 | Pull-up, IRQ on press |
 | Button B (Menu) | 14 | Pull-up, IRQ on press |
-| GPS slider | 10 | **Sacrificed.** Trace cut as part of the GPS "Always-On" hack. The slider's position is no longer readable; the GPS module is hard-wired to 3.3 V. |
-| GPS L76K UART | 19 (RX) / 20 (TX) | 9600 baud, not used in v1. The GPS module itself is hard-wired to 3.3 V after the mod. |
+| GPS slider | 10 | **Sacrificed.** The L76K module is desoldered entirely in v0.1.4; the slider is vestigial. The slider's pad is also the SD_CS line via a different physical pad (see `board.h::kPinSdCs`), so toggling the slider mechanically toggles the SD_CS line — harmless in SPI mode. |
+| GPS L76K UART | 19 (RX) / 20 (TX) | **Reclaimed for I²S0.** The GPS module is desoldered entirely in v0.1.4, freeing these GPIOs. GPIO 19 → I²S0 WS; GPIO 20 → I²S0 BCLK. |
 | Battery ADC | 8 (channel 7) | For low-battery detection |
-| VBUS detect | 12 | **Sacrificed.** Trace cut; v0.2.0 will use the ESP32-S3's built-in USB-OTG VBUS detection. |
+| VBUS detect | 12 | **Intact.** In v0.1.4 the trace is not cut (GPS removal makes the VBUS cut unnecessary). The firmware reads USB plug state directly via `EXT_PWR_DETECT`. |
 | Buzzer | 9 | **Sacrificed.** Desoldered; the blue notification LED on the PCA9557 provides user feedback. |
 | UART1 (RAK4631 bridge) | 43 (TX) / 44 (RX) | 921 600 baud |
 | PCA9557 (Wire1) | 47 (SDA) / 48 (SCL) | I²C1, address 0x18. Drives LEDs, e-ink backlight, master peripheral power-rail. |
@@ -147,7 +147,7 @@ use_phase_inversion= 0
 **Bitrate math:**
 - 16 kbps × 1 s = **2 KB/s**
 - 60 s message (max) = **120 KB** Opus
-- With 16-byte app header on a 255-byte FIFO → ~239-byte payload → **~500 packets** per max-length message.
+- With 34-byte fixed app header on a 255-byte SX1262 FIFO → 221-byte payload → **~540 packets** per max-length message.
 
 ### 3.3 Decode path on PC
 
@@ -384,25 +384,39 @@ A 60 s TX = ~15 mAh. **~80 messages per 1200 mAh charge** if we deep-sleep aggre
 
 ## 8. Packet Protocol & Fragmentation
 
-### 8.1 Header structure (24 bytes)
+### 8.1 Header structure (34 bytes)
 
 ```
 Offset  Size  Field
-0       2     target_id        // node address; 0xFFFF = broadcast
-2       2     sender_id
+0       2     target_id        // node address (LE uint16); 0xFFFF = broadcast
+2       2     sender_id        // LE uint16
 4       16    conversation_id  // UUID; identifies Matrix room or Forge session
-20      2     seq_num          // index of this chunk (0-based)
-22      2     total_seqs       // total chunks
-24      1     msg_type         // 0=DATA, 1=START, 2=END, 3=ACK, 4=TTS_DATA, 5=TTS_END, 6=UI_UPDATE
-25      1     flags            // bit0=RETRANSMIT, bit1=LAST_TTS_CHUNK
-26      1     audio_kind       // 0=mic_capture, 1=tts_inbound, 2=beep_tone
-27      1     reserved
-28      2     header_crc       // CRC-16/CCITT over bytes 0..27
+20      4     message_id       // LE uint32; monotonic per conversation, replay-safe
+24      2     seq_num          // LE uint16; index of this chunk (0-based)
+26      2     total_seqs       // LE uint16; total chunks in this message
+28      1     msg_type         // 0=DATA, 1=START, 2=END, 3=ACK, 4=TTS_DATA, 5=TTS_END, 6=UI_UPDATE
+29      1     flags            // bit0=RETRANSMIT, bit1=LAST_TTS_CHUNK
+30      1     audio_kind       // 0=mic_capture, 1=tts_inbound, 2=beep_tone
+31      1     reserved         // 0
+32      2     header_crc       // CRC-16/CCITT-FALSE over bytes 0..31
 ```
 
-Followed by up to 227 bytes of payload (255 FIFO − 16 MAC overhead − 24 app header).
+Followed by up to 221 bytes of payload (255-byte SX1262 FIFO − 34-byte
+fixed header). The header is fixed-width so the M5 firmware (C++ mirror
+in `firmware/m5/components/protocol`) and the bridge can parse it
+without a protobuf runtime.
 
-**`conversation_id` is 16 bytes (UUID) so a single radio can participate in many Matrix rooms and forge sessions** without address-space collisions. The conversation_id is generated by the base station when a new Matrix room or forge session is created and pushed to the M5 via a UI_UPDATE message.
+There is **no `protocol_version` field** on the wire: the format itself
+is the version. A future incompatible change is a new format, gated by
+the first-byte layout, not by a numbered field. (The in-memory
+`Envelope` protobuf keeps a `protocol_version` field, always 1, for
+convenience — it is not serialised.)
+
+**`conversation_id` is 16 bytes (UUID) so a single radio can participate in many Matrix rooms and forge sessions** without address-space collisions, and **`message_id` (4 bytes) makes `(conversation_id, message_id)` globally monotonic and replay-safe** (§8.5). The conversation_id is generated by the base station when a new Matrix room or forge session is created and pushed to the M5 via a UI_UPDATE message.
+
+`target_id` / `sender_id` are 2-byte node addresses (uint16). The M5 is
+0x0001; the base station is 0x0002; 0xFFFF is broadcast. A `NodeId.value`
+above 0xFFFF in the in-memory struct is truncated to 16 bits on the wire.
 
 ### 8.2 Message types
 
@@ -445,16 +459,24 @@ Followed by up to 227 bytes of payload (255 FIFO − 16 MAC overhead − 24 app 
 * Duplicate detection: receiver drops `seq_num <= already_received` for the same `conversation_id + msg_id`.
 * `conversation_id + msg_id` is globally monotonic; never reused → replay-safe.
 
-### 8.6 ACK format
+### 8.6 ACK format (28 bytes)
+
+The ACK is a self-describing 28-byte fixed payload that rides in an
+ACK `Envelope`'s `payload` field. Carrying `conversation_id` +
+`msg_id` in the payload (not just on the envelope header) makes the
+ACK self-describing: a sender can reject an ACK that does not belong
+to its message even if the header were stripped or corrupted. This is
+the multi-conversation safety guarantee — an ACK for conversation A
+can never ack envelopes in conversation B.
 
 ```
 Offset  Size  Field
-0       16    conversation_id
-16      4     msg_id
-20      2     next_expected_seq  // seq of the next un-acked packet
-22      2     ack_bitmap_lo      // 16 bits covering seqs [next_expected_seq .. next_expected_seq+15]
-24      2     ack_bitmap_hi      // 16 bits covering [next_expected_seq+16 .. next_expected_seq+31]
-26      2     crc16
+0       16    conversation_id  // matches the acked message
+16      4     msg_id           // LE uint32; matches the acked message
+20      2     next_expected_seq // LE uint16; seq of the next un-acked packet
+22      2     ack_bitmap_lo    // 16 bits covering seqs [next..next+15]
+24      2     ack_bitmap_hi    // 16 bits covering [next+16..next+31]
+26      2     crc16            // CRC-16/CCITT-FALSE over bytes 0..25
 ```
 
 ---

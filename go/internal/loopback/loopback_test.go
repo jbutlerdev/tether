@@ -129,8 +129,10 @@ func bridge(ctx context.Context, pb radio.Radio, shadowIn chan<- *protocolpb.Env
 		// Send ACK back.
 		next := env.SeqNum + 1
 		ack := &protocolpb.Envelope{
-			MsgType: protocolpb.MsgType_MSG_TYPE_ACK,
-			Payload: encodeAckPayloadLocal(next),
+			MsgType:        protocolpb.MsgType_MSG_TYPE_ACK,
+			ConversationId: append([]byte(nil), env.ConversationId...),
+			MessageId:      env.MessageId,
+			Payload:        protocol.EncodeAckPayload(env.ConversationId, env.MessageId, next, 0, 0),
 		}
 		_ = pb.Send(ctx, ack)
 		// Forward to the shadow.
@@ -140,17 +142,6 @@ func bridge(ctx context.Context, pb radio.Radio, shadowIn chan<- *protocolpb.Env
 			return
 		}
 	}
-}
-
-// encodeAckPayloadLocal produces the 12-byte wire format the
-// Sender expects.
-func encodeAckPayloadLocal(next uint32) []byte {
-	out := make([]byte, 12)
-	out[0] = byte(next)
-	out[1] = byte(next >> 8)
-	out[2] = byte(next >> 16)
-	out[3] = byte(next >> 24)
-	return out
 }
 
 // shadowRadio is a radio.Radio backed by an in-memory channel.

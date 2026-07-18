@@ -35,3 +35,10 @@ logs/
 cov.out
 go/forge.cov
 go/cli.cov
+
+# Go tool binaries (built ad-hoc; never commit)
+go/tetherd
+go/tools/tether-loopback/tether-loopback
+go/tools/tether-e2e/tether-e2e
+go/tools/tether-voice-test/tether-voice-test
+go/tools/tether-matrix-test/tether-matrix-test

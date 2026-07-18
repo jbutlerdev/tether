@@ -1,6 +1,6 @@
 # Hardware
 
-This is the bill of materials and the pin map for Tether v0.1.3.
+This is the bill of materials and the pin map for Tether v0.1.4.
 
 The pin map is **authoritative**: the same numbers are encoded in
 `firmware/m5/components/board/include/board.h` and were derived
@@ -9,21 +9,27 @@ from the Meshtastic variant.h for the ELECROW ThinkNode M5
 If you change a pin in the firmware, change it here too — and vice
 versa.
 
-> **v0.1.3 — READ THIS FIRST.** The Tether audio path requires
+> **v0.1.4 — READ THIS FIRST.** The Tether audio path requires
 > four GPIOs for a single full-duplex I²S0 bus. The stock M5 has
 > only one natively free pin (GPIO 18). To free the other three,
-> **three hardware modifications are required** before flashing
+> **two hardware modifications are required** before flashing
 > the firmware. They are documented in detail in
 > [`docs/HARDWARE-MODS.md`](docs/HARDWARE-MODS.md) with photos
 > and step-by-step instructions. The mods are:
-> 1. **GPS "Always-On" hack** — bypass the L76K load switch, sever
->    the trace back to GPIO 10.
-> 2. **Buzzer removal** — desolder the SMD buzzer (frees GPIO 9).
-> 3. **Power-Detect trace cut** — sever the trace from the USB
->    voltage divider to GPIO 12.
+> 1. **GPS module removal** — desolder the Quectel L76K GPS
+>    module (frees GPIO 19 / GPIO 20 for I²S0 WS / BCLK; also
+>    frees GPIO 10 / 11 / 13 as a side-effect).
+> 2. **Buzzer removal** — desolder the SMD buzzer (frees GPIO 9
+>    for I²S0 DOUT).
 >
 > **Do not flash the firmware onto an unmodified M5.** The audio
 > path will not work.
+>
+> Compared to v0.1.3, the v0.1.4 design drops the VBUS-detect
+> trace cut and the GPS "Always-On" hack. The GPS module is now
+> *removed* rather than hard-wired to 3.3 V, which eliminates the
+> ~25 mA continuous drain. GPIO 12 (USB VBUS detect) stays wired
+> and the firmware can read USB plug state normally.
 
 ## 1. Handheld node
 
@@ -31,13 +37,14 @@ versa.
   LoRa Meshtastic transceiver (ESP32-S3 + onboard Semtech **SX1262**
   LoRa + 1.54″ EPD + 3 user controls — 2 buttons + 1 GPS slider).
 * **Audio Input:** INMP441 I2S MEMS Microphone Module / Adafruit I2S
-  MEMS microphone breakout. Wired to **I2S0** at GPIO 35/36/37
-  (WS/BCLK/DIN, all on the M5's right edge).
+  MEMS microphone breakout. Wired to **I2S0** at GPIO 18 (DIN).
+  Shares the BCLK (GPIO 20) and WS (GPIO 19) lines with the amp
+  in full-duplex mode.
 * **Audio Output:** Adafruit Class D I2S Amplifier (MAX98357A) paired
-  with a low-profile speaker. Wired to **I2S1** in a split
-  configuration: LRC=47, BCLK=48 (right edge), DIN=18 (left edge).
-  No contiguous run of three free pins exists for the amp; the split
-  config is mandatory.
+  with a low-profile speaker. Wired to **I2S0** at GPIO 9 (DOUT).
+  Shares BCLK (GPIO 20) and WS (GPIO 19) with the mic.
+  GPIOs 19 / 20 are freed by removing the L76K GPS module; GPIO 9
+  is freed by removing the buzzer. See `docs/HARDWARE-MODS.md`.
 * **Storage:** MicroSD Card (operating over SPI; CS=GPIO 10).
 * **Power:** 1200 mAh Li-Po (battery pin GPIO 8, ADC channel 7).
   Charge via USB-C (`EXT_PWR_DETECT` on GPIO 12).
@@ -48,7 +55,7 @@ versa.
 |---|---|---|
 | **Button A** (front, large) | GPIO 21 | **PTT**: push to record, release to enqueue + transmit. Long-press is a v0.2.0 hook. |
 | **Button B** (side) | GPIO 14 | **Menu / cycle**: short press = next conversation; long-press = settings entry / exit. |
-| **GPS slider** (case) | GPIO 10 (digital input) | Toggles the L76K GPS module on/off. **Not a button.** Tether does not use the GPS, but the slider is sensed at boot so we can log a "GPS off" line in `tether-m5` serial output. |
+| **GPS slider** (case) | GPIO 10 (digital input) | Toggles the L76K GPS module on/off. **Not a button.** In v0.1.4 the GPS module is removed entirely, so the slider is vestigial. Tether does not sense it. |
 
 The third "control" on the M5 is the GPS slider, not a third
 button. The 3-button model that the v0.1.0 docs inherited from
@@ -79,29 +86,28 @@ All pin numbers are ESP32-S3 GPIO numbers.
 |  | 45 | MOSI / SDI | `PIN_EINK_MOSI` |
 |  | (PCA9557 pin 5) | E-ink power enable (not GPIO; on the I2C expander) | `PCA_PIN_EINK_EN` |
 | **SD card (SPI)** | 10 | CS | `SD_CS` |
-| **I2S0 — INMP441** | 35 | WS (word select) | architect |
-|  | 36 | BCLK (bit clock) | architect |
-|  | 37 | DIN (data in, from mic) | architect |
-| **I2S1 — MAX98357A** | 47 | WS / LRC (word select) | architect |
-|  | 48 | BCLK (bit clock) | architect |
-|  | 18 | DOUT (data out, to amp) | architect |
+| **I2S0 — shared full-duplex (mic + amp)** | 19 | WS (word select) | freed by GPS removal (was GPS L76K RX) |
+|  | 20 | BCLK (bit clock) | freed by GPS removal (was GPS L76K TX) |
+|  | 18 | DIN (data in, from mic) | architect |
+|  | 9 | DOUT (data out, to amp) | freed by buzzer removal |
 | **Buttons** | 21 | Button A (PTT) | meshtastic `PIN_BUTTON1` |
 |  | 14 | Button B (Menu) | meshtastic `PIN_BUTTON2` |
 | **GPS slider** | 10 | Slider position sense | meshtastic `GPS_SWITH` (note: same GPIO as SD_CS but a different physical pad per the M5 schematic) |
 | **Battery** | 8 | VBAT ADC (channel 7) | `BATTERY_PIN` |
-| **Power** | 12 | VBUS detect | `EXT_PWR_DETECT` |
+| **Power** | 12 | VBUS detect | `EXT_PWR_DETECT` (intact in v0.1.4; trace is not cut) |
 | **Buzzer** | 9 | PWM (active high) | `PIN_BUZZER` |
 | **UART1 (RAK4631 bridge)** | 43 | TX | meshtastic `UART_TX` |
 |  | 44 | RX | meshtastic `UART_RX` |
 | **I2C0 (RTC, future)** | 1 | SCL | `I2C_SCL` |
 |  | 2 | SDA | `I2C_SDA` |
-| **I2C1 (PCA9557, unused by Tether)** | 47 | SCL (collides with I2S1 WS; not used by Tether) | meshtastic `Wire1.begin(48, 47)` |
-|  | 48 | SDA (collides with I2S1 BCLK; not used by Tether) | same |
+| **I2C1 (PCA9557, used by Tether)** | 47 | SDA | meshtastic `Wire1.begin(48, 47)` |
+|  | 48 | SCL | same |
 
-The I2C1 / I2S1 collision is the reason `board.h` has a long
-comment about the right-edge pads: the PCA9557 I2C expander is
-unneeded in Tether (no Meshtastic-style LED notifications, no
-power-rail control), so GPIO 47/48 are free for I2S1.
+GPIO 47 / 48 are claimed by Wire1 (the PCA9557 I2C expander) and
+drive the LEDs, e-ink backlight, and master peripheral power
+rail. They are not available for I2S1. In v0.1.4 we run a single
+shared I²S0 bus on GPIO 19/20/18/9; the I2S1 peripheral is
+unused.
 
 ### 1.3 Source of truth
 

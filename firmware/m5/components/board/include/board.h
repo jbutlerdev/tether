@@ -18,36 +18,41 @@
 // ────────────────────────────────────────────────────────────────────
 // The Tether audio path requires 4 GPIOs for a single full-duplex
 // I2S0 bus. The stock M5 has only ONE natively free pin (GPIO 18).
-// To free 3 more, three hardware modifications are required before
+// To free 3 more, two hardware modifications are required before
 // the firmware is flashed. See docs/HARDWARE-MODS.md for the full
 // execution plan with photos. The summary:
 //
-//   1. GPS "Always-On" hack — bypass the L76K load switch near the
-//      Quectel module. Solder a jumper across its input/output;
-//      sever the trace back to the ESP32's GPIO 10. GPS module is
-//      now permanently powered. GPIO 10 is freed for I2S0 BCLK.
+//   1. GPS module removal — desolder the Quectel L76K GPS module
+//      (LCC, 9.7×10.1 mm, 18 pins) from the M5 board. With the
+//      module gone, GPIOs 10, 11, 13, 19, and 20 are freed (they
+//      were the GPS slider sense, standby, reinit, RX, and TX
+//      respectively). GPIOs 19 and 20 are claimed for I2S0 below;
+//      the rest stay unused. Compared to the v0.1.3 GPS "Always-On"
+//      hack, this removes the ~25 mA continuous drain of the GPS
+//      being powered forever, and it gives us enough free pins
+//      that we do NOT need to cut the VBUS-detect trace.
 //
 //   2. Buzzer removal — desolder the physical buzzer from the M5
 //      board. GPIO 9 (the buzzer PWM pin) is freed for I2S0 DOUT
 //      (amp DIN).
 //
-//   3. Power-Detect trace cut — sever the PCB trace between the
-//      USB voltage divider and the ESP32's GPIO 12. The charging
-//      IC continues to function; the firmware loses the ability
-//      to read VBUS state via this pin (USB-OTG built-in VBUS
-//      detection is the v0.2.0 replacement). GPIO 12 is freed for
-//      I2S0 WS (LRC).
+// No trace cuts are required. In particular, GPIO 12 (EXT_PWR_DETECT,
+// the USB VBUS sense line) is left intact — the firmware can read
+// USB plug state normally.
 //
 // GPIOs 33 and 34 are part of the OCTAL PSRAM bus and MUST NOT be
 // used. Touching them crashes the PSRAM controller. The mic/amp
 // pin map avoids them by design.
 //
-// After the three mods the I2S0 bus is wired full-duplex:
+// After the two mods the I2S0 bus is wired full-duplex:
 //
-//   WS (LRC)  : GPIO 12  (shared between mic WS and amp LRC)
-//   BCLK (SCK): GPIO 10  (shared between mic SCK and amp BCLK)
-//   Mic SD    : GPIO 18  (I2S0 DIN — data from mic)
-//   Amp DIN   : GPIO 9   (I2S0 DOUT — data to amp)
+//   WS (LRC)  : GPIO 19  (shared between mic WS and amp LRC;
+//                         freed by GPS removal — was GPS L76K RX)
+//   BCLK (SCK): GPIO 20  (shared between mic SCK and amp BCLK;
+//                         freed by GPS removal — was GPS L76K TX)
+//   Mic SD    : GPIO 18  (I2S0 DIN — data from mic; natively free)
+//   Amp DIN   : GPIO 9   (I2S0 DOUT — data to amp; freed by
+//                         buzzer removal)
 //
 // Both devices run on the same SCK/WS pair, so the mic and amp
 // share bit-clock and word-select timing exactly. This is the
@@ -140,17 +145,18 @@ constexpr gpio_num_t kPinSdCs = GPIO_NUM_10;
 
 // ── I2S0 — shared full-duplex audio bus (mic + amp) ─────────────────
 //
-// REQUIRES THE 3 HARDWARE MODS DESCRIBED AT THE TOP OF THIS FILE.
-// Without them, GPIO 9 / 10 / 12 are not available to the ESP32
-// and this bus cannot be wired.
+// REQUIRES THE 2 HARDWARE MODS DESCRIBED AT THE TOP OF THIS FILE.
+// Without them, GPIO 9 (buzzer) is not available and GPIOs 19/20
+// are still wired to the (now-removed) GPS module's UART, and
+// this bus cannot be wired.
 //
 // The mic (INMP441) and the amp (MAX98357A) share the BCLK and WS
 // signals; the mic drives its SD line into the ESP32's DIN, and the
 // amp reads the ESP32's DOUT. This is the standard full-duplex I2S
 // topology; the ESP32-S3's I2S0 peripheral can drive both
 // directions simultaneously.
-constexpr gpio_num_t kPinI2sWs = GPIO_NUM_12;   // Word Select (LRC)
-constexpr gpio_num_t kPinI2sBclk = GPIO_NUM_10; // Bit Clock (SCK)
+constexpr gpio_num_t kPinI2sWs = GPIO_NUM_19;   // Word Select (LRC; was GPS L76K RX)
+constexpr gpio_num_t kPinI2sBclk = GPIO_NUM_20; // Bit Clock (SCK; was GPS L76K TX)
 constexpr gpio_num_t kPinI2sDin = GPIO_NUM_18;  // Data In: from mic
 constexpr gpio_num_t kPinI2sDout = GPIO_NUM_9;  // Data Out: to amp
 
@@ -162,9 +168,12 @@ constexpr uint32_t kButtonActiveLow = 0;           // GPIO low = pressed
 // ── Power / battery / buzzer (mostly sacrificed) ─────────────────────
 //
 // GPIO 9 (kPinI2sDout) was the buzzer. Desoldered for I2S0 DOUT.
-// GPIO 12 (kPinI2sWs)  was EXT_PWR_DETECT. Trace cut for I2S0 WS.
+// GPIO 19 (kPinI2sWs) and GPIO 20 (kPinI2sBclk) were the GPS
+// L76K's UART. Freed by removing the GPS module entirely.
+// GPIO 12 (kPinExtPwrDetect) is INTACT — we keep the USB VBUS
+// sense line because GPIO 19/20 absorb the WS/BCLK requirement.
 constexpr gpio_num_t kPinBuzzer = GPIO_NUM_9;        // now = I2S DOUT
-constexpr gpio_num_t kPinExtPwrDetect = GPIO_NUM_12; // now = I2S WS
+constexpr gpio_num_t kPinExtPwrDetect = GPIO_NUM_12; // still VBUS detect
 // Battery ADC is still on GPIO 8 (no conflict).
 constexpr gpio_num_t kPinBatteryAdc = GPIO_NUM_8; // ADC channel 7
 

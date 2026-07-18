@@ -124,7 +124,7 @@ func (s *MemStore) Upsert(ctx context.Context, id [16]byte, info ConvInfo) (Conv
 	s.rows[id] = conv
 	s.mu.Unlock()
 
-	s.publish(Change{Kind: ChangeUpsert, ID: id, New: conv, New_: !existed})
+	s.publish(Change{Kind: ChangeUpsert, ID: id, New: conv, Created: !existed})
 	return conv, !existed, nil
 }
 

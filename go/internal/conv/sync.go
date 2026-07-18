@@ -26,24 +26,19 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/jbutlerdev/tether/go/internal/radio"
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
-
-// Radio is the subset of radio.Radio that Sync uses. It is
-// defined here (rather than imported) so that tests can plug in
-// a small fake radio without pulling in the real radio package's
-// dependencies.
-type Radio interface {
-	Send(ctx context.Context, env *protocolpb.Envelope) error
-}
 
 // SyncConfig configures a Sync.
 type SyncConfig struct {
 	// Store is the conversation store to watch. Required.
 	Store Store
-	// Radio is the LoRa radio the M5 listens on. Required.
-	Radio Radio
+	// Radio is the LoRa radio the M5 listens on. Required. This is
+	// the send-only radio.PacketSender subset; Sync never needs to receive
+	// or reconfigure the radio.
+	Radio radio.PacketSender
 	// SenderID is the Tether node id that owns the radio
 	// (typically the base station's node id, e.g. 0x0001).
 	SenderID uint32
@@ -66,7 +61,7 @@ type SyncConfig struct {
 // exits when ctx is canceled.
 type Sync struct {
 	store  Store
-	radio  Radio
+	radio  radio.PacketSender
 	logger *slog.Logger
 	cfg    SyncConfig
 
@@ -212,10 +207,8 @@ func (s *Sync) encode(id [16]byte, info *ConvInfo) (*protocolpb.Envelope, error)
 		}
 		ci.LastActivityUnixMs = uint64(info.LastActivityUnixMs)
 		ci.UnreadCount = info.UnreadCount
-	} else {
-		// A nil info means "this is a Remove".
-		ci.Remove = true
 	}
+	// A nil info means "this is a Remove".
 	ci.Remove = info == nil
 
 	// Validate before send: a name longer than 24 chars is a

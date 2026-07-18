@@ -63,7 +63,7 @@ func TestFragment_SingleChunk(t *testing.T) {
 }
 
 func TestFragment_MultipleChunks(t *testing.T) {
-	// 1000 bytes at max chunk size 227 → 5 chunks of 227, 227, 227, 227, 92.
+	// 1000 bytes at max chunk size 221 → 5 chunks of 221, 221, 221, 221, 116.
 	payload := bytes.Repeat([]byte{0xBB}, 1000)
 	envs, err := protocol.Fragment(payload, 7, bytes.Repeat([]byte{0xAB}, 16),
 		protocolpb.MsgType_MSG_TYPE_DATA, protocolpb.AudioKind_AUDIO_KIND_MIC)
@@ -73,7 +73,7 @@ func TestFragment_MultipleChunks(t *testing.T) {
 	if len(envs) != 5 {
 		t.Fatalf("Fragment 1000 bytes: want 5 envelopes, got %d", len(envs))
 	}
-	wantSizes := []int{227, 227, 227, 227, 92}
+	wantSizes := []int{221, 221, 221, 221, 116}
 	for i, env := range envs {
 		if env.TotalSeqs != 5 {
 			t.Errorf("env[%d].TotalSeqs: want 5, got %d", i, env.TotalSeqs)
@@ -96,14 +96,14 @@ func TestFragment_MultipleChunks(t *testing.T) {
 }
 
 func TestFragment_ExactlyMaxPerChunk(t *testing.T) {
-	payload := bytes.Repeat([]byte{0xCC}, 227) // exactly one chunk
+	payload := bytes.Repeat([]byte{0xCC}, protocol.MaxPayloadSize) // exactly one chunk
 	envs, err := protocol.Fragment(payload, 1, bytes.Repeat([]byte{0xAB}, 16),
 		protocolpb.MsgType_MSG_TYPE_DATA, protocolpb.AudioKind_AUDIO_KIND_MIC)
 	if err != nil {
 		t.Fatalf("Fragment: %v", err)
 	}
 	if len(envs) != 1 {
-		t.Fatalf("Fragment 227 bytes: want 1 envelope, got %d", len(envs))
+		t.Fatalf("Fragment %d bytes: want 1 envelope, got %d", protocol.MaxPayloadSize, len(envs))
 	}
 	if envs[0].TotalSeqs != 1 {
 		t.Errorf("TotalSeqs: want 1, got %d", envs[0].TotalSeqs)
@@ -112,22 +112,16 @@ func TestFragment_ExactlyMaxPerChunk(t *testing.T) {
 
 func TestFragment_OneOverMax(t *testing.T) {
 	// Fragment must never produce a chunk > MaxPayloadSize. We test this
-	// by feeding a payload that would produce a chunk > 227 if the
-	// implementation uses the wrong chunk size, but at the correct
-	// MaxPayloadSize the largest chunk is 227 bytes (1 byte less than
-	// 228, so a 228-byte payload produces a 227-byte chunk plus a
-	// 1-byte chunk). The check at the API layer rejects payloads of
-	// > 227 bytes total. (See plan §2.2 "TestFragment_OneOverMax".)
-	payload := bytes.Repeat([]byte{0xDD}, 228)
+	// by feeding a payload that would produce a chunk > MaxPayloadSize if
+	// the implementation uses the wrong chunk size, but at the correct
+	// MaxPayloadSize the largest chunk is 221 bytes, so a 222-byte
+	// payload produces a 221-byte chunk plus a 1-byte chunk.
+	payload := bytes.Repeat([]byte{0xDD}, protocol.MaxPayloadSize+1)
 	_, err := protocol.Fragment(payload, 1, bytes.Repeat([]byte{0xAB}, 16),
 		protocolpb.MsgType_MSG_TYPE_DATA, protocolpb.AudioKind_AUDIO_KIND_MIC)
-	// 228 bytes fits in two chunks (227 + 1), so this should succeed.
-	// The plan's intent is that no chunk can ever exceed MaxPayloadSize,
-	// which is enforced at the Reassemble/Encode layer for over-the-wire
-	// envelopes. Here we just verify that a 228-byte payload produces
-	// a valid two-chunk split, NOT an error.
+	// 222 bytes fits in two chunks (221 + 1), so this should succeed.
 	if err != nil {
-		t.Fatalf("Fragment 228 bytes: want nil (splits into 227+1), got %v", err)
+		t.Fatalf("Fragment %d bytes: want nil (splits into 221+1), got %v", protocol.MaxPayloadSize+1, err)
 	}
 }
 
@@ -217,7 +211,7 @@ func TestReassemble_TotalSeqsMismatch(t *testing.T) {
 
 func TestRoundTrip_RandomSizes(t *testing.T) {
 	// Property-style test: many random sizes, fragment → reassemble.
-	sizes := []int{1, 100, 226, 227, 228, 454, 500, 681, 1000, 2000, 10000, 100000}
+	sizes := []int{1, 100, 220, 221, 222, 442, 500, 663, 1000, 2000, 10000, 100000}
 	for _, sz := range sizes {
 		sz := sz
 		t.Run(fmt.Sprintf("size=%d", sz), func(t *testing.T) {

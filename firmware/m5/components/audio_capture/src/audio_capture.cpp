@@ -30,7 +30,14 @@ int16_t g_mock_pcm[160] = {};
 } // namespace
 
 AudioCapture::AudioCapture(PsramRing &ring, OpusEncoder &enc)
-    : ring_(ring), enc_(enc) {}
+    : ring_(ring), enc_(enc) {
+#ifdef TETHER_M5_HOST_TEST
+  // Host tests drive RunOnce() directly without Init() (which would
+  // require real I2S hardware), so default to "running" on the host.
+  // On real hardware Init() sets this true after I2SMic::Init succeeds.
+  i2s_running_ = true;
+#endif
+}
 
 bool AudioCapture::Init() {
   I2SMic mic;

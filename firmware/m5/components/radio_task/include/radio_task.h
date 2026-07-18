@@ -65,7 +65,10 @@ public:
 
 private:
   void StartSending();
-  bool SendOneDataChunk();
+  void SendStartPacket();
+  // SendOneDataChunk transmits the lowest unacked chunk and returns
+  // its index, or -1 if every chunk is acked.
+  int SendOneDataChunk();
   void HandleRxPacket(const RadioMessage &m);
   void HandleAck(uint32_t msg_id, uint32_t bitmap);
 
@@ -78,6 +81,7 @@ private:
   uint32_t acked_bitmap_ = 0;
   int retransmits_left_ = 0;
   int start_repeats_remaining_ = 0;
+  int last_sent_chunk_ = -1; // index of the last DATA chunk sent
   RadioState state_ = RadioState::kIdle;
 
   // Inbound queue (test-injected).

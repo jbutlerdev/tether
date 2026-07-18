@@ -4,6 +4,92 @@ All notable changes to Tether are documented in this file. The format
 is based on [Keep a Changelog](https://keepachangelog.com/), and the
 project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v0.1.4] — 2026-06-18
+
+Hardware-mod simplification. **Replaces the v0.1.3 GPS
+"Always-On" hack with full GPS module removal, and drops the
+VBUS-detect trace cut.** The number of required hardware
+modifications drops from three to two.
+
+### Changed
+
+* **GPS module is now removed, not hacked to be always-on.**
+  The v0.1.3 design bypassed the L76K's load switch and
+  severed the gate trace, which kept the GPS module
+  permanently powered (drawing ~25 mA continuously) just to
+  free GPIO 10. v0.1.4 instead desolders the L76K module
+  entirely (it's a 9.7×10.1 mm LCC, designed for reflow and
+  desolderable with hot air in ~60 seconds). This eliminates
+  the 25 mA drain and frees five GPIOs at once — GPIO 10
+  (slider), GPIO 11 (standby), GPIO 13 (reinit), GPIO 19
+  (UART RX), GPIO 20 (UART TX).
+* **I²S0 WS and BCLK moved off GPIO 12 / GPIO 10 and onto
+  GPIO 19 / GPIO 20.** Because the GPS removal frees GPIO 19
+  and GPIO 20, the WS/BCLK requirement can be satisfied
+  without touching the VBUS-detect pin or the slider. New
+  pin map:
+
+  | Signal | GPIO | Source |
+  |---|---|---|
+  | WS (LRC) | 19 | freed by GPS removal (was GPS L76K RX) |
+  | BCLK | 20 | freed by GPS removal (was GPS L76K TX) |
+  | Mic SD (DIN) | 18 | unchanged (natively free) |
+  | Amp DIN (DOUT) | 9 | unchanged (still requires buzzer removal) |
+* **`board.h` updated to reflect the new pin map and new
+  comment.** `kPinI2sWs` is now `GPIO_NUM_19`,
+  `kPinI2sBclk` is now `GPIO_NUM_20`.
+  `kPinExtPwrDetect` remains `GPIO_NUM_12` and the
+  accompanying comment now says "intact" rather than "now =
+  I2S WS".
+* **Doc strings in `i2s_mic.cpp`, `i2s_amp.cpp`, and
+  `main.cpp`** updated from "three hardware mods" to "two
+  hardware mods".
+
+### Removed
+
+* **VBUS-detect trace cut** is no longer required. The
+  M5's USB voltage divider → GPIO 12 trace is left
+  intact, and the firmware reads USB plug state via the
+  normal `EXT_PWR_DETECT` path. There is no longer a
+  "USB plugged in" UI gap to fix in v0.2.0 — it's already
+  working.
+* **The "GPS Always-On hack"** (load-switch bypass + gate
+  trace cut) is replaced by GPS module removal.
+
+### Sacrificed hardware (acceptable trade-offs)
+
+| Hardware feature | Why | Net effect |
+|---|---|---|
+| GPS module (Quectel L76K) | Frees GPIO 19 (WS), GPIO 20 (BCLK), plus GPIO 10/11/13 | GPS module is removed entirely. No more ~25 mA drain. No position data (Tether never used it). |
+| Buzzer (PWM audio) | Frees GPIO 9 (DOUT) | No beep tones; replaced by the blue LED |
+
+The M5's other features — SX1262 LoRa, EPD, SD, battery,
+USB-C charging, buttons, **USB VBUS detect (GPIO 12)** — are
+untouched. Compared to v0.1.3, the firmware gains the ability
+to read USB plug state.
+
+### Migration from v0.1.3
+
+Boards that already performed the v0.1.3 mods can move to
+v0.1.4 with no rework:
+
+* The v0.1.3 "GPS Always-On hack" still works at the
+  electrical level (the load switch is bypassed, the gate
+  trace is cut). To use the v0.1.4 pin map on such a board
+  you still need to free GPIO 19 / GPIO 20 — which means
+  you do need to desolder the L76K module to get to
+  v0.1.4. The "Always-On" hack is no longer recommended.
+* The v0.1.3 VBUS-detect trace cut is harmless under the
+  v0.1.4 firmware — GPIO 12 just reads as floating-low
+  when USB is unplugged. You can leave it cut, or
+  re-solder a jumper to restore full VBUS detect (the
+  firmware's USB-plug event will start working again).
+* The buzzer removal is unchanged.
+
+In short: existing v0.1.3 boards need only the GPS module
+removal step to migrate; the VBUS cut can stay or be
+reversed.
+
 ## [v0.1.3] — 2026-06-16
 
 Hardware-mod release. **Three physical modifications to the M5 PCB
@@ -74,6 +160,11 @@ steps. Plan for 60–90 minutes for a first attempt.
 The M5's other features — SX1262 LoRa, EPD, SD, battery, USB-C
 charging, buttons, GPS module (still functional, just always
 powered) — are untouched.
+
+> **Superseded by v0.1.4.** v0.1.4 replaces the GPS
+> "Always-On" hack with full GPS removal, drops the
+> VBUS-detect trace cut, and keeps GPIO 12 intact. See the
+> [v0.1.4] entry above.
 
 ## [v0.1.2] — 2026-06-16
 

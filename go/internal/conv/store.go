@@ -41,9 +41,9 @@ type Change struct {
 	ID [16]byte
 	// New is the post-Upsert Conversation. Zero on Remove.
 	New Conversation
-	// New is true on Upsert if the conversation did not exist
-	// before the call.
-	New_ bool
+	// Created is true on Upsert if the conversation did not exist
+	// before the call. Always false on Remove.
+	Created bool
 }
 
 // Store is the abstract conversation store. Implementations:

@@ -187,8 +187,8 @@ func TestMemStore_ChangesDelivered(t *testing.T) {
 	if got[0].Kind != conv.ChangeUpsert {
 		t.Errorf("event[0].Kind: want ChangeUpsert, got %v", got[0].Kind)
 	}
-	if !got[0].New_ {
-		t.Errorf("event[0].New_: want true, got false")
+	if !got[0].Created {
+		t.Errorf("event[0].Created: want true, got false")
 	}
 	if got[1].Kind != conv.ChangeRemove {
 		t.Errorf("event[1].Kind: want ChangeRemove, got %v", got[1].Kind)

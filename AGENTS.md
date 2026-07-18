@@ -87,23 +87,34 @@ component code — `#include "board.h"` and reference the
 `kPin…` constants. The header is the single source of truth and is
 cross-checked against the Meshtastic variant.h.
 
-### 3.4.2 Three hardware modifications are required
+### 3.4.2 Two hardware modifications are required
 
 The Tether audio path needs 4 GPIOs for a shared full-duplex
 I²S0 bus, but the M5 has only one natively free pin (GPIO 18).
-Three mods are required to free the other three:
+Two mods are required to free the other three:
 
-1. **GPS "Always-On" hack** — bypass the L76K load switch, sever
-   the trace back to GPIO 10. *Frees GPIO 10 for I²S0 BCLK.*
+1. **GPS module removal** — desolder the Quectel L76K GPS module
+   from the M5 board (LCC, 9.7×10.1 mm, 18 pins). *Frees GPIO 19
+   and GPIO 20 for I²S0 WS / BCLK (also frees GPIO 10, 11, 13 as
+   a side-effect).* Compared to the older v0.1.3 "GPS Always-On"
+   hack, this also removes the ~25 mA continuous drain of the GPS
+   being permanently powered, and leaves GPIO 12 (USB VBUS
+   detect) **intact**.
 2. **Buzzer removal** — desolder the SMD buzzer. *Frees GPIO 9
    for I²S0 DOUT (amp DIN).*
-3. **Power-Detect trace cut** — sever the trace from the USB
-   voltage divider to GPIO 12. *Frees GPIO 12 for I²S0 WS (LRC).*
 
 After the mods, the I²S0 bus is wired full-duplex (mic and amp
-share BCLK/WS, separate data lines). The PCA9557 on Wire1
-(GPIO 47/48) drives the LEDs, the e-ink backlight, and the
-master peripheral power rail — see §3.4.3.
+share BCLK/WS, separate data lines):
+
+| Signal | GPIO | Source |
+|---|---|---|
+| WS (LRC) | 19 | freed by GPS removal (was GPS L76K RX) |
+| BCLK | 20 | freed by GPS removal (was GPS L76K TX) |
+| Mic SD (DIN) | 18 | natively free |
+| Amp DIN (DOUT) | 9 | freed by buzzer removal |
+
+The PCA9557 on Wire1 (GPIO 47/48) drives the LEDs, the e-ink
+backlight, and the master peripheral power rail — see §3.4.3.
 
 **Do not flash the firmware onto an unmodified M5.** The full
 execution plan with tools, time, and verification steps is in
@@ -143,7 +154,7 @@ on LoRa fault.
 
 ### 3.6 The protocol header is versioned
 
-`proto/tether.proto` defines the on-the-wire format. The first 4 bytes of every envelope are `protocol_version = 1` (the `Envelope` protobuf's first field). The M5 firmware, the bridge firmware, and `tetherd` must all agree on the version. If you add a new field, bump the version and gate old behaviour on it.
+`proto/tether.proto` defines the in-memory `Envelope`/`Ack` structs. The **on-the-wire format is a fixed 34-byte binary header + payload** (research.md §8.1) with a CRC-16/CCITT-FALSE over the header; the ACK is a self-describing 28-byte payload (research.md §8.6). There is **no `protocol_version` byte on the wire** — the format itself is the version. The M5 firmware (C++ mirror in `firmware/m5/components/protocol`), the bridge firmware, and `tetherd` must all agree on the format. If you change the header layout, that is a coordinated break across all three; update `research.md` §8.1 first, then the Go codec (`go/pkg/protocol`), then the M5 C++ mirror, and re-run the fuzz test (`go test -fuzz=FuzzEnvelopeDecode -fuzztime=60s`).
 
 ---
 
@@ -248,8 +259,8 @@ tether/
 |---|---|
 | `protocol` | On-target C++ mirror of the wire format (CRC, header encode/decode). |
 | `spi_bus` | `SpiBus` singleton + `spi_bus_mutex`; per-CS `spi_device_handle_t`. SCK=16, MOSI=15, MISO=7 (from `board.h`). |
-| `i2s_mic` | INMP441 I2S RX. **Shared I2S0 full-duplex bus**: WS=12, BCLK=10, DIN=18. Requires the GPS/buzzer/power-detect mods. |
-| `i2s_amp` | MAX98357A I2S TX. **Shared I2S0 full-duplex bus**: WS=12, BCLK=10, DOUT=9. Same handle as i2s_mic (single full-duplex I2S0). |
+| `i2s_mic` | INMP441 I2S RX. **Shared I2S0 full-duplex bus**: WS=19, BCLK=20, DIN=18. Requires the GPS-removal + buzzer-removal mods. |
+| `i2s_amp` | MAX98357A I2S TX. **Shared I2S0 full-duplex bus**: WS=19, BCLK=20, DOUT=9. Same handle as i2s_mic (single full-duplex I2S0). |
 | `pca9557` | Wire1 I2C1 driver for the on-board PCA9557PW expander. LEDs, e-ink backlight, master peripheral power-rail. |
 | `lora_sx1262` | SX1262 driver wrapper (channel, preset, CAD, TX, RX). |
 | `sd_card` | LittleFS mount + POSIX file API. |
@@ -387,7 +398,7 @@ All 8 must pass before a PR can merge.
 
 ### 7.5 Touching the protocol
 
-If you change a packet field, **bump `protocol_version`** in `proto/tether.proto` and gate old behaviour on it. The M5 firmware, bridge firmware, and `tetherd` must all agree on the version, or you get garbage. Update `proto/gen.sh`, regenerate, commit, and re-run the fuzz test (`go test -fuzz=FuzzEnvelopeDecode -fuzztime=60s`).
+If you change a packet field, **update `research.md` §8.1/§8.6 first** (the wire format is the source of truth), then the Go codec (`go/pkg/protocol` header.go / ack.go), then the M5 C++ mirror (`firmware/m5/components/protocol`). The fixed header has no version byte — a layout change is a coordinated break across the M5 firmware, bridge firmware, and `tetherd`, or you get garbage. Regenerate the protobuf (the in-memory structs), commit, and re-run the fuzz test (`go test -fuzz=FuzzEnvelopeDecode -fuzztime=60s`).
 
 ### 7.6 Running the per-phase TDD loop again
 

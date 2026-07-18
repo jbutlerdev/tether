@@ -1,36 +1,61 @@
 // Package protocol implements the Tether LoRa wire format.
 //
-// The wire format is defined in proto/tether.proto. The generated
-// protobuf structs live in the protocolpb subpackage; this file holds
-// the hand-written helpers (CRC, encode, decode, validation) that
-// plan.md §1.4 puts alongside the schema.
+// The wire format is the fixed binary header defined in
+// research.md §8.1 (reconciled). The in-memory representation is
+// the generated protobuf structs in the protocolpb subpackage;
+// this file holds the hand-written codec (CRC, fixed-header
+// encode/decode, validation) that puts those structs on the wire.
 //
-// Wire layout:
+// Wire layout — fixed 34-byte header followed by ≤ MaxPayloadSize
+// bytes of payload (research.md §8.1):
 //
-//	The Envelope is encoded as a single protobuf message. The
-//	`header_crc` field is filled in by Encode, holding a CRC-16/CCITT-
-//	FALSE of the rest of the encoded message (everything except the
-//	CRC field itself, which is zeroed before computing). The high
-//	sixteen bits of the uint32 are always zero — CRC-16 fits in 16
-//	bits and we pad for forward-compatibility.
+//	Offset  Size  Field
+//	0       2     target_id        // LE uint16; 0xFFFF = broadcast
+//	2       2     sender_id        // LE uint16
+//	4       16    conversation_id  // UUID
+//	20      4     message_id       // LE uint32; monotonic per conv
+//	24      2     seq_num          // LE uint16; chunk index
+//	26      2     total_seqs       // LE uint16; total chunks
+//	28      1     msg_type         // START/DATA/END/ACK/TTS_DATA/...
+//	29      1     flags            // bit0=RETRANSMIT, bit1=LAST_TTS
+//	30      1     audio_kind       // 0=mic, 1=tts, 2=beep
+//	31      1     reserved         // 0
+//	32      2     header_crc       // CRC-16/CCITT-FALSE over bytes 0..31
+//	34      …     payload          // ≤ MaxPayloadSize bytes
+//
+// The header is fixed-width so the M5 firmware (C++ mirror in
+// firmware/m5/components/protocol) and the bridge can parse it
+// without a protobuf runtime. conversation_id (16 bytes) lets a
+// single radio participate in many Matrix rooms and forge sessions
+// without address-space collisions; message_id (4 bytes) makes
+// (conversation_id, message_id) globally monotonic and replay-safe
+// (research.md §8.5). The CRC-16/CCITT-FALSE covers every header
+// byte except itself, so a single-bit air corruption is caught
+// before the payload is touched.
+//
+// MaxPayloadSize: the SX1262 FIFO is 255 bytes; the 34-byte header
+// leaves 221 bytes for payload (255 − 34). The fragmentation logic
+// (fragment.go) splits on this constant.
 package protocol
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"google.golang.org/protobuf/proto"
 
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
 
 // MaxPayloadSize is the largest single-chunk payload allowed on the
-// LoRa link. 227 bytes leaves room for header, CRC, and MAC inside a
-// 256-byte frame. Plan §1.4.
-const MaxPayloadSize = 227
+// LoRa link. 255-byte SX1262 FIFO minus the 34-byte fixed header
+// (research.md §8.1).
+const MaxPayloadSize = 221
 
 // MaxConvNameLen matches the M5 EPD's 24-char name field.
 const MaxConvNameLen = 24
+
+// Wire header size (research.md §8.1).
+const headerSize = 34
 
 // Sentinel errors. Tests assert on these with errors.Is.
 var (
@@ -42,7 +67,7 @@ var (
 
 // Crc16CCITT computes the CRC-16/CCITT-FALSE of buf.
 //
-// Parameters (per plan.md §1.4 / §2.1):
+// Parameters (per research.md §8.1):
 //
 //	polynomial     0x1021
 //	init           0xFFFF
@@ -74,8 +99,9 @@ func Crc16CCITT(buf []byte) uint16 {
 	return crc
 }
 
-// Encode marshals env, computes the CRC over the marshaled message
-// (with the CRC field zeroed), and re-marshals with the CRC populated.
+// Encode serialises env into the fixed 34-byte header + payload wire
+// format (research.md §8.1). The header_crc field is computed over
+// header bytes 0..31 and written at offset 32.
 func Encode(env *protocolpb.Envelope) ([]byte, error) {
 	if env == nil {
 		return nil, errors.New("protocol: nil envelope")
@@ -83,79 +109,78 @@ func Encode(env *protocolpb.Envelope) ([]byte, error) {
 	if len(env.Payload) > MaxPayloadSize {
 		return nil, fmt.Errorf("payload length %d > %d: %w", len(env.Payload), MaxPayloadSize, ErrPayloadTooLarge)
 	}
-
-	// First pass: marshal with CRC=0. We use proto.Clone rather than a
-	// struct copy because the generated Envelope embeds a sync.Mutex for
-	// concurrent access, and copying a mutex is a vet-flagged bug. The
-	// type assertion is safe: proto.Clone always returns a value of the
-	// same concrete type as the input.
-	scratch := proto.Clone(env).(*protocolpb.Envelope)
-	scratch.HeaderCrc = 0
-	first, err := protoMarshal(scratch)
-	if err != nil {
-		return nil, fmt.Errorf("encode marshal: %w", err)
+	if len(env.ConversationId) != 0 && len(env.ConversationId) != 16 {
+		return nil, fmt.Errorf("conversation_id length %d, want 16: %w", len(env.ConversationId), ErrTruncated)
 	}
 
-	crc := Crc16CCITT(first)
-	scratch.HeaderCrc = uint32(crc) // high 16 bits stay 0 — CRC-16 fits in 16
-	second, err := protoMarshal(scratch)
-	if err != nil {
-		return nil, fmt.Errorf("encode re-marshal: %w", err)
+	out := make([]byte, headerSize+len(env.Payload))
+	// Bytes 0..1: target_id (LE uint16 from NodeId.value).
+	binary.LittleEndian.PutUint16(out[0:2], uint16(nodeIDValue(env.TargetId)))
+	// Bytes 2..3: sender_id.
+	binary.LittleEndian.PutUint16(out[2:4], uint16(nodeIDValue(env.SenderId)))
+	// Bytes 4..19: conversation_id (16 bytes; zero-padded if absent).
+	if len(env.ConversationId) == 16 {
+		copy(out[4:20], env.ConversationId)
 	}
-	return second, nil
+	// Bytes 20..23: message_id (LE uint32).
+	binary.LittleEndian.PutUint32(out[20:24], env.MessageId)
+	// Bytes 24..25: seq_num (LE uint16).
+	binary.LittleEndian.PutUint16(out[24:26], uint16(env.SeqNum))
+	// Bytes 26..27: total_seqs (LE uint16).
+	binary.LittleEndian.PutUint16(out[26:28], uint16(env.TotalSeqs))
+	// Byte 28: msg_type.
+	out[28] = byte(env.MsgType)
+	// Byte 29: flags (low 8 bits; bit0=RETRANSMIT, bit1=LAST_TTS).
+	out[29] = byte(env.Flags)
+	// Byte 30: audio_kind.
+	out[30] = byte(env.AudioKind)
+	// Byte 31: reserved (0).
+	out[31] = 0
+	// Bytes 32..33: header_crc over bytes 0..31.
+	crc := Crc16CCITT(out[0:32])
+	binary.LittleEndian.PutUint16(out[32:34], crc)
+	// Payload.
+	copy(out[34:], env.Payload)
+	return out, nil
 }
 
-// Decode parses a wire buffer into an Envelope, verifying the CRC.
+// Decode parses a fixed-header wire buffer into an Envelope, verifying
+// the header CRC. The returned Envelope has ProtocolVersion=1 (the
+// fixed format carries no version byte; the format itself is the
+// version) and HeaderCrc populated with the on-wire CRC.
 func Decode(buf []byte) (*protocolpb.Envelope, error) {
-	if len(buf) < 8 {
-		// Even the most minimal Envelope (no payload, no conv id) is
-		// much larger than 8 bytes after protobuf encoding.
-		return nil, ErrTruncated
+	if len(buf) < headerSize {
+		return nil, fmt.Errorf("wire buffer %d < header %d: %w", len(buf), headerSize, ErrTruncated)
 	}
-
-	env := &protocolpb.Envelope{}
-	if err := protoUnmarshal(buf, env); err != nil {
-		return nil, fmt.Errorf("decode unmarshal: %w", err)
-	}
-
-	// Verify the CRC by re-marshaling with the field zeroed and
-	// recomputing. The stored CRC must match.
-	stored := env.HeaderCrc
-	env.HeaderCrc = 0
-	re, err := protoMarshal(env)
-	if err != nil {
-		return nil, fmt.Errorf("decode re-marshal: %w", err)
-	}
-	if Crc16CCITT(re) != uint16(stored) {
+	stored := binary.LittleEndian.Uint16(buf[32:34])
+	if Crc16CCITT(buf[0:32]) != stored {
 		return nil, ErrBadCRC
 	}
-	// Restore so the caller sees the value we received.
-	env.HeaderCrc = stored
+	convID := make([]byte, 16)
+	copy(convID, buf[4:20])
+	env := &protocolpb.Envelope{
+		ProtocolVersion: 1,
+		TargetId:        &protocolpb.NodeId{Value: uint32(binary.LittleEndian.Uint16(buf[0:2]))},
+		SenderId:        &protocolpb.NodeId{Value: uint32(binary.LittleEndian.Uint16(buf[2:4]))},
+		ConversationId:  convID,
+		MessageId:       binary.LittleEndian.Uint32(buf[20:24]),
+		SeqNum:          uint32(binary.LittleEndian.Uint16(buf[24:26])),
+		TotalSeqs:       uint32(binary.LittleEndian.Uint16(buf[26:28])),
+		MsgType:         protocolpb.MsgType(buf[28]),
+		Flags:           uint32(buf[29]),
+		AudioKind:       protocolpb.AudioKind(buf[30]),
+		HeaderCrc:       uint32(stored),
+		Payload:         append([]byte(nil), buf[headerSize:]...),
+	}
 	return env, nil
 }
 
-// MarshalAck serializes an Ack to its on-the-wire form.
-//
-// Phase 0 keeps the wire format identical to the protobuf encoding of
-// the Ack message (the CRC field is a 0 placeholder until Phase 1
-// wires up the cumulative bitmap state machine).
-func MarshalAck(ack *protocolpb.Ack) ([]byte, error) {
-	if ack == nil {
-		return nil, errors.New("protocol: nil ack")
+// nodeIDValue safely dereferences a NodeId pointer, returning 0 for nil.
+func nodeIDValue(n *protocolpb.NodeId) uint32 {
+	if n == nil {
+		return 0
 	}
-	return protoMarshal(ack)
-}
-
-// DecodeAck parses a wire buffer into an Ack.
-func DecodeAck(buf []byte) (*protocolpb.Ack, error) {
-	if len(buf) == 0 {
-		return nil, ErrTruncated
-	}
-	ack := &protocolpb.Ack{}
-	if err := protoUnmarshal(buf, ack); err != nil {
-		return nil, fmt.Errorf("decode ack: %w", err)
-	}
-	return ack, nil
+	return n.Value
 }
 
 // ValidateConvInfo checks that a UI_UPDATE payload is well-formed.
@@ -168,36 +193,4 @@ func ValidateConvInfo(ci *protocolpb.ConvInfo) error {
 		return fmt.Errorf("name length %d > %d: %w", len(ci.Name), MaxConvNameLen, ErrNameTooLong)
 	}
 	return nil
-}
-
-// protoMarshal and protoUnmarshal are swappable in tests so the
-// "second marshal fails" / "unmarshal returns error" branches can be
-// exercised. In production they are direct calls to the protobuf
-// library; the test in header_test.go swaps them with a stub that
-// always returns an error.
-var (
-	protoMarshal   = proto.Marshal
-	protoUnmarshal = proto.Unmarshal
-)
-
-// ProtoMarshalFunc is the type of a swappable proto.Marshal replacement.
-type ProtoMarshalFunc func(proto.Message) ([]byte, error)
-
-// ProtoUnmarshalFunc is the type of a swappable proto.Unmarshal replacement.
-type ProtoUnmarshalFunc func([]byte, proto.Message) error
-
-// SwapProtoMarshal replaces protoMarshal for the duration of a test and
-// returns the previous function so callers can restore it (typically
-// via t.Cleanup). Not safe to call from multiple goroutines; tests only.
-func SwapProtoMarshal(fn ProtoMarshalFunc) ProtoMarshalFunc {
-	prev := protoMarshal
-	protoMarshal = fn
-	return prev
-}
-
-// SwapProtoUnmarshal is the unmarshal counterpart of SwapProtoMarshal.
-func SwapProtoUnmarshal(fn ProtoUnmarshalFunc) ProtoUnmarshalFunc {
-	prev := protoUnmarshal
-	protoUnmarshal = fn
-	return prev
 }

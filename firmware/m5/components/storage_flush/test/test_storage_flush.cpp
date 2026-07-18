@@ -84,12 +84,16 @@ void test_flush_handles_sd_missing() {
   uint8_t v = 0xAA;
   g_ring->Write(&v, 1);
   size_t wrote = g_flush->RunOnce();
-  // No card mounted → 0 bytes written, no crash.
+  // No card mounted -> 0 bytes written this call, no crash.
   TEST_ASSERT_EQUAL_size_t(0, wrote);
-  // Re-mount and verify we can still write after re-mounting.
+  // Re-mount and verify the buffered byte is flushed on recovery.
+  // RunOnce() leaves the byte in the ring while SD is absent (it
+  // returns before consuming), so the data survives the outage and
+  // is written once the card is back — the data-preserving behaviour
+  // research.md §8.3 requires.
   g_card->Mount(g_root.c_str());
   g_flush->RunOnce();
-  TEST_ASSERT_EQUAL(0, g_flush->TotalBytesWritten());
+  TEST_ASSERT_EQUAL(1, g_flush->TotalBytesWritten());
 }
 
 // Test 5: rotate file changes the path.
