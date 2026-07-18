@@ -11,14 +11,16 @@ set(COMMON_REQS
   radio_task sd_card spi_bus storage_flush ui_state watchdog
 )
 
-if(CONFIG_TETHER_BOARD_T3S3_MVSR)
-  set(VARIANT_REQS ssd1306)
-else()
-  set(VARIANT_REQS epd pca9557)
-endif()
-
+# Variant-specific display + I/O-expander components. All three are
+# always required so their include paths are available to main.cpp;
+# the #if defined(CONFIG_TETHER_BOARD_*) guards in main.cpp select
+# which is actually used at compile time. (We can't gate REQUIRES on
+# CONFIG_TETHER_BOARD_* because the Kconfig choice may not be
+# available as a CMake variable when this file is processed — the
+# sdkconfig.h define for the C++ preprocessor and the CMake variable
+# can be out of sync during set-target.)
 idf_component_register(
   SRCS "main.cpp"
   INCLUDE_DIRS "."
-  REQUIRES ${COMMON_REQS} ${VARIANT_REQS}
+  REQUIRES ${COMMON_REQS} ssd1306 epd pca9557
 )

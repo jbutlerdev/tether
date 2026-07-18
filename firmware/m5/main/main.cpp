@@ -39,17 +39,17 @@
 #include "ui_state.h"
 #include "watchdog.h"
 
-// Variant-specific display + I/O-expander components. The M5 has a
-// 1.54" EPD (epd component) + a PCA9557 I/O expander; the MVSR has a
-// 0.96" SSD1306 OLED (ssd1306 component) and no expander. Each is
-// only compiled into the matching variant's build (see main/
-// CMakeLists.txt), so the include is gated on the Kconfig choice.
-#if defined(CONFIG_TETHER_BOARD_T3S3_MVSR)
-#include "ssd1306.h"
-#else
+// Variant-specific display + I/O-expander components. All three are
+// always required (see main/CMakeLists.txt) and always included here
+// so that `if constexpr` branches that reference variant-specific
+// types (e.g. Pca9557 in the kHasPca9557 branch) compile on BOTH
+// builds — `if constexpr` in a non-template function still compiles
+// the discarded branch. The #if defined(CONFIG_TETHER_BOARD_*) guard
+// below selects which display init code runs; the includes are
+// unconditional.
 #include "epd.h"
 #include "pca9557.h"
-#endif
+#include "ssd1306.h"
 
 namespace {
 constexpr char kTag[] = "tether.main";
@@ -73,8 +73,10 @@ extern "C" void app_main(void) {
   //    same instance as Bus() on the M5 (shared bus), a separate
   //    SPI3 instance on the MVSR. Components (lora_sx1262, sd_card)
   //    use the same singletons, so the bus + mutex are consistent.
-  Bus().AddDevice(/*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
-  SdBus().AddDevice(/*SD_CS=*/tether::m5::board::kPinSdCs, 20'000'000);
+  tether::m5::Bus().AddDevice(
+      /*LORA_CS=*/tether::m5::board::kPinLoraCs, 8'000'000);
+  tether::m5::SdBus().AddDevice(
+      /*SD_CS=*/tether::m5::board::kPinSdCs, 20'000'000);
 
   // 4. I2S mic / amp. The mic and amp share a single I2S0 bus on
   //    the M5 (full-duplex, same BCLK/WS) and are on separate
