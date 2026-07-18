@@ -42,10 +42,12 @@ jobs:
           # Select the MVSR variant via its sdkconfig defaults overlay.
           # The overlay sets CONFIG_TETHER_BOARD_T3S3_MVSR=y and switches
           # SPIRAM to QUAD (the T3-S3 module is QSPI, not OPI — see
-          # sdkconfig.defaults.t3s3_mvsr). A separate build dir keeps the
-          # M5 and MVSR sdkconfigs from colliding.
-          idf.py set-target esp32s3
-          idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.t3s3_mvsr" reconfigure
+          # sdkconfig.defaults.t3s3_mvsr). SDKCONFIG_DEFAULTS must be
+          # passed to set-target (not just reconfigure) because set-target
+          # creates the persisted sdkconfig; if it's created from the M5
+          # defaults first, the later reconfigure won't override the
+          # already-set Kconfig choice.
+          idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.t3s3_mvsr" set-target esp32s3
           idf.py build
 
 

@@ -151,6 +151,20 @@ constexpr gpio_num_t kPinI2sBclk = GPIO_NUM_20;
 constexpr gpio_num_t kPinI2sDin = GPIO_NUM_18; // Data In: from mic
 constexpr gpio_num_t kPinI2sDout = GPIO_NUM_9; // Data Out: to amp
 
+// ── Amp pin aliases (shared bus — same as I2S0 above) ──────────────
+// The M5 amp shares the I2S0 bus, so these alias to the shared pins.
+// Defined for source compatibility with i2s_amp.cpp's separate-bus
+// branch (which is discarded by `if constexpr` on the M5 but still
+// must compile). The MVSR has separate amp pins on I2S1; see
+// board_t3s3_mvsr.h. kPinAmpSdMode, kPinMicEn, kPinVibrationMotor
+// are NC — the M5 hardware doesn't have those signals.
+constexpr gpio_num_t kPinAmpBclk = kPinI2sBclk;
+constexpr gpio_num_t kPinAmpWs = kPinI2sWs;
+constexpr gpio_num_t kPinAmpDout = kPinI2sDout;
+constexpr gpio_num_t kPinAmpSdMode = GPIO_NUM_NC;      // M5 amp has no SD_MODE
+constexpr gpio_num_t kPinMicEn = GPIO_NUM_NC;          // INMP441 has no EN pin
+constexpr gpio_num_t kPinVibrationMotor = GPIO_NUM_NC; // no vibration motor
+
 // ── Buttons ──────────────────────────────────────────────────────────
 constexpr gpio_num_t kPinButtonPtt = GPIO_NUM_21;  // PIN_BUTTON1
 constexpr gpio_num_t kPinButtonMenu = GPIO_NUM_14; // PIN_BUTTON2
@@ -176,6 +190,12 @@ constexpr gpio_num_t kPinI2c1Scl = GPIO_NUM_48; // Wire1 (PCA9557)
 constexpr gpio_num_t kPinI2c1Sda = GPIO_NUM_47; // Wire1 (PCA9557)
 
 constexpr uint8_t kPca9557I2cAddr = 0x18; // 7-bit address (no R/W bit)
+
+// Unused on the M5; defined for source compatibility with code that
+// references them under `if constexpr (kDisplayKind == kOled)` (the
+// SSD1306 OLED / PCF85063 RTC are MVSR-only). The values are inert.
+constexpr uint8_t kSsd1306I2cAddr = 0x00;
+constexpr uint8_t kPcf85063I2cAddr = 0x00;
 
 // ── Pins explicitly reserved / do-not-touch ─────────────────────────
 //

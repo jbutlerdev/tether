@@ -137,24 +137,17 @@ bool I2SMic::Init() {
   }
 
   if constexpr (board::kMicInterface == board::MicInterface::kPdm) {
-    // PDM RX (MVSR V1.1, MP34DT05-A). Single CLK + DATA pair.
+    // PDM RX (MVSR V1.1, MP34DT05-A). Single CLK + DATA pair (no WS).
+    // Use the ESP-IDF v5.2 default-config macros for the clock and slot
+    // configs (the struct fields differ across IDF versions; the macros
+    // are the stable API), then set only the two GPIO pins the v5.2 PDM
+    // RX gpio config exposes: .clk (PDM clock) and .din (PDM data).
     i2s_pdm_rx_config_t pdm_cfg = {};
-    pdm_cfg.clk_cfg.sample_rate_hz = 8000;
-    pdm_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
-    pdm_cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
-    pdm_cfg.slot_cfg.data_bit_width = I2S_DATA_BIT_WIDTH_16BIT;
-    pdm_cfg.slot_cfg.slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO;
-    pdm_cfg.slot_cfg.slot_mode = I2S_SLOT_MODE_MONO;
-    pdm_cfg.slot_cfg.sd_phase = I2S_PDM_SD_PHASE_0;
-    pdm_cfg.slot_cfg.ws_width = 16;
-    pdm_cfg.slot_cfg.ws_pol = false;
-    pdm_cfg.slot_cfg.bit_shift = true;
+    pdm_cfg.clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(8000);
+    pdm_cfg.slot_cfg = I2S_PDM_RX_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT,
+                                                      I2S_SLOT_MODE_MONO);
     pdm_cfg.gpio_cfg.clk = board::kPinI2sWs;  // PDM clock
     pdm_cfg.gpio_cfg.din = board::kPinI2sDin; // PDM data
-    pdm_cfg.gpio_cfg.mclk = I2S_GPIO_UNUSED;
-    pdm_cfg.gpio_cfg.invert_flags.mclk_inv = false;
-    pdm_cfg.gpio_cfg.invert_flags.bclk_inv = false;
-    pdm_cfg.gpio_cfg.invert_flags.ws_inv = false;
     err = i2s_channel_init_pdm_rx_mode(s_mic_rx_handle, &pdm_cfg);
     if (err != ESP_OK) {
       ESP_LOGE(kTag, "i2s_channel_init_pdm_rx_mode: %d", err);
