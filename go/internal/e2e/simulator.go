@@ -46,12 +46,18 @@ import (
 )
 
 // Default per-ACK timeout and retry budget for the simulated radio.
-// The mock loopback has no real air-time, so a small timeout keeps
-// the test fast; under injected loss the retry budget is what gets
-// exercised.
+// The mock loopback has no real air-time, so the timeout only matters
+// when an ACK is delayed (by goroutine scheduling under -race) or lost
+// (under injected loss). 500 ms is generous enough that CI's 2-core
+// runners do not spuriously retransmit under -race scheduling jitter,
+// yet still fast for the no-loss path (which never hits the timeout —
+// each chunk is acked in a few ms). The production daemon uses 2 s / 5
+// (research.md §8.5); the simulator uses 500 ms / 20 so the 30%-loss
+// test cannot exhaust the budget even when the odd spurious retransmit
+// compounds with real drops.
 const (
-	defaultAckTimeout = 200 * time.Millisecond
-	defaultMaxRetry   = 10
+	defaultAckTimeout = 500 * time.Millisecond
+	defaultMaxRetry   = 20
 )
 
 // Simulator is the wired-up Tether data plane. Construct with
@@ -175,7 +181,15 @@ func NewSimulator(opts ...Option) (*Simulator, error) {
 	pcUpRecv := radio.NewReceiver(s.pcUp,
 		radio.ReceiverOptionOnMessage(s.handleUplinkMessage),
 		radio.ReceiverOptionOnAck(s.handleUplinkAck),
-		radio.ReceiverOptionMessageTimeout(5*time.Second),
+		// 60 s: the messageTimeout is for abandoning truly stuck
+		// messages, NOT for slowly-transmitting ones. Under 30% loss
+		// with -race a 15-chunk uplink can take 10-20 s; a 5 s timeout
+		// would sweep the reassembly state mid-transmit so late chunks
+		// could never complete the message (the sender still gets
+		// per-chunk ACKs, so it thinks it delivered — a silent data
+		// loss). 60 s is well beyond any test ctx, so the receiver is
+		// canceled by ctx before this fires.
+		radio.ReceiverOptionMessageTimeout(60*time.Second),
 		radio.ReceiverOptionLogger(cfg.logger),
 	)
 	go func() { _ = pcUpRecv.Run(s.ctx) }()
@@ -184,7 +198,7 @@ func NewSimulator(opts ...Option) (*Simulator, error) {
 	m5DownRecv := radio.NewReceiver(s.m5Down,
 		radio.ReceiverOptionOnMessage(s.handleDownlinkMessage),
 		radio.ReceiverOptionOnAck(s.handleDownlinkAck),
-		radio.ReceiverOptionMessageTimeout(5*time.Second),
+		radio.ReceiverOptionMessageTimeout(60*time.Second),
 		radio.ReceiverOptionLogger(cfg.logger),
 	)
 	go func() { _ = m5DownRecv.Run(s.ctx) }()
@@ -271,8 +285,11 @@ func (s *Simulator) RunUplink(ctx context.Context, convID [16]byte, pcm []int16)
 		return fmt.Errorf("e2e: uplink fragment exhausted retries: acked %d/%d", acked, len(envs))
 	}
 	// The receiver reassembled the message and dispatched it to the
-	// pipeline; wait for the forge SendMessage to land.
-	if err := s.waitForForgeMessage(ctx, convID, 3*time.Second); err != nil {
+	// pipeline; wait for the forge SendMessage to land. 10 s is a
+	// generous margin: the pipeline's STT + forge POST are in-process
+	// mocks (sub-ms), so the only latency is the receiver goroutine
+	// scheduling under -race on a loaded CI runner.
+	if err := s.waitForForgeMessage(ctx, convID, 10*time.Second); err != nil {
 		return err
 	}
 	return nil

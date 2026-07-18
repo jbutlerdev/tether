@@ -55,7 +55,7 @@ func newVirtualM5(t *testing.T, r radio.Radio, c *codec.Mock) *virtualM5 {
 	m.recv = radio.NewReceiver(m.mux.DataRadio(),
 		radio.ReceiverOptionOnMessage(m.handleDownlink),
 		radio.ReceiverOptionOnAck(m.handleAck),
-		radio.ReceiverOptionMessageTimeout(5*time.Second),
+		radio.ReceiverOptionMessageTimeout(60*time.Second),
 	)
 	return m
 }

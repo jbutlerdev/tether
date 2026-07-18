@@ -157,7 +157,14 @@ func NewDaemon(cfg DaemonConfig) (*Daemon, error) {
 	d.recv = radio.NewReceiver(d.mux.DataRadio(),
 		radio.ReceiverOptionOnMessage(d.handleUplink),
 		radio.ReceiverOptionOnAck(d.handleUplinkAck),
-		radio.ReceiverOptionMessageTimeout(5*time.Second),
+		// 180 s: the messageTimeout is for abandoning truly stuck
+		// messages, not slowly-transmitting ones. With §8.5's 2 s
+		// ACK timeout, 5 retries, and up to ~36 chunks per message,
+		// a lossy uplink can legitimately take minutes; a 5 s timeout
+		// would sweep the reassembly state mid-transmit (silent data
+		// loss — the sender gets per-chunk ACKs so it thinks it
+		// delivered). 180 s covers the realistic worst case.
+		radio.ReceiverOptionMessageTimeout(180*time.Second),
 		radio.ReceiverOptionLogger(logger),
 	)
 

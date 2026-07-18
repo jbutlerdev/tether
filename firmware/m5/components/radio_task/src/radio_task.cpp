@@ -94,8 +94,8 @@ void RadioTask::HandleAck(uint32_t msg_id, uint32_t bitmap) {
   // for the message at the front of the outbox (tests inject ACKs
   // before the first Step()). research.md §8.5: ACKs are scoped to a
   // specific conversation_id + msg_id.
-  const bool is_current = state_ == RadioState::kSendingData ||
-                          state_ == RadioState::kSendingStart;
+  const bool is_current =
+      state_ == RadioState::kSendingData || state_ == RadioState::kSendingStart;
   uint32_t target = current_msg_id_;
   if (!is_current && !outbox_.empty()) {
     target = outbox_.front().msg_id;

@@ -155,10 +155,12 @@ constexpr gpio_num_t kPinSdCs = GPIO_NUM_10;
 // amp reads the ESP32's DOUT. This is the standard full-duplex I2S
 // topology; the ESP32-S3's I2S0 peripheral can drive both
 // directions simultaneously.
-constexpr gpio_num_t kPinI2sWs = GPIO_NUM_19;   // Word Select (LRC; was GPS L76K RX)
-constexpr gpio_num_t kPinI2sBclk = GPIO_NUM_20; // Bit Clock (SCK; was GPS L76K TX)
-constexpr gpio_num_t kPinI2sDin = GPIO_NUM_18;  // Data In: from mic
-constexpr gpio_num_t kPinI2sDout = GPIO_NUM_9;  // Data Out: to amp
+constexpr gpio_num_t kPinI2sWs =
+    GPIO_NUM_19; // Word Select (LRC; was GPS L76K RX)
+constexpr gpio_num_t kPinI2sBclk =
+    GPIO_NUM_20; // Bit Clock (SCK; was GPS L76K TX)
+constexpr gpio_num_t kPinI2sDin = GPIO_NUM_18; // Data In: from mic
+constexpr gpio_num_t kPinI2sDout = GPIO_NUM_9; // Data Out: to amp
 
 // ── Buttons (the M5 has exactly two; see §buttons below) ─────────────
 constexpr gpio_num_t kPinButtonPtt = GPIO_NUM_21;  // PIN_BUTTON1
