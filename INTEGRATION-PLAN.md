@@ -168,6 +168,5 @@ speaker. All components are real (not mocks) when built with
 
 - **No Matrix integration wiring** — the appservice exists but is not wired into the daemon's `main()`. Forge is the primary target (it's running).
 - **No E2EE** — research.md §11.5 says v1 is plaintext on the Matrix leg.
-- **STT requires sherpa-onnx C library** — not installed in this env. The cgo wrapper exists (`parakeet_cgo.go`); build with `-tags parakeet,production` + installed sherpa-onnx.
-- **TTS requires piper binary** — not installed in this env. The subprocess wrapper exists (`piper_subprocess.go`); build with `-tags production` + piper in PATH.
+- **STT/TTS: network services preferred** — the daemon defaults to the HTTP voice clients (lab/ct/voice, Parakeet STT + Kokoro TTS) when `[voice]` stt_url/tts_url is configured. The cgo Parakeet (`-tags parakeet`) and Piper subprocess paths remain as fallbacks for offline/embedded use.
 - **Single channel (ch 0, 902.3 MHz)** — no frequency hopping in v1.
