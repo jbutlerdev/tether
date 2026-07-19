@@ -117,6 +117,49 @@ test coverage but is not finished). RAK4631 bridge + Linux base station.
 
 ---
 
+## Completion status (v0.2.0)
+
+| Block | Status | CI |
+|---|---|---|
+| I1 (Go serial) | done | go-test, go-lint pass |
+| I2 (Go Opus) | done | go-test -tags opus pass |
+| I3 (Go wiring) | done | go-test, go-lint, proto-verify pass |
+| I4 (bridge main) | done | firmware-test-bridge (native) pass |
+| I5 (MVSR main) | compile-only | firmware-build-m5 + m5-t3s3-mvsr-build pass |
+| I6 (radio_task) | done | M5 host tests 27/27 pass |
+
+All 8 CI jobs pass on both workflows.
+
+---
+
+## Remaining gaps for a bench demo
+
+These are NOT in the 6 blocks above; they are the M5-side audio
+paths that connect the radio_task to the mic and speaker:
+
+1. **Recording -> radio path**: the audio_capture task encodes into
+   the PSRAM ring, but nothing drains the ring into the
+   `g_recording_buffer` that gets enqueued to radio_task on PTT
+   release. The storage_flush drains to SD, but the PTT path needs a
+   ring -> buffer drain. Fix: add a recording drain in the
+   AudioCaptureEntry that reads from the ring into g_recording_buffer
+   when g_is_recording is true.
+
+2. **TTS playback path**: incoming TTS_DATA packets are buffered but
+   not played. The amp (I2SAmp) has a `ReadSamples` tone generator
+   but no Opus decode -> PCM playback path. Fix: add an Opus decoder
+   on the M5, buffer TTS_DATA chunks, decode on TTS_END, play via I2S.
+
+3. **PC-side prerequisites**: install sherpa-onnx (for Parakeet STT),
+   piper binary + voice model (for TTS), and set the forge API key
+   in tetherd.toml. Build with:
+   `go build -tags production,opus,forge,parakeet ./cmd/tetherd`
+
+4. **External PTT button**: wire a momentary switch to MVSR GPIO 4
+   and GND (see docs/VARIANTS.md).
+
+---
+
 ## Known limitations at v0.2.0
 
 - **No Matrix integration wiring** — the appservice exists but is not wired into the daemon's `main()`. Forge is the primary target (it's running).
