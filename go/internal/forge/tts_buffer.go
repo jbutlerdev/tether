@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jbutlerdev/tether/go/internal/codec"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
 
@@ -156,7 +157,14 @@ func (p *Pipeline) speakAndSend(ctx context.Context, convID [16]byte, text strin
 	if err != nil {
 		return fmt.Errorf("forge: tts: %w", err)
 	}
-	_ = sr
+	// Resample to the codec's sample rate if the TTS output is at
+	// a different rate. Kokoro outputs at 24 kHz, Piper at 22.05 kHz,
+	// but the Opus codec is 8 kHz. Without this resample the audio
+	// would play at the wrong speed on the M5.
+	codecRate := p.cfg.Codec.SampleRate()
+	if sr != codecRate && sr > 0 {
+		pcm = codec.Resample(pcm, sr, codecRate)
+	}
 	// Convert float32 PCM to int16 (Opus is int16 in our
 	// abstraction).
 	int16pcm := make([]int16, len(pcm))

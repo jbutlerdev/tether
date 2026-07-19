@@ -15,11 +15,22 @@ baud = 921600
 api_url = "http://localhost:8080"
 api_key = ""           # set to your forge API key (POST /api-keys)
 
+[voice]
+# Network STT + TTS service (lab/ct/voice). When these are set,
+# tetherd uses the HTTP clients instead of in-process cgo / subprocess.
+# This is the preferred production path.
+stt_url = "http://10.10.199.51:5093"   # Parakeet STT (OpenAI-compatible)
+tts_url = "http://10.10.199.51:8766"   # Kokoro TTS (OpenAI-compatible)
+voice = "af_heart"                     # Kokoro voice ID
+stt_model = ""                          # empty = service default
+
 [stt]
+# Only used when [voice] stt_url is NOT set (cgo Parakeet, -tags parakeet).
 model_dir = "/var/lib/tether/parakeet-tdt/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
 threads = 4
 
 [tts]
+# Only used when [voice] tts_url is NOT set (Piper subprocess).
 piper_binary = "/usr/local/bin/piper"
 voice = "/var/lib/tether/piper-voices/en_US-lessac-medium.onnx"
 chunk_chars = 80

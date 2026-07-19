@@ -18,6 +18,11 @@ baud = 115200
 api_url = "http://forge.local:8080"
 api_key = "test-key-123"
 
+[voice]
+stt_url = "http://10.10.199.51:5093"
+tts_url = "http://10.10.199.51:8766"
+voice = "af_heart"
+
 [stt]
 model_dir = "/opt/models/parakeet"
 threads = 8
@@ -53,6 +58,15 @@ default_volume = 0.8
 	if cfg.Forge.APIKey != "test-key-123" {
 		t.Errorf("api key: got %q", cfg.Forge.APIKey)
 	}
+	if cfg.Voice.STTURL != "http://10.10.199.51:5093" {
+		t.Errorf("voice stt_url: got %q", cfg.Voice.STTURL)
+	}
+	if cfg.Voice.TTSURL != "http://10.10.199.51:8766" {
+		t.Errorf("voice tts_url: got %q", cfg.Voice.TTSURL)
+	}
+	if cfg.Voice.Voice != "af_heart" {
+		t.Errorf("voice: got %q", cfg.Voice.Voice)
+	}
 	if cfg.STT.Threads != 8 {
 		t.Errorf("threads: got %d", cfg.STT.Threads)
 	}
@@ -70,13 +84,16 @@ default_volume = 0.8
 func TestLoadConfigDefaults(t *testing.T) {
 	cfg, err := LoadConfig("")
 	if err != nil {
-		t.Fatalf("LoadConfig(\"\"): %v", err)
+		t.Fatalf(`LoadConfig(""): %v`, err)
 	}
 	if cfg.Serial.Baud != 921600 {
 		t.Errorf("default baud: got %d, want 921600", cfg.Serial.Baud)
 	}
 	if cfg.Audio.SampleRate != 8000 {
 		t.Errorf("default sample_rate: got %d, want 8000", cfg.Audio.SampleRate)
+	}
+	if cfg.Voice.Voice != "af_heart" {
+		t.Errorf("default voice: got %q, want af_heart", cfg.Voice.Voice)
 	}
 }
 

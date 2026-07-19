@@ -18,6 +18,7 @@ import (
 type Config struct {
 	Serial        SerialConfig        `toml:"serial"`
 	Forge         ForgeConfig         `toml:"forge"`
+	Voice         VoiceConfig         `toml:"voice"`
 	STT           STTConfig           `toml:"stt"`
 	TTS           TTSConfig           `toml:"tts"`
 	Audio         AudioConfig         `toml:"audio"`
@@ -34,6 +35,18 @@ type SerialConfig struct {
 type ForgeConfig struct {
 	APIURL string `toml:"api_url"`
 	APIKey string `toml:"api_key"`
+}
+
+// VoiceConfig is the network STT + TTS service (lab/ct/voice).
+// When STTURL and TTSURL are set, the daemon uses the HTTP clients
+// instead of the in-process cgo Parakeet / subprocess Piper. This is
+// the preferred production path — the voice container has the models
+// loaded with GPU acceleration and micro-batching.
+type VoiceConfig struct {
+	STTURL   string `toml:"stt_url"`
+	TTSURL   string `toml:"tts_url"`
+	Voice    string `toml:"voice"`     // Kokoro voice ID (default: af_heart)
+	STTModel string `toml:"stt_model"` // Parakeet model name (default: service default)
 }
 
 // STTConfig is the Parakeet-TDT STT engine.
@@ -88,6 +101,9 @@ func defaultConfig() *Config {
 		},
 		Forge: ForgeConfig{
 			APIURL: "http://localhost:8080",
+		},
+		Voice: VoiceConfig{
+			Voice: "af_heart",
 		},
 		STT: STTConfig{
 			Threads: 4,
