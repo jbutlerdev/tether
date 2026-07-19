@@ -21,6 +21,8 @@ extern "C" {
 
 typedef struct OpusEncoder OpusEncoder;
 typedef struct OpusDecoder OpusDecoder;
+typedef int16_t opus_int16;
+typedef int32_t opus_int32;
 
 #define OPUS_OK 0
 #define OPUS_BAD_ARG -1
