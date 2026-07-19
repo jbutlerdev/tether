@@ -42,7 +42,6 @@ import (
 	"github.com/jbutlerdev/tether/go/internal/conv"
 	"github.com/jbutlerdev/tether/go/internal/forge"
 	"github.com/jbutlerdev/tether/go/internal/radio"
-	"github.com/jbutlerdev/tether/go/internal/serial"
 	"github.com/jbutlerdev/tether/go/internal/stt"
 	"github.com/jbutlerdev/tether/go/internal/tts"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
@@ -271,34 +270,21 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 	slog.SetDefault(logger)
 
-	// v1 wiring: in-process mocks. The real serial transport
-	// (go.bug.st/serial → radio.Radio), real STT (sherpa-onnx cgo),
-	// and real TTS (Piper subprocess) land behind build tags when the
-	// hardware paths are ready; until then the daemon runs against
-	// the same mocks the e2e simulator uses, so the binary builds and
-	// the wiring is exercised by go test.
-	store := conv.NewMemStore()
-	fc := forge.NewMockClient()
-	defer fc.Close()
-	// v1 wiring: an in-process serial loopback stands in for the
-	// RAK4631 bridge. The real transport (go.bug.st/serial → radio.Radio)
-	// lands behind a build tag when the hardware path is ready; until
-	// then the daemon runs against the same loopback the e2e simulator
-	// uses, so the binary builds and the wiring is exercised by go test.
-	bridge, _ := serial.NewLoopbackPair()
-	d, err := NewDaemon(DaemonConfig{
-		Bridge:     bridge,
-		Store:      store,
-		Forge:      fc,
-		STT:        stt.NewMock(),
-		TTS:        tts.NewMock(),
-		Codec:      codec.NewMock(),
-		Logger:     logger,
-		AckTimeout: 2 * time.Second, // research.md §8.5
-		MaxRetry:   5,
-		SenderID:   0x0002,
-		TargetID:   0xFFFF,
-	})
+	// Wire dependencies. In mock mode (default build) this uses
+	// in-process mocks; in production mode (-tags production) it
+	// reads tetherd.toml and wires real serial/Opus/STT/TTS/forge.
+	configPath := "tetherd.toml"
+	if p := os.Getenv("TETHERD_CONFIG"); p != "" {
+		configPath = p
+	}
+	dcfg, cleanup, err := wireDependencies(configPath, logger)
+	if err != nil {
+		logger.Error("tetherd: wire", "err", err)
+		os.Exit(1)
+	}
+	defer cleanup()
+
+	d, err := NewDaemon(dcfg)
 	if err != nil {
 		logger.Error("tetherd: init", "err", err)
 		os.Exit(1)

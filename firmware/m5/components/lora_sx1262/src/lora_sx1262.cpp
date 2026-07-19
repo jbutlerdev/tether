@@ -117,6 +117,10 @@ private:
 
 } // namespace
 
+std::shared_ptr<RadioBackend> MakeRadioLibBackend() {
+  return std::make_shared<RadioLibBackend>();
+}
+
 LoraRadio::LoraRadio(std::shared_ptr<RadioBackend> backend)
     : backend_(std::move(backend)) {}
 

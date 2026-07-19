@@ -1,0 +1,35 @@
+# tetherd.toml — Tether base station daemon configuration.
+#
+# Copy to /etc/tether/tetherd.toml or set TETHERD_CONFIG to point
+# at this file. Build the daemon with:
+#
+#   go build -tags production,opus,forge ./cmd/tetherd
+#
+# (add `parakeet` if sherpa-onnx is installed for real STT).
+
+[serial]
+port = "/dev/ttyACM0"
+baud = 921600
+
+[forge]
+api_url = "http://localhost:8080"
+api_key = ""           # set to your forge API key (POST /api-keys)
+
+[stt]
+model_dir = "/var/lib/tether/parakeet-tdt-0.6b-v2-int8"
+threads = 4
+
+[tts]
+piper_binary = "/usr/local/bin/piper"
+voice = "/var/lib/tether/piper-voices/en_US-amy-medium.onnx"
+chunk_chars = 80
+
+[audio]
+sink = "tether_in"
+sample_rate = 8000
+channels = 1
+
+[conversations]
+max_active = 16
+history_per_conv = 50
+default_volume = 0.6

@@ -77,8 +77,9 @@ void test_smoke_full_task_set() {
   TEST_ASSERT_EQUAL(kLoadFrames, cap.FramesEncoded());
 
   // Drive the radio task to drain its outbox.
+  constexpr uint8_t kSmokeConvID[tether::m5::kConvIDSize] = {};
   for (int i = 0; i < 50; ++i) {
-    rt.Enqueue({0xDE, 0xAD, 0xBE, 0xEF});
+    rt.Enqueue(kSmokeConvID, {0xDE, 0xAD, 0xBE, 0xEF});
     for (int s = 0; s < 5; ++s)
       rt.Step();
     rt.InjectAckForTest(/*msg_id=*/i + 1, /*bitmap=*/0x1);

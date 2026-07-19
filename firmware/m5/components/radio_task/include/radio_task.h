@@ -1,9 +1,11 @@
 // radio_task.h — Tether M5 radio task (plan.md §4.8.4).
 //
 // The radio task owns the LoRa state machine: it picks pending files
-// from the queue, fragments them, sends START / DATA / ACK, and
-// handles retransmits. On real hardware it runs at priority 23 on
-// core 1; on host tests we expose the state machine directly.
+// from the queue, fragments them into 34-byte-header packets
+// (protocol.h, research.md §8.1), sends START / DATA / END, and
+// handles ACKs with the self-describing 28-byte ACK format (§8.6).
+// On real hardware it runs at priority 23 on core 1; on host tests
+// we expose the state machine directly.
 
 #pragma once
 
@@ -14,13 +16,31 @@
 #include <vector>
 
 #include "lora_sx1262.h"
+#include "protocol.h"
 
 namespace tether::m5 {
 
+// RadioMessage is a queued outbound transmission. The conversation_id
+// identifies which conversation this message belongs to (research.md
+// §8.1); the msg_id is assigned by Enqueue.
 struct RadioMessage {
   uint32_t msg_id = 0;
+  uint8_t conversation_id[kConvIDSize] = {};
   std::vector<uint8_t> payload;
 };
+
+// IncomingPacket is a decoded LoRa packet from the radio. The radio
+// task decodes the 34-byte header and hands the payload + header to
+// the registered handler.
+struct IncomingPacket {
+  Header header;
+  std::vector<uint8_t> payload;
+};
+
+// IncomingHandler is called for every decoded non-ACK packet. The
+// handler dispatches to conv_manager (UI_UPDATE) or the TTS playback
+// path (TTS_DATA / TTS_END).
+using IncomingHandler = std::function<void(const IncomingPacket &pkt)>;
 
 enum class RadioState : uint8_t {
   kIdle = 0,
@@ -32,17 +52,28 @@ enum class RadioState : uint8_t {
 
 class RadioTask {
 public:
-  RadioTask(LoraRadio &radio);
+  // sender_id is this node's address (M5 = 0x0001);
+  // target_id is the base station's address (0x0002).
+  RadioTask(LoraRadio &radio, uint16_t sender_id = 0x0001,
+            uint16_t target_id = 0x0002);
 
   // Queue a new outbound message. Returns the assigned msg_id.
-  uint32_t Enqueue(std::vector<uint8_t> payload);
+  uint32_t Enqueue(const uint8_t conversation_id[kConvIDSize],
+                   std::vector<uint8_t> payload);
 
-  // Inject an inbound message (used by tests to simulate a packet
-  // received over LoRa).
-  void InjectRxForTest(RadioMessage m);
+  // Set the handler for decoded incoming packets (DATA, TTS_DATA,
+  // TTS_END, UI_UPDATE). ACKs are handled internally.
+  void SetIncomingHandler(IncomingHandler h) {
+    incoming_handler_ = std::move(h);
+  }
+
+  // Inject an inbound raw LoRa packet (used by tests to simulate a
+  // packet received over LoRa). The packet is a 34-byte-header +
+  // payload buffer.
+  void InjectRxForTest(std::vector<uint8_t> raw);
 
   // Inject an ACK bitmap (used by tests to simulate the bridge
-  // acknowledging chunks).
+  // acknowledging chunks). The bitmap covers the current message.
   void InjectAckForTest(uint32_t msg_id, uint32_t bitmap);
 
   // Pump the state machine one step. Returns true if the task is
@@ -69,13 +100,19 @@ private:
   // SendOneDataChunk transmits the lowest unacked chunk and returns
   // its index, or -1 if every chunk is acked.
   int SendOneDataChunk();
-  void HandleRxPacket(const RadioMessage &m);
-  void HandleAck(uint32_t msg_id, uint32_t bitmap);
+  void SendEndPacket();
+  void HandleRxPacket(std::span<const uint8_t> raw);
+  void HandleAck(const Ack &ack);
+  // Transmit a protocol-encoded packet on the radio.
+  void TransmitPacket(const Header &hdr, std::span<const uint8_t> payload);
 
   LoraRadio &radio_;
+  uint16_t sender_id_;
+  uint16_t target_id_;
+  IncomingHandler incoming_handler_;
+
   std::queue<RadioMessage> outbox_;
-  std::vector<uint8_t> current_payload_;
-  uint32_t current_msg_id_ = 0;
+  RadioMessage current_msg_;
   uint32_t current_chunks_total_ = 0;
   uint32_t current_chunks_acked_ = 0;
   uint32_t acked_bitmap_ = 0;
@@ -84,8 +121,8 @@ private:
   int last_sent_chunk_ = -1; // index of the last DATA chunk sent
   RadioState state_ = RadioState::kIdle;
 
-  // Inbound queue (test-injected).
-  std::queue<RadioMessage> rx_queue_;
+  // Inbound queue (test-injected or radio-received).
+  std::queue<std::vector<uint8_t>> rx_queue_;
 
   // Counters.
   uint64_t pkts_sent_ = 0;

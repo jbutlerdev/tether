@@ -149,4 +149,12 @@ private:
   std::shared_ptr<RadioBackend> backend_;
 };
 
+// MakeRadioLibBackend creates a RadioLib-backed RadioBackend for the
+// M5/MVSR (SX1262 on the board's SPI bus). Only available in the
+// ESP-IDF build (not the host test build). The pin map comes from
+// board.h. Declared here so main.cpp can construct the radio without
+// seeing the RadioLibBackend class (which lives in an anonymous
+// namespace in lora_sx1262.cpp).
+std::shared_ptr<RadioBackend> MakeRadioLibBackend();
+
 } // namespace tether::m5

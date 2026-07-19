@@ -131,6 +131,15 @@ private:
   float freq_mhz_ = 902.3f; // US915 ch 0; matches Channel::FromIndex(0)
 };
 
+} // namespace
+
+std::shared_ptr<RadioBackend>
+MakeRadioLibBackend(uint32_t pin_nss, uint32_t pin_reset, uint32_t pin_dio1,
+                    uint32_t pin_busy, SPIClass &spi) {
+  return std::make_shared<RadioLibBackend>(pin_nss, pin_reset, pin_dio1,
+                                           pin_busy, spi);
+}
+
 } // namespace tether::bridge
 
 #endif // !TETHER_BRIDGE_HOST_TEST
