@@ -54,13 +54,20 @@ type FrameType uint8
 
 const (
 	// FrameTxDone is sent by the bridge after a LoRa TX completes.
-	FrameTxDone    FrameType = 0x01
-	FrameRxPacket  FrameType = 0x02
-	FrameAck       FrameType = 0x03 // Go→bridge: TX this payload over LoRa
+	FrameTxDone FrameType = 0x01
+	// FrameRxPacket is sent by the bridge when a LoRa packet arrives.
+	FrameRxPacket FrameType = 0x02
+	// FrameAck is sent by the Go side to request a LoRa TX.
+	FrameAck FrameType = 0x03
+	// FrameCadResult is sent by the bridge after a CAD (channel
+	// activity detection) check.
 	FrameCadResult FrameType = 0x04
+	// FrameSetConfig is sent by the Go side to configure the LoRa radio.
 	FrameSetConfig FrameType = 0x10
-	FrameLog       FrameType = 0x80
-	FrameError     FrameType = 0xFF
+	// FrameLog is a log line from the bridge.
+	FrameLog FrameType = 0x80
+	// FrameError is an error message from the bridge.
+	FrameError FrameType = 0xFF
 )
 
 // Frame is a decoded bridge frame.
