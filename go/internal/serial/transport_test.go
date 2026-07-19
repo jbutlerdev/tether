@@ -12,6 +12,7 @@ import (
 	"github.com/jbutlerdev/tether/go/pkg/protocol"
 	"github.com/jbutlerdev/tether/go/pkg/protocol/protocolpb"
 )
+
 type pipePort struct {
 	conn net.Conn
 }

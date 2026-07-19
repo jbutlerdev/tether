@@ -51,9 +51,9 @@ type TTSConfig struct {
 
 // AudioConfig is the virtual audio routing.
 type AudioConfig struct {
-	Sink        string `toml:"sink"`
-	SampleRate  int    `toml:"sample_rate"`
-	Channels    int    `toml:"channels"`
+	Sink       string `toml:"sink"`
+	SampleRate int    `toml:"sample_rate"`
+	Channels   int    `toml:"channels"`
 }
 
 // ConversationsConfig is the conversation limits.

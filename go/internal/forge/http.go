@@ -45,7 +45,7 @@ type HTTPClient struct {
 	httpClient *http.Client
 	userID     string
 
-	mu    sync.Mutex
+	mu     sync.Mutex
 	closed bool
 }
 

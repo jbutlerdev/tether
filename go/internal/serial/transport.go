@@ -57,9 +57,9 @@ type TxDoneHandler func()
 
 // TransportConfig configures a Transport.
 type TransportConfig struct {
-	Port       Port
-	LogHandler LogHandler
-	CadHandler CadHandler
+	Port          Port
+	LogHandler    LogHandler
+	CadHandler    CadHandler
 	TxDoneHandler TxDoneHandler
 }
 

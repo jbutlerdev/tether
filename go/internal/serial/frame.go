@@ -95,11 +95,11 @@ func EncodeFrame(f Frame) ([]byte, error) {
 // serial port and emits complete frames. It mirrors the bridge's
 // FrameDecoder state machine.
 type FrameDecoder struct {
-	state    decodeState
-	frame    Frame
-	wantLen  int  // remaining payload bytes to read
-	crcLo    byte // low byte of the received CRC (saved across 2 states)
-	scratch  []byte
+	state   decodeState
+	frame   Frame
+	wantLen int  // remaining payload bytes to read
+	crcLo   byte // low byte of the received CRC (saved across 2 states)
+	scratch []byte
 }
 
 type decodeState uint8
