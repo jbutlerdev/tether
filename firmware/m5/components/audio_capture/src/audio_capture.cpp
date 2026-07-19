@@ -72,13 +72,24 @@ size_t AudioCapture::RunOnce() {
     frames_dropped_++;
     return 0;
   }
+  // Write a 2-byte little-endian length prefix + frame data so the
+  // drain task can split the ring back into individual Opus frames.
+  // If the ring can't fit both, drop the frame.
+  size_t needed = 2 + bytes.size();
+  if (ring_.FreeSpace() < needed) {
+    frames_dropped_++;
+    return 0;
+  }
+  uint8_t lenBuf[2] = {static_cast<uint8_t>(bytes.size() & 0xFF),
+                       static_cast<uint8_t>((bytes.size() >> 8) & 0xFF)};
+  ring_.Write(lenBuf, 2);
   size_t written = ring_.Write(bytes.data(), bytes.size());
   if (written == 0) {
     frames_dropped_++;
     return 0;
   }
   frames_encoded_++;
-  return written;
+  return written + 2;
 }
 
 void AudioCapture::SetInputPcmForTest(const int16_t *pcm, size_t n) {

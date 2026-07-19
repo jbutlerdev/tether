@@ -41,6 +41,7 @@ type virtualM5 struct {
 	radio      radio.Radio
 	mux        *radio.Mux
 	codec      *codec.Mock
+	framer     *codec.Framer
 	recv       *radio.Receiver
 	recvCancel context.CancelFunc
 	mu         sync.Mutex
@@ -51,7 +52,8 @@ type virtualM5 struct {
 
 func newVirtualM5(t *testing.T, r radio.Radio, c *codec.Mock) *virtualM5 {
 	t.Helper()
-	m := &virtualM5{radio: r, codec: c, mux: radio.NewMux(r)}
+	m := &virtualM5{radio: r, codec: c, mux: radio.NewMux(r),
+		framer: codec.NewFramer(c)}
 	m.recv = radio.NewReceiver(m.mux.DataRadio(),
 		radio.ReceiverOptionOnMessage(m.handleDownlink),
 		radio.ReceiverOptionOnAck(m.handleAck),
@@ -84,7 +86,7 @@ func (m *virtualM5) stopRecv() {
 func (m *virtualM5) AckRadio() radio.Radio { return m.mux.AckRadio() }
 
 func (m *virtualM5) handleDownlink(msg *radio.IncomingMessage) {
-	pcm, err := m.codec.Decode(msg.Payload)
+	pcm, err := m.framer.DecodeBlob(msg.Payload)
 	if err != nil || len(pcm) == 0 {
 		return
 	}
@@ -292,33 +294,12 @@ func mustLoopback() radio.Radio {
 	return r
 }
 
-// encodePCM frames pcm into codec.FrameSize chunks, encodes each, and
-// concatenates (matching the e2e simulator's encodePCM).
+// encodePCM frames pcm into codec.FrameSize chunks, encodes each as a
+// length-delimited blob (2-byte LE length prefix per frame), matching
+// the e2e simulator and the forge pipeline.
 func encodePCM(c *codec.Mock, pcm []int16) ([]byte, error) {
-	frame := c.FrameSize()
-	if frame <= 0 {
-		return nil, errors.New("frame size <= 0")
-	}
-	var out []byte
-	for off := 0; off < len(pcm); off += frame {
-		end := off + frame
-		if end > len(pcm) {
-			pad := make([]int16, end-len(pcm))
-			f := append(append([]int16(nil), pcm[off:]...), pad...)
-			b, err := c.Encode(f)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, b...)
-			break
-		}
-		b, err := c.Encode(pcm[off:end])
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, b...)
-	}
-	return out, nil
+	f := codec.NewFramer(c)
+	return f.EncodeBlob(pcm)
 }
 
 // sine produces n samples of a 440 Hz sine wave at 8 kHz.

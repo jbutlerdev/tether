@@ -20,6 +20,7 @@ extern "C" {
 #endif
 
 typedef struct OpusEncoder OpusEncoder;
+typedef struct OpusDecoder OpusDecoder;
 
 #define OPUS_OK 0
 #define OPUS_BAD_ARG -1
@@ -40,6 +41,11 @@ int opus_encode(OpusEncoder *st, const int16_t *pcm, int frame_size,
                 unsigned char *data, int max_data_bytes);
 int opus_encoder_ctl(OpusEncoder *st, int request, ...);
 const char *opus_strerror(int error);
+
+OpusDecoder *opus_decoder_create(int sample_rate, int channels, int *error);
+int opus_decoder_destroy(OpusDecoder *st);
+int opus_decode(OpusDecoder *st, const unsigned char *data, opus_int32 len,
+                int16_t *pcm, int frame_size, int decode_fec);
 
 #ifdef __cplusplus
 }

@@ -43,6 +43,10 @@ public:
   // Number of bytes available to read.
   size_t Available() const;
 
+  // Number of bytes that can be written without overwriting
+  // unread data (free space).
+  size_t FreeSpace() const;
+
   // Total capacity in bytes.
   size_t Capacity() const { return capacity_; }
 

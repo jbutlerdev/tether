@@ -107,3 +107,44 @@ const char *opus_strerror(int error) {
     return "error";
   }
 }
+
+// ── Decoder stub ──────────────────────────────────────────────────
+
+struct OpusDecoder {
+  int sample_rate;
+  int channels;
+};
+
+OpusDecoder *opus_decoder_create(int sample_rate, int channels, int *error) {
+  auto *d = new (std::nothrow) OpusDecoder;
+  if (!d) {
+    if (error)
+      *error = OPUS_BAD_ARG;
+    return nullptr;
+  }
+  d->sample_rate = sample_rate;
+  d->channels = channels;
+  if (error)
+    *error = OPUS_OK;
+  return d;
+}
+
+int opus_decoder_destroy(OpusDecoder *st) {
+  if (!st)
+    return OPUS_BAD_ARG;
+  delete st;
+  return OPUS_OK;
+}
+
+int opus_decode(OpusDecoder * /*st*/, const unsigned char *data,
+                opus_int32 /*len*/, int16_t *pcm, int frame_size,
+                int /*decode_fec*/) {
+  // Minimal decoder stub: fill the output with zeros so the firmware
+  // boots and the amp plays silence. The real micro-opus decodes the
+  // compressed data into PCM.
+  if (!pcm || frame_size <= 0)
+    return OPUS_BAD_ARG;
+  (void)data;
+  std::memset(pcm, 0, static_cast<size_t>(frame_size) * sizeof(int16_t));
+  return frame_size;
+}

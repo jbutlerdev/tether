@@ -19,6 +19,7 @@ package forge_test
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"io"
 	"log/slog"
@@ -607,7 +608,8 @@ func newPipelineHarness(t *testing.T, sttText string) *pipelineHarness {
 
 // makeAudioFrame constructs a forge.IncomingAudio whose
 // payload is `nFrames` Opus frames (each 320 bytes for the
-// Mock codec). The Mock decoder round-trips bytes ↔ samples
+// Mock codec) packaged with a 2-byte LE length prefix per frame
+// (the Framer format). The Mock decoder round-trips bytes ↔ samples
 // losslessly, so the STT mock sees PCM samples derived from
 // those bytes. The convID is left empty; the caller may set
 // it via IncomingAudio.ConversationID. The default is
@@ -620,6 +622,9 @@ func makeAudioFrame(nFrames int) *forge.IncomingAudio {
 	}
 	var payload []byte
 	for i := 0; i < nFrames; i++ {
+		var lenBuf [2]byte
+		binary.LittleEndian.PutUint16(lenBuf[:], uint16(len(frameBytes)))
+		payload = append(payload, lenBuf[:]...)
 		payload = append(payload, frameBytes...)
 	}
 	return &forge.IncomingAudio{

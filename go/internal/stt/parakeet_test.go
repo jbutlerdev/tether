@@ -29,25 +29,25 @@ import (
 
 // parakeetModelDir returns the directory containing the Parakeet
 // model files, or skips the test if the model is not present.
-func parakeetModelDir(t *testing.T) string {
-	t.Helper()
+func parakeetModelDir(tb testing.TB) string {
+	tb.Helper()
 	root := os.Getenv("TETHER_MODELS")
 	if root == "" {
 		root = "/var/lib/tether"
 	}
 	// The fetch script names the directory
-	// sherpa-onnx-nemo-transducer-parakeet-tdt-0.6b-v2-int8.
+	// sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.
 	candidates := []string{
-		filepath.Join(root, "parakeet-tdt", "sherpa-onnx-nemo-transducer-parakeet-tdt-0.6b-v2-int8"),
+		filepath.Join(root, "parakeet-tdt", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"),
 		filepath.Join(root, "parakeet-tdt"),
-		filepath.Join(root, "sherpa-onnx-nemo-transducer-parakeet-tdt-0.6b-v2-int8"),
+		filepath.Join(root, "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"),
 	}
 	for _, c := range candidates {
 		if info, err := os.Stat(c); err == nil && info.IsDir() {
 			return c
 		}
 	}
-	t.Skipf("Parakeet model not found under %s; run scripts/fetch-models.sh to install", root)
+	tb.Skipf("Parakeet model not found under %s; run scripts/fetch-models.sh to install", root)
 	return ""
 }
 

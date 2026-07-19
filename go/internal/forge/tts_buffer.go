@@ -168,27 +168,12 @@ func (p *Pipeline) speakAndSend(ctx context.Context, convID [16]byte, text strin
 		}
 		int16pcm[i] = int16(s * 32767)
 	}
-	// Encode each frame and accumulate the Opus bytes.
-	frameSize := p.cfg.Codec.FrameSize()
-	var opus []byte
-	for off := 0; off < len(int16pcm); off += frameSize {
-		end := off + frameSize
-		if end > len(int16pcm) {
-			// Pad with zeros for the trailing partial frame.
-			pad := make([]int16, end-len(int16pcm))
-			frame := append(int16pcm[off:], pad...)
-			b, err := p.cfg.Codec.Encode(frame)
-			if err != nil {
-				return fmt.Errorf("forge: encode (padded): %w", err)
-			}
-			opus = append(opus, b...)
-			break
-		}
-		b, err := p.cfg.Codec.Encode(int16pcm[off:end])
-		if err != nil {
-			return fmt.Errorf("forge: encode: %w", err)
-		}
-		opus = append(opus, b...)
+	// Encode each frame and accumulate the Opus bytes as a
+	// length-delimited blob (2-byte LE length prefix per frame) so the
+	// receiver can split the blob back into frames for decoding.
+	opus, err := p.framer.EncodeBlob(int16pcm)
+	if err != nil {
+		return fmt.Errorf("forge: encode: %w", err)
 	}
 	// Send as a TTS_DATA envelope. The radio layer is
 	// responsible for fragmentation, ACK, and retry.

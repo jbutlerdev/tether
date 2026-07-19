@@ -84,22 +84,14 @@ func SineWave(freqHz float64, sampleRate int, dur time.Duration) []int16 {
 	return out
 }
 
-// EncodeAll encodes a PCM buffer with the given codec, padding the
-// last frame if necessary.
+// EncodeAll encodes a PCM buffer with the given codec as a
+// length-delimited blob (2-byte LE length prefix per frame), padding
+// the last frame if necessary.
 func EncodeAll(c codec.Opus, pcm []int16) []byte {
-	var out []byte
-	frame := c.FrameSize()
-	for off := 0; off < len(pcm); off += frame {
-		end := off + frame
-		if end > len(pcm) {
-			buf := make([]int16, frame)
-			copy(buf, pcm[off:])
-			encoded, _ := c.Encode(buf)
-			out = append(out, encoded...)
-			break
-		}
-		encoded, _ := c.Encode(pcm[off:end])
-		out = append(out, encoded...)
+	f := codec.NewFramer(c)
+	out, err := f.EncodeBlob(pcm)
+	if err != nil {
+		return nil
 	}
 	return out
 }

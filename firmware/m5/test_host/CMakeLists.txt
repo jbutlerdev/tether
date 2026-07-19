@@ -146,6 +146,12 @@ add_host_test(lora_sx1262)
 add_host_test(sd_card)
 add_host_test(psram_ring)
 add_host_test(opus_enc)
+add_host_test(opus_dec)
+# The opus_dec test uses opus_enc for round-trip verification.
+target_include_directories(test_opus_dec PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../components/opus_enc/include
+)
+target_link_libraries(test_opus_dec PRIVATE opus_enc_host)
 add_host_test(i2s_mic)
 add_host_test(i2s_amp)
 add_host_test(buttons)
@@ -247,6 +253,7 @@ target_link_libraries(test_smoke PRIVATE
   sd_card_host
   psram_ring_host
   opus_enc_host
+  opus_dec_host
   i2s_mic_host
   i2s_amp_host
   buttons_host

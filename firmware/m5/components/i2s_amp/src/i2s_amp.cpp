@@ -177,6 +177,33 @@ void I2SAmp::Stop() {
   phase_ = 0;
 }
 
+size_t I2SAmp::WritePCM(const int16_t *pcm, size_t num_samples) {
+  if (!pcm || num_samples == 0)
+    return 0;
+#ifdef TETHER_M5_HOST_TEST
+  // Host: no-op, just count the samples for test verification.
+  total_samples_ += num_samples;
+  return num_samples;
+#else
+  i2s_chan_handle_t tx = (board::kI2sAmpPort == board::kI2sMicPort)
+                             ? g_i2s_tx_handle
+                             : s_amp_tx_handle;
+  if (!tx)
+    return 0;
+  size_t bytes_written = 0;
+  size_t bytes_to_write = num_samples * sizeof(int16_t);
+  esp_err_t err =
+      i2s_channel_write(tx, pcm, bytes_to_write, &bytes_written, portMAX_DELAY);
+  if (err != ESP_OK) {
+    ESP_LOGE(kTag, "i2s_channel_write: %d", err);
+    return 0;
+  }
+  size_t samples_written = bytes_written / sizeof(int16_t);
+  total_samples_ += samples_written;
+  return samples_written;
+#endif
+}
+
 size_t I2SAmp::ReadSamples(int16_t *out, size_t max_samples) {
   size_t i = 0;
   while (i < max_samples) {

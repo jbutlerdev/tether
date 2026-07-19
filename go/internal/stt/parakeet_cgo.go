@@ -24,7 +24,7 @@ package stt
 /*
 #cgo LDFLAGS: -L/usr/local/lib -lsherpa-onnx-c-api -lonnxruntime
 #cgo CFLAGS: -I/usr/local/include
-#include <sherpa-onnx/c-api.h>
+#include <sherpa-onnx/c-api/c-api.h>
 #include <stdlib.h>
 #include <string.h>
 */
@@ -76,8 +76,8 @@ func newParakeetImpl(cfg ParakeetConfig) (*Parakeet, error) {
 	config := C.SherpaOnnxOfflineRecognizerConfig{}
 	config.model_config.debug = 0
 	config.model_config.num_threads = C.int(numThreads)
-	config.model_config.provider_config.provider = C.CString("cpu")
-	defer C.free(unsafe.Pointer(config.model_config.provider_config.provider))
+	config.model_config.provider = C.CString("cpu")
+	defer C.free(unsafe.Pointer(config.model_config.provider))
 	config.model_config.tokens = cTokens
 	config.model_config.model_type = cModelType
 	config.model_config.transducer.encoder = cEncoder
@@ -95,8 +95,12 @@ func newParakeetImpl(cfg ParakeetConfig) (*Parakeet, error) {
 }
 
 // transcribeImpl runs the recognizer on the (already 16 kHz)
-// mono PCM buffer. The sherpa-onnx API is synchronous; we still
-// honour ctx by aborting before the call.
+// mono PCM buffer using the stream-based offline API:
+//
+//	CreateOfflineStream → AcceptWaveform → Decode → GetResult
+//
+// The sherpa-onnx API is synchronous; we still honour ctx by
+// aborting before the call.
 func transcribeImpl(ctx context.Context, p *Parakeet, mono []float32) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -108,16 +112,29 @@ func transcribeImpl(ctx context.Context, p *Parakeet, mono []float32) (string, e
 	if len(mono) == 0 {
 		return "", nil
 	}
-	res := C.SherpaOnnxRecognizeFromSamples(
-		handle.rec,
+
+	stream := C.SherpaOnnxCreateOfflineStream(handle.rec)
+	if stream == nil {
+		return "", errors.New("stt: parakeet: CreateOfflineStream returned NULL")
+	}
+	defer C.SherpaOnnxDestroyOfflineStream(stream)
+
+	// Feed the audio samples.
+	C.SherpaOnnxAcceptWaveformOffline(
+		stream,
+		C.int(16000), // sample rate
 		(*C.float)(unsafe.Pointer(&mono[0])),
 		C.int(len(mono)),
 	)
-	if res == nil {
-		return "", errors.New("stt: parakeet: recognition failed")
-	}
-	defer C.SherpaOnnxDestroyOfflineRecognizerResult((*C.SherpaOnnxOfflineRecognizerResult)(unsafe.Pointer(res)))
 
+	// Decode.
+	C.SherpaOnnxDecodeOfflineStream(handle.rec, stream)
+
+	// Get the result.
+	res := C.SherpaOnnxGetOfflineStreamResult(stream)
+	if res == nil {
+		return "", errors.New("stt: parakeet: GetOfflineStreamResult returned NULL")
+	}
 	text := C.GoString(res.text)
 	if text == "" {
 		return "", nil

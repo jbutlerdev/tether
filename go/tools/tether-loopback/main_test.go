@@ -60,7 +60,13 @@ func TestEncodeAll_RoundTrip(t *testing.T) {
 	// The mock codec is in internal/codec; we just verify that
 	// EncodeAll produces a non-empty output.
 	encoded := EncodeAll(newMock(), pcm)
-	if len(encoded) != len(pcm)*2 {
-		t.Errorf("encoded length: want %d, got %d", len(pcm)*2, len(encoded))
+	// With the length-delimited Framer, each frame has a 2-byte LE
+	// length prefix + the encoded bytes. 100 ms @ 8 kHz = 5 frames of
+	// 160 samples. Mock produces 320 bytes/frame. So:
+	// 5 × (2 + 320) = 1610.
+	frames := (len(pcm) + 159) / 160
+	expected := frames * (2 + 320)
+	if len(encoded) != expected {
+		t.Errorf("encoded length: want %d, got %d", expected, len(encoded))
 	}
 }

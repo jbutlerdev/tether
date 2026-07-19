@@ -38,6 +38,14 @@ public:
   // Stop any queued tone and zero the output buffer.
   void Stop();
 
+  // Write up to `num_samples` int16 PCM samples to the I2S DMA
+  // buffer. This is the TTS playback path: the main loop decodes
+  // Opus frames and calls WritePCM to push the resulting PCM to the
+  // amp. Returns the number of samples actually written (may be less
+  // if the DMA buffer is full). On host this is a no-op (returns
+  // num_samples) and the samples are not stored.
+  size_t WritePCM(const int16_t *pcm, size_t num_samples);
+
   // Drain up to `max_samples` int16 samples into `out`. Returns the
   // number of samples written. After the queued tone is exhausted,
   // the buffer is filled with zeros.

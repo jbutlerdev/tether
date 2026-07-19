@@ -7,9 +7,9 @@
 # Common components required by both variants.
 set(COMMON_REQS
   board i2s_amp i2s_mic audio_capture buttons conv_db
-  conv_manager lora_sx1262 opus_enc power_mgmt protocol psram_ring ptt
-  radio_task sd_card spi_bus storage_flush ui_state watchdog
-  nvs_flash
+  conv_manager lora_sx1262 opus_enc opus_dec power_mgmt protocol
+  psram_ring ptt radio_task sd_card spi_bus storage_flush ui_state
+  watchdog nvs_flash
 )
 
 # Variant-specific display + I/O-expander components. All three are

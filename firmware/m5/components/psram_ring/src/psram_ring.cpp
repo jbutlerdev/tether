@@ -118,6 +118,12 @@ size_t PsramRing::Available() const {
   return head - tail;
 }
 
+size_t PsramRing::FreeSpace() const {
+  size_t head = head_.load(std::memory_order_acquire);
+  size_t tail = tail_.load(std::memory_order_acquire);
+  return capacity_ - (head - tail);
+}
+
 void PsramRing::ResetForTest() {
   head_.store(0, std::memory_order_relaxed);
   tail_.store(0, std::memory_order_relaxed);

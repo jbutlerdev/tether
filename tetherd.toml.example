@@ -16,12 +16,12 @@ api_url = "http://localhost:8080"
 api_key = ""           # set to your forge API key (POST /api-keys)
 
 [stt]
-model_dir = "/var/lib/tether/parakeet-tdt-0.6b-v2-int8"
+model_dir = "/var/lib/tether/parakeet-tdt/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
 threads = 4
 
 [tts]
 piper_binary = "/usr/local/bin/piper"
-voice = "/var/lib/tether/piper-voices/en_US-amy-medium.onnx"
+voice = "/var/lib/tether/piper-voices/en_US-lessac-medium.onnx"
 chunk_chars = 80
 
 [audio]

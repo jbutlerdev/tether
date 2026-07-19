@@ -87,6 +87,9 @@ type PipelineConfig struct {
 	TTS tts.Synthesizer
 	// Codec is the Opus codec (encode + decode). Required.
 	Codec codec.Opus
+	// Framer is the length-delimited frame packager. If nil, the
+	// pipeline creates one wrapping Codec.
+	Framer *codec.Framer
 	// Store is the conversation store. The pipeline writes
 	// one row per new forge session it sees. Required.
 	Store conv.Store
@@ -120,6 +123,7 @@ type Pipeline struct {
 	boundChrs string
 	flushEnd  bool
 	flushTO   time.Duration
+	framer    *codec.Framer
 
 	// per-session text buffers (keyed by 16-byte convID).
 	bufMu   sync.Mutex
@@ -154,6 +158,10 @@ func NewPipeline(cfg PipelineConfig) *Pipeline {
 	if flushTO == 0 {
 		flushTO = 3 * time.Second
 	}
+	framer := cfg.Framer
+	if framer == nil {
+		framer = codec.NewFramer(cfg.Codec)
+	}
 	return &Pipeline{
 		cfg:       cfg,
 		logger:    logger,
@@ -161,6 +169,7 @@ func NewPipeline(cfg PipelineConfig) *Pipeline {
 		boundChrs: boundChrs,
 		flushEnd:  flushEnd,
 		flushTO:   flushTO,
+		framer:    framer,
 		buffers:   make(map[[16]byte]*sentenceBuffer),
 		consumers: make(map[[16]byte]*sseConsumer),
 	}
@@ -189,8 +198,8 @@ func (p *Pipeline) HandleIncomingAudio(ctx context.Context, audio *IncomingAudio
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	// Decode Opus → int16 PCM.
-	pcm, err := p.cfg.Codec.Decode(audio.Payload)
+	// Decode Opus → int16 PCM (length-delimited blob).
+	pcm, err := p.framer.DecodeBlob(audio.Payload)
 	if err != nil {
 		return fmt.Errorf("forge: decode: %w", err)
 	}

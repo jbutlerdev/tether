@@ -75,6 +75,7 @@ type Simulator struct {
 	sttEng   *stt.Mock
 	ttsEng   *tts.Mock
 	codec    *codec.Mock
+	framer   *codec.Framer
 	pipeline *forge.Pipeline
 
 	// Per-direction captured output.
@@ -147,6 +148,7 @@ func NewSimulator(opts ...Option) (*Simulator, error) {
 		sttEng:     stt.NewMock(),
 		ttsEng:     tts.NewMock(),
 		codec:      codec.NewMock(),
+		framer:     codec.NewFramer(codec.NewMock()),
 		ackTimeout: cfg.ackTimeout,
 		maxRetry:   cfg.maxRetry,
 	}
@@ -172,6 +174,7 @@ func NewSimulator(opts ...Option) (*Simulator, error) {
 		STT:    s.sttEng,
 		TTS:    s.ttsEng,
 		Codec:  s.codec,
+		Framer: s.framer,
 		Store:  s.store,
 		Radio:  &ttsAdapter{sim: s},
 		Logger: cfg.logger,
@@ -377,7 +380,7 @@ func (s *Simulator) handleUplinkAck(ack *radio.OutgoingAck) {
 // handleDownlinkMessage is the M5 receiver's OnMessage: decode the
 // reassembled Opus payload to PCM and hand it to the "speaker".
 func (s *Simulator) handleDownlinkMessage(msg *radio.IncomingMessage) {
-	pcm, err := s.codec.Decode(msg.Payload)
+	pcm, err := s.framer.DecodeBlob(msg.Payload)
 	if err != nil || len(pcm) == 0 {
 		return
 	}
@@ -411,33 +414,11 @@ func (s *Simulator) sendAck(r radio.Radio, ack *radio.OutgoingAck) error {
 }
 
 // encodePCM frames pcm into codec.FrameSize chunks, Opus-encodes
-// each (codec.Mock is an identity int16→LE-bytes), and concatenates.
-// The final partial frame is zero-padded.
+// each (codec.Mock is an identity int16→LE-bytes), and concatenates
+// with a 2-byte length prefix per frame so the receiver can split
+// the blob back into frames for decoding.
 func (s *Simulator) encodePCM(pcm []int16) ([]byte, error) {
-	frame := s.codec.FrameSize()
-	if frame <= 0 {
-		return nil, errors.New("e2e: codec frame size <= 0")
-	}
-	var out []byte
-	for off := 0; off < len(pcm); off += frame {
-		end := off + frame
-		if end > len(pcm) {
-			pad := make([]int16, end-len(pcm))
-			f := append(append([]int16(nil), pcm[off:]...), pad...)
-			b, err := s.codec.Encode(f)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, b...)
-			break
-		}
-		b, err := s.codec.Encode(pcm[off:end])
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, b...)
-	}
-	return out, nil
+	return s.framer.EncodeBlob(pcm)
 }
 
 // waitForForgeMessage polls the forge mock until it has a SendMessage
