@@ -99,24 +99,18 @@ func TestDecodeResyncAfterGarbage(t *testing.T) {
 	garbage := []byte{0x00, 0x11, 0x22, 0xAA, 0x00, 0x55}
 	dec := NewFrameDecoder()
 	dec.Feed(append(garbage, valid...))
-	// Keep pulling until we get the valid frame.
-	for {
-		f, ok := dec.Next()
-		if ok {
-			if f.Type != FrameLog || string(f.Payload) != "ok" {
-				t.Errorf("got %+v after garbage, want Log/ok", f)
-			}
-			return
-		}
-		// No frame yet; feed nothing and retry (the decoder needs
-		// more bytes or is mid-resync). Since we already fed everything,
-		// if no frame comes out we fail below.
-		break
-	}
-	// The decoder consumed everything; the valid frame should be in
-	// there. Feed nothing and try once more.
-	dec.Feed(nil)
+	// Pull one frame; the decoder should have resynced past the garbage.
 	f, ok := dec.Next()
+	if ok {
+		if f.Type != FrameLog || string(f.Payload) != "ok" {
+			t.Errorf("got %+v after garbage, want Log/ok", f)
+		}
+		return
+	}
+	// No frame yet; the decoder consumed the garbage but needs one more
+	// Next() call to emit the valid frame.
+	dec.Feed(nil)
+	f, ok = dec.Next()
 	if !ok {
 		t.Fatal("decoder failed to resync after garbage")
 	}
