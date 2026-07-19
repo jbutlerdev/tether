@@ -53,6 +53,7 @@ const MaxFrameSize = 256
 type FrameType uint8
 
 const (
+	// FrameTxDone is sent by the bridge after a LoRa TX completes.
 	FrameTxDone    FrameType = 0x01
 	FrameRxPacket  FrameType = 0x02
 	FrameAck       FrameType = 0x03 // Go→bridge: TX this payload over LoRa
@@ -139,11 +140,12 @@ func (d *FrameDecoder) Next() (Frame, bool) {
 				d.state = stateMagic1
 			}
 		case stateMagic1:
-			if b == Magic1 {
+			switch b {
+			case Magic1:
 				d.state = stateType
-			} else if b == Magic0 {
+			case Magic0:
 				// Stay in stateMagic1 (re-sync: 0xAA 0xAA 0x55).
-			} else {
+			default:
 				d.state = stateMagic0
 			}
 		case stateType:
