@@ -300,6 +300,7 @@ go build -o tetherd ./cmd/tetherd
 GOWORK=off go test -race -coverprofile=cover.out -covermode=atomic ./...
 bash scripts/cover.sh cover.out 80         # 80% coverage gate (enforced in CI)
 GOWORK=off go vet ./...
+GOWORK=off golangci-lint run ./...          # match CI's go-lint job (revive + staticcheck + govet)
 GOWORK=off go test -fuzz=FuzzEnvelopeDecode -fuzztime=60s  # protocol fuzzer
 
 # ── M5 firmware (ESP-IDF) ───────────────────────────────────────────
@@ -458,6 +459,8 @@ Tests live next to the code they test. No separate `tests/` directory.
 * **Test harness context churn kills ACK turnaround.** The original `autoAck` helper created a fresh 50ms context per Receive call; under `-race -count=N` that added enough overhead to exceed the sender's retry budget. Use a single long-lived context with `t.Cleanup` cancellation. Same lesson applies to any test helper that pumps a channel.
 * **`protoc-gen-go @latest` will drift away from the committed `.pb.go`.** The `proto-verify` CI job pins **protoc v28.0** and **protoc-gen-go v1.36.6** to match. Bump them together.
 * **golangci-lint v1.x is built with Go 1.24.** It refuses to lint modules targeting Go 1.25. We use v2.12.2 (built with Go 1.25). When you bump Go, bump golangci-lint too.
+* **`go vet` does NOT catch `revive` or `staticcheck` issues.** The CI `go-lint` job runs `golangci-lint v2.12.2` with `revive` (exported/error-strings rules) and `staticcheck` (SA4004 etc.). `go vet` only runs a subset of the `go/analysis` passes. Run `golangci-lint run ./...` locally before pushing — `go vet` passing does NOT mean `go-lint` will pass. Exported consts/types/functions without doc comments are the most common failure (revive:exported); add a `// Name is ...` comment to every exported symbol in a `const (...)` block.
+* **`gh run watch --exit-status` does not reliably propagate job-level failures.** A CI run can show `failure` at the run level (one job failed) while `gh run watch` exits 0. Always verify with `gh run view <run-id>` and check the per-job status (look for `X` / `failure`), not just the watch exit code.
 * **The ESP-IDF v5.2 I2S `std_slot_config_t` no longer has `left_align` or `big_endian`.** Use `bit_shift = true` for left-align / MSB-first.
 
 ---
