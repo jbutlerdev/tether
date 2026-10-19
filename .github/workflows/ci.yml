@@ -18,7 +18,7 @@ jobs:
     name: go-test (race + coverage)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           # Match go/go.mod's required toolchain (go 1.25.0). Without
@@ -41,7 +41,7 @@ jobs:
     name: go-lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
@@ -61,7 +61,7 @@ jobs:
     name: cpp-format
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Check formatting
@@ -78,7 +78,7 @@ jobs:
     name: proto-verify
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install protoc
         run: |
           sudo apt-get update
@@ -107,7 +107,7 @@ jobs:
     container:
       image: espressif/idf:v5.2.2
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       # The espressif/idf image has idf.py installed under
@@ -129,7 +129,7 @@ jobs:
     name: firmware-test-bridge
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
